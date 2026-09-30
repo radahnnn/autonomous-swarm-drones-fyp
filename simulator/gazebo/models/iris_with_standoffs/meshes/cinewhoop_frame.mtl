@@ -1,0 +1,40 @@
+# Cinewhoop Materials
+newmtl CarbonFiber
+Ka 0.05 0.05 0.05
+Kd 0.09 0.09 0.09
+Ks 0.25 0.25 0.25
+Ns 20.0
+d 1.0
+illum 2
+
+newmtl BlackMotor
+Ka 0.02 0.02 0.02
+Kd 0.04 0.04 0.04
+Ks 0.70 0.70 0.70
+Ns 70.0
+d 1.0
+illum 2
+
+newmtl BlueMatek
+Ka 0.00 0.25 0.70
+Kd 0.00 0.40 0.90
+Ks 0.60 0.60 0.70
+Ns 45.0
+d 1.0
+illum 2
+
+newmtl RedGrommet
+Ka 0.60 0.05 0.05
+Kd 0.90 0.12 0.12
+Ks 0.30 0.30 0.30
+Ns 20.0
+d 1.0
+illum 2
+
+newmtl YellowXT60
+Ka 0.80 0.65 0.00
+Kd 0.98 0.82 0.05
+Ks 0.40 0.40 0.40
+Ns 30.0
+d 1.0
+illum 2

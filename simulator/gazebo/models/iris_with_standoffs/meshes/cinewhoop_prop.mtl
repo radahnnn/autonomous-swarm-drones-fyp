@@ -1,0 +1,8 @@
+# Sky Blue Propeller Material
+newmtl SkyBlueProp
+Ka 0.10 0.65 0.95
+Kd 0.18 0.78 1.00
+Ks 0.90 0.95 1.00
+Ns 100.0
+d 0.88
+illum 2
