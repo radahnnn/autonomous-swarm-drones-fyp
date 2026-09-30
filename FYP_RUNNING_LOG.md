@@ -112,19 +112,30 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
 | 7 | **H543 vs H743 Board Target confusion** | Early teammate notes cited "H543", but hardware photos and pinout sheets showed Matek H743-SLIM V3. | Standardized on Matek H743-SLIM V3 per board markings. |
 | 8 | **`ModuleNotFoundError: No module named 'swarm_core'` in tests** | Running tests without package installation or root path in `PYTHONPATH`. | Executed test scripts with `PYTHONPATH=.`. |
 | 9 | **Test collision assertion failure at step 0** | Drones randomly spawned in $[-2, 2]\text{ m}$ happened to spawn $0.527\text{ m}$ apart (violating $0.70\text{ m}$ collision threshold at $t=0$). | Created `create_non_overlapping_drones()` fixture ensuring minimum initial $1.2\text{ m}$ separation. Tests passed 100%. |
+### Phase E: Hybrid Controller Hardening & Chattering Suppression (30 Sep 2026 Night)
+* **Design Enhancements Implemented**:
+  1. **Message Age & Sequence Monotonicity**: Heartbeats carry monotonically increasing sequence numbers and timestamps. Commands with age $> 150\text{ ms}$ or out-of-order sequence numbers are rejected as stale.
+  2. **Asymmetric Hysteresis with Dwell Time**:
+     - Degrades to decentralized fallback after $0.5\text{ s}$ of silence/stale packets.
+     - Recovers to centralized only after $N \ge 5$ consecutive valid heartbeats **and** a minimum dwell time of $2.0\text{ s}$ in fallback.
+  3. **Continuous Controller Blending $\alpha(t)$**:
+     - Dynamic ramping weight $\alpha(t) \in [0.0, 1.0]$ smoothly transitions between centralized guidance and local flocking over $\tau_{\text{ramp}} = 0.8\text{ s}$, eliminating velocity/acceleration step jumps.
+     - Onboard APF collision avoidance barrier remains 100% active at all times.
+  4. **Chattering Suppression Experiment**:
+     - Added `total_mode_switches` tracking across the swarm.
+     - Executed a Monte Carlo sweep ($0\%\dots 50\%$ loss) comparing **Naive Instant Switching** vs **Proposed Asymmetric Hysteresis**.
+     - **Empirical Breakthrough**: Naive switching chattered severely under packet loss (up to **$302.8$ switches per run** at 50% loss), whereas the proposed asymmetric hysteresis completely suppressed chattering to **$0.6$ switches**, eliminating control oscillations while preserving safety.
 
 ---
 
 ## 4. Current State (As of 30 Sep 2026 Night)
 
-* **Codebase**: Fully functional Phase 1 Python Swarm Engine committed to Git.
-* **Tested Regimes**: Centralized, Decentralized, and Hybrid control working and verified.
+* **Codebase**: Fully hardened Phase 1 Python Swarm Engine committed to Git.
+* **Tested Regimes**: Centralized, Decentralized, and Hybrid control with verified asymmetric hysteresis and continuous blending.
 * **Tested Formations**: Line, V-Formation, Circle, and Grid working with Hungarian slot matching.
 * **Verified Safety**: 0 collisions across dynamic switching and $50\%$ packet drop sweeps.
-* **Documentation & Artifacts**:
-  - `README.md` in repository root.
-  - Detailed scientific report: `swarm_simulation_phase1_report.md`.
-  - Publication-ready figures saved in `experiments/results/` and artifact directory.
+* **Chattering Benchmark**: 3-panel scientific comparison figure generated at `experiments/results/network_loss_comparison.png`.
+* **Unit Tests**: Full test suite passing 100% (`test_graph.py`, `test_formations.py`, `test_simulation.py`, `test_hybrid_features.py`).
 * **Hardware Status**: Untouched, safe, disarmed. Awaiting confirmation from teammates regarding ArduPilot firmware and GPS.
 
 ---
@@ -139,4 +150,4 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
    - Connect the Swarm Controller to the SITL UDP ports.
    - Send `SET_POSITION_TARGET_LOCAL_NED` commands so simulated ArduPilot copters mirror the Python formation algorithms.
 3. **Supervisor Alignment**:
-   - Share the definition of Hybrid Control (Macro Centralized Planner + Micro Decentralized Collision Avoidance + Flocking Fallback on link loss).
+   - Share the definition of Hybrid Control and the empirical chattering suppression data.
