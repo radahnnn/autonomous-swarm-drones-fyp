@@ -7,3 +7,6 @@ BATT_FS_LOW_ACT 0
 BATT_FS_CRT_ACT 0
 # Fast EKF initialization
 EK3_ENABLE 1
+# Frame class (1 = Quad) and type (1 = X)
+FRAME_CLASS 1
+FRAME_TYPE 1
