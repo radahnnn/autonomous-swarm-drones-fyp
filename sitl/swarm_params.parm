@@ -1,0 +1,9 @@
+# Swarm Drones SITL Configuration Parameters
+# Large battery capacity for prolonged simulation testing
+BATT_CAPACITY 500000
+BATT_LOW_MAH 0
+BATT_CRT_MAH 0
+BATT_FS_LOW_ACT 0
+BATT_FS_CRT_ACT 0
+# Fast EKF initialization
+EK3_ENABLE 1
