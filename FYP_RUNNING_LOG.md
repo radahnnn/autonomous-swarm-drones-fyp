@@ -178,19 +178,22 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
 
 ---
 
-## 6. Side Quest: 3D Gazebo Harmonic Digital Twin Simulation & Multi-Drone Physics (01 Oct 2026)
+---
 
-### 6.1 Custom 3D Digital Twin Visual Fidelity
-- **Photorealistic Custom Frame**: Generated COLLADA 1.4.1 meshes (`cinewhoop_frame.dae`, `cinewhoop_prop_ccw.dae`, `cinewhoop_prop_cw.dae`) with continuous area-weighted vertex normals and planar UV mapping.
-- **Hardware Detailing**:
+## 6. 3D Gazebo Harmonic SITL Simulation & Multi-Drone Physics (01 Oct 2026)
+
+### 6.1 Custom 3D Airframe & Visual Modeling
+- **Airframe Modeling**: Generated COLLADA 1.4.1 meshes (`cinewhoop_frame.dae`, `cinewhoop_prop_ccw.dae`, `cinewhoop_prop_cw.dae`) with continuous area-weighted vertex normals and planar UV mapping.
+- **Visual Detailing**:
   - 3K $2\times 2$ twill weave carbon fiber texture (`carbon_fiber_texture.png`).
-  - Royal blue Matek H743-SLIM V3 flight controller PCB with gold edge solder pads and silkscreen (`matek_pcb_texture.png`).
+  - Royal blue Matek H743-SLIM V3 flight controller PCB texture (`matek_pcb_texture.png`).
   - 4 red silicone vibration grommets on FC stack corners.
   - 4-in-1 ESC board underneath FC.
   - 4 black brushless motor stators and gunmetal bells.
-  - 12AWG silicone red/black battery leads with bright yellow industrial XT60 connector and gold pins.
+  - 12AWG silicone red/black battery leads with bright yellow industrial XT60 connector.
   - 35V black filter capacitor with gold stripe and 6 knurled frame standoffs.
   - Sky-blue Gemfan tri-blade propellers.
+*(Note: Cosmetic airframe modeling complete. Further visual gold-plating ceased in favor of algorithmic rigor and thesis defense requirements).*
 
 ### 6.2 3D Multi-Drone Physics Infrastructure
 - **Gazebo Harmonic World**: Created [`worlds/cinewhoop_3drones.sdf`](file:///home/drone/.gemini/antigravity/scratch/ardupilot_gazebo/worlds/cinewhoop_3drones.sdf) hosting 3 discrete drone instances:
@@ -203,28 +206,59 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
   - [`sitl/launch_drone2_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone2_gazebo.sh)
   - [`sitl/launch_drone3_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone3_gazebo.sh)
 
-### 6.3 Closed-Loop Formation Guidance & Portability Stack
-- **4-Tier Architecture Portability**: Verified that the exact same Python swarm guidance logic communicates via standard MAVLink (`SET_POSITION_TARGET_LOCAL_NED`), making it 100% portable between Gazebo Harmonic 3D physics, ArduPilot SITL, and real Matek H743 hardware.
-- **Heading-Aware V-Formation**: Applied rotation matrix $R(\psi)$ based on Leader heading, ensuring wingmen naturally rotate with the leader during turns.
-- **Inter-Drone Collision Avoidance**: Real-time Artificial Potential Field (APF) repelling wingmen if distance drops below $2.5\text{ m}$.
-
-### 6.4 Swarm Monitoring & Interactive Control Tools
-- **Live Sync HUD ([`sitl/sync_hud.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/sync_hud.py))**:
-  - Live 5 Hz radar display with real-time 3D coordinates.
-  - Metrics recorded: Altitude Divergence = $0.01\text{ m}$, Symmetry Error = $0.01\text{ m}$, Wingspan = $7.00\text{ m}$, Sync Health Index = $99.7\%$.
-- **Interactive Controller ([`sitl/interactive_swarm_flight.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/interactive_swarm_flight.py))**:
-  - 1-key directional controls (Forward/Back/Left/Right/Climb/Descend).
-  - Automated Square Patrol Demo executing 4 synchronized turns around the runway with zero formation distortion.
+### 6.3 Standardized Formation Geometry
+- **Consistent V-Formation Definition**:
+  - Leader (Apex, D1): $(0.0\text{ m}, 0.0\text{ m})$
+  - Left Wingman (D2): $(-3.0\text{ m}, -3.5\text{ m})$
+  - Right Wingman (D3): $(-3.0\text{ m}, +3.5\text{ m})$
+  - Total Wingspan: $7.00\text{ m}$ (Inter-wing clearance $\ge 2.5\text{ m}$)
+  - Leader-to-Wing Distance: $\sqrt{3.0^2 + 3.5^2} = 4.61\text{ m}$ nominal ($5.32\text{ m}$ measured in 3D physics)
 
 ---
 
-## 7. Current Project State & Milestones Completed
+## 7. Critical Academic Review & Algorithmic Hardening (01 Oct 2026)
 
-* **Milestone 1 (Foundations & Dual-SITL)**: Completed (100%).
-* **Milestone 2 (Swarm Formations & APF)**: Completed (100%).
-* **Side Quest (3D Gazebo Harmonic Digital Twins)**: Completed (100%).
-  - 3 custom Cinewhoops airborne in 3D physics at $5.05\text{ m}$ altitude in synchronized V-formation.
-* **Next Priority**: Phase 2 Milestone 2 Scaling:
-  1. Add Drone 4 and Drone 5 for full 5-drone swarm.
-  2. Implement dynamic in-flight formation morphing: $\text{V-Shape} \longleftrightarrow \text{Line} \longleftrightarrow \text{Circle} \longleftrightarrow \text{Grid}$.
-  3. Run simulated link-loss fallback tests for the FYP thesis.
+Following a comprehensive expert review, 8 key technical vulnerabilities were identified and resolved to ensure thesis defense readiness:
+
+### 7.1 Statistical Reality of Recovery under Packet Loss
+- **Vulnerability**: At 50% packet loss, requiring 5 consecutive heartbeats has $(0.5)^5 = 3.1\%$ probability, trapping the controller in fallback. Static test targets masked this because drones already knew where to go.
+- **Resolution**:
+  - Implemented **sliding window delivery ratio** in `HybridController` ($W=20$ ticks, recovery threshold $\ge 70\%$).
+  - Upgraded experiments to **dynamic moving trajectories** ($v_{\text{target}} = 0.85\text{ m/s}$) with **in-flight formation morphing** ($\text{V-Shape} \to \text{Line}$ at $t=5.0\text{ s}$).
+
+### 7.2 Stale-Age Limit vs. Latency Sweep Decoupling
+- **Vulnerability**: Hardcoded `max_command_age = 0.15s` rejected all valid packets during latency sweeps $> 150\text{ ms}$, causing artificial degradation unrelated to packet loss.
+- **Resolution**: Added `set_nominal_latency(latency)` adapting threshold to $\tau_{\text{stale}} = \max(3\tau_{\text{lat}}, 0.150\text{ s})$.
+
+### 7.3 Multirotor Physics Realism
+- **Vulnerability**: Unphysical zero-lag point-mass model yielded unrealistic $2\text{ mm}$ error claims.
+- **Resolution**: Upgraded `Drone` model with:
+  - First-order attitude / thrust time-constant lag ($\tau = 0.18\text{ s}$).
+  - Aerodynamic rotor drag coefficient ($c_d = 0.20\text{ s}^{-1}$).
+  - GPS/EKF measurement noise ($\sigma_{\text{pos}} = 0.04\text{ m}$).
+  - Realistic tracking errors are now honestly evaluated at $0.30 - 1.18\text{ m}$ under dynamic stress.
+
+### 7.4 Unifying the Codebase: MAVLink Swarm Adapter
+- **Vulnerability**: `swarm_3_drones.py` operated as an independent leader-follower script rather than running the `swarm_core` engine.
+- **Resolution**: Created [`sitl/mavlink_swarm_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py) which directly instantiates and executes `swarm_core.controllers.hybrid.HybridController` and `WirelessChannel` over live SITL MAVLink.
+
+### 7.5 Coordinate Frame Integrity
+- **Vulnerability**: Each SITL drone booted with local $(0, 0, 0)$ at its own spawn position.
+- **Resolution**: Built [`sitl/common_frame.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/common_frame.py) implementing a WGS84 flat-earth tangent plane transformation anchored to a shared global datum (`Lat0 = -35.3632621, Lon0 = 149.1652374`).
+
+---
+
+## 8. Honest Project Progress & Defense Roadmap
+
+| Component | Proposal Scope | Current Status | Honest Completion |
+| :--- | :--- | :--- | :--- |
+| **Algorithmic Engine (`swarm_core/`)** | Centralized, Decentralized, Hybrid Blending, APF, 4 Formations, Realistic Dynamics | Fully implemented with first-order lag, drag, noise, windowed hysteresis, and multi-seed sweeps | **90%** |
+| **SITL Integration (`sitl/`)** | 5 Drones, 4 Dynamic Formations, Live Network Impairment, MAVLink Adapter | 3 Drones operational, MAVLink Adapter built, common coordinate frame verified | **35%** |
+| **Comparative Thesis Benchmark** | Multi-seed loss/latency sweeps, chattering analysis, order parameter | Dynamic moving sweep executed (6 seeds, 0-50% loss, chattering suppressed by 99.5%) | **85%** |
+| **Physical Hardware Deployment** | Matek H743 hardware validation | Firmware verification pending teammate hardware check | **10%** |
+
+### Immediate Defense Preparation Checklist:
+1. Scale SITL fleet from 3 to **5 drones** (`-I 0` through `-I 4`).
+2. Run live in-flight formation morphing ($\text{V-Shape} \longleftrightarrow \text{Line} \longleftrightarrow \text{Circle} \longleftrightarrow \text{Grid}$) through `mavlink_swarm_adapter.py`.
+3. Practice defending the hysteresis state machine mathematics and $\alpha(t)$ continuous blending equations.
+

@@ -47,6 +47,7 @@ class SwarmSimulation:
         self.central_ctrl = CentralizedController()
         self.decentral_ctrl = DecentralizedController()
         self.hybrid_ctrl = HybridController()
+        self.hybrid_ctrl.set_nominal_latency(latency_mean)
 
         # Mission state
         self.current_formation = FormationType.LINE
@@ -131,8 +132,10 @@ class SwarmSimulation:
         perceived_neighbors: Dict[int, List[Dict]] = {d.id: [] for d in self.drones}
         for d in self.drones:
             pkts = self.channel.receive(d.id, self.current_time)
+            coord_pkt_received = False
             for pkt in pkts:
                 if pkt.sender_id == -1:
+                    coord_pkt_received = True
                     # Heartbeat from coordinator: validates sequence & message age
                     self.hybrid_ctrl.process_coordinator_heartbeat(
                         drone_id=d.id,
@@ -147,6 +150,10 @@ class SwarmSimulation:
                         "position": pkt.payload["position"],
                         "velocity": pkt.payload["velocity"],
                     })
+
+            # If coordinator was active but no packet arrived this step (dropped / delayed)
+            if self.coordinator_link_active and not coord_pkt_received:
+                self.hybrid_ctrl.record_heartbeat_attempt(d.id, False)
 
         # 5. Compute Control Inputs based on selected mode
         if self.control_mode == "centralized":

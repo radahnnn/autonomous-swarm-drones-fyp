@@ -36,10 +36,12 @@ class HybridController:
     def __init__(
         self,
         degrade_timeout: float = 0.5,           # Degrade after ~0.5s of silence
-        recovery_consecutive_hb: int = 5,       # Require N consecutive good heartbeats to recover
+        recovery_consecutive_hb: int = 5,       # Consecutive requirement fallback
         min_dwell_time: float = 2.0,            # Minimum time in fallback before recovery (2.0s)
-        max_command_age: float = 0.15,          # Stale threshold: reject commands older than 150ms
+        max_command_age: float = 0.15,          # Stale threshold: reject commands older than threshold
         ramp_duration: float = 0.8,             # Smooth ramping duration tau_ramp for alpha(t)
+        window_size: int = 20,                  # Sliding window size for delivery ratio calculation
+        recovery_ratio_threshold: float = 0.70, # Recover if delivery ratio >= 70% in sliding window
     ):
         self.central_controller = CentralizedController()
         self.decentral_controller = DecentralizedController()
@@ -50,12 +52,15 @@ class HybridController:
         self.min_dwell_time = float(min_dwell_time)
         self.max_command_age = float(max_command_age)
         self.ramp_duration = float(ramp_duration)
+        self.window_size = int(window_size)
+        self.recovery_ratio_threshold = float(recovery_ratio_threshold)
 
         # State tracking per drone:
         self.modes: Dict[int, HybridMode] = {}
         self.last_valid_timestamp: Dict[int, float] = {}
         self.last_sequence_num: Dict[int, int] = {}
         self.consecutive_good_hb: Dict[int, int] = {}
+        self.reception_window: Dict[int, List[int]] = {}
         self.fallback_entry_time: Dict[int, float] = {}
         self.last_known_target: Dict[int, np.ndarray] = {}
         
@@ -67,12 +72,28 @@ class HybridController:
         self.stale_rejected_count: Dict[int, int] = {}
         self.out_of_order_count: Dict[int, int] = {}
 
+    def set_nominal_latency(self, latency: float) -> None:
+        """
+        Dynamically adapts the stale-age threshold relative to expected network latency.
+        Resolves threshold clipping during wide latency sweeps (> 150ms).
+        """
+        self.max_command_age = max(3.0 * float(latency), 0.150)
+
+    def record_heartbeat_attempt(self, drone_id: int, received: bool) -> None:
+        """Tracks packet reception across the sliding observation window."""
+        if drone_id not in self.reception_window:
+            self.reception_window[drone_id] = []
+        self.reception_window[drone_id].append(1 if received else 0)
+        if len(self.reception_window[drone_id]) > self.window_size:
+            self.reception_window[drone_id].pop(0)
+
     def _init_drone_if_needed(self, drone_id: int, current_time: float) -> None:
         if drone_id not in self.modes:
             self.modes[drone_id] = HybridMode.CENTRALIZED
             self.last_valid_timestamp[drone_id] = current_time
             self.last_sequence_num[drone_id] = -1
             self.consecutive_good_hb[drone_id] = 0
+            self.reception_window[drone_id] = [1] * 5  # Initial healthy baseline
             self.fallback_entry_time[drone_id] = 0.0
             self.alpha[drone_id] = 1.0
             self.switch_counts[drone_id] = 0
@@ -91,7 +112,7 @@ class HybridController:
         Validates an incoming coordinator heartbeat packet:
         1. Checks sequence number monotonicity (rejects out-of-order or duplicate packets).
         2. Checks message age (rejects stale commands).
-        3. Updates consecutive reception counter for hysteresis recovery.
+        3. Updates sliding delivery window and consecutive reception counter.
         Returns True if accepted, False if rejected.
         """
         self._init_drone_if_needed(drone_id, current_time)
@@ -99,14 +120,15 @@ class HybridController:
         # 1. Sequence number check
         if sequence_num <= self.last_sequence_num[drone_id]:
             self.out_of_order_count[drone_id] += 1
+            self.record_heartbeat_attempt(drone_id, False)
             return False
 
         # 2. Message age check (current_time - send_timestamp)
         message_age = current_time - send_timestamp
         if message_age > self.max_command_age or message_age < -1e-4:
             self.stale_rejected_count[drone_id] += 1
-            # A stale packet does not count as a valid fresh heartbeat
             self.consecutive_good_hb[drone_id] = 0
+            self.record_heartbeat_attempt(drone_id, False)
             return False
 
         # Accepted fresh packet!
@@ -114,11 +136,13 @@ class HybridController:
         self.last_valid_timestamp[drone_id] = current_time
         self.last_known_target[drone_id] = np.array(target_pos, dtype=np.float64)
         self.consecutive_good_hb[drone_id] += 1
+        self.record_heartbeat_attempt(drone_id, True)
         return True
 
     def update_state_machine(self, drone_id: int, current_time: float, dt: float) -> Tuple[HybridMode, float]:
         """
         Evaluates asymmetric hysteresis state transitions and updates continuous blending weight alpha(t).
+        Uses both sliding-window delivery ratio and consecutive-packet counts for robust recovery.
         """
         self._init_drone_if_needed(drone_id, current_time)
         current_mode = self.modes[drone_id]
@@ -135,12 +159,21 @@ class HybridController:
                 self.switch_counts[drone_id] += 1
 
         elif current_mode == HybridMode.DECENTRALIZED_FALLBACK:
-            # Recovery condition: Requires BOTH:
-            # 1. N consecutive good heartbeats
-            # 2. Minimum dwell time in fallback state
+            # Recovery condition: Requires:
+            # 1. Sufficient delivery ratio (>= 70% in sliding window) OR N consecutive good heartbeats
+            # 2. Minimum dwell time in fallback state (prevents chattering)
+            # 3. Recent valid reception within degrade_timeout
+            window = self.reception_window.get(drone_id, [])
+            delivery_ratio = (sum(window) / len(window)) if len(window) >= 5 else 0.0
+
             time_in_fallback = current_time - self.fallback_entry_time[drone_id]
-            if (
+            is_delivery_healthy = (
                 self.consecutive_good_hb[drone_id] >= self.recovery_consecutive_hb
+                or delivery_ratio >= self.recovery_ratio_threshold
+            )
+
+            if (
+                is_delivery_healthy
                 and time_in_fallback >= self.min_dwell_time
                 and time_since_valid <= self.degrade_timeout
             ):
