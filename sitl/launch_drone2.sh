@@ -12,4 +12,6 @@ python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
     -N \
     --auto-sysid \
     --custom-location=-35.363261,149.165280,584,0 \
-    --out=udp:127.0.0.1:14560
+    --out=udp:127.0.0.1:14560 \
+    --out=udp:127.0.0.1:14550 \
+    --map
