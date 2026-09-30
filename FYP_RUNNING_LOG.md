@@ -136,6 +136,12 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
 * **Verified Safety**: 0 collisions across dynamic switching and $50\%$ packet drop sweeps.
 * **Chattering Benchmark**: 3-panel scientific comparison figure generated at `experiments/results/network_loss_comparison.png`.
 * **Unit Tests**: Full test suite passing 100% (`test_graph.py`, `test_formations.py`, `test_simulation.py`, `test_hybrid_features.py`).
+* **Checkpoint & Save Point Created**:
+  - Git Tag: `v1.0-phase1-complete`
+  - Permanent Branch: `milestone/phase1-stable`
+  - Offline Snapshot Directory: `/home/drone/.gemini/antigravity/scratch/swarm_drones_fyp_phase1_checkpoint`
+  - Compressed Tarball Archive: `/home/drone/.gemini/antigravity/scratch/swarm_drones_backup_20260930_phase1.tar.gz`
+  - One-Click Restore Script: [`restore_phase1_checkpoint.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/restore_phase1_checkpoint.sh) (tested and verified).
 * **Hardware Status**: Untouched, safe, disarmed. Awaiting confirmation from teammates regarding ArduPilot firmware and GPS.
 
 ---
