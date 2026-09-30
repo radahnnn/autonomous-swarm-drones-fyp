@@ -12,5 +12,6 @@ python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
     --auto-sysid \
     --custom-location=-35.363261,149.165230,584,0 \
     --out=udp:127.0.0.1:14550 \
+    --out=udp:127.0.0.1:14552 \
     --add-param-file=/home/drone/swarm_drones_fyp/sitl/swarm_params.parm \
     --map

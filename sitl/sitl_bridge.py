@@ -135,9 +135,9 @@ def main():
     print("  Swarm Drones FYP: 2-Drone SITL MAVLink Formation Controller   ")
     print("=================================================================")
 
-    # 1. Connect to both vehicles
-    d1 = SITLDroneController("udpin:127.0.0.1:14550", expected_sysid=1, label="Drone 1 (Lead)")
-    d2 = SITLDroneController("udpin:127.0.0.1:14560", expected_sysid=2, label="Drone 2 (Follower)")
+    # 1. Connect to both vehicles on dedicated script ports
+    d1 = SITLDroneController("udpin:127.0.0.1:14552", expected_sysid=1, label="Drone 1 (Lead)")
+    d2 = SITLDroneController("udpin:127.0.0.1:14562", expected_sysid=2, label="Drone 2 (Follower)")
 
     if not d1.connect() or not d2.connect():
         print("\n[ABORT] Could not connect to both SITL instances.")

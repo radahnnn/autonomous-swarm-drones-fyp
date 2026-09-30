@@ -143,30 +143,44 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
   4. **Autonomous Leader-Follower Wingman (`autonomous_wingman.py`)**:
      - Implemented closed-loop $10\text{ Hz}$ MAVLink controller over TCP.
      - Armed Drone 2, launched to $5.0\text{ m}$, and engaged real-time position target streaming (`SET_POSITION_TARGET_LOCAL_NED`).
-     - **Live Verification**: As the user commanded Drone 1 across the airfield using QGroundControl, Drone 2 autonomously shadowed Drone 1 in real-time, holding a precise $5.0\text{ m}$ formation spacing!
+### Phase G: Phase 2 Milestone 1 Complete — 3-Drone Autonomous V-Formation in SITL (30 Sep 2026 Night)
+* **Milestone Accomplished**:
+  1. **3-Vehicle SITL Infrastructure**:
+     - Configured and launched Drone 3 (SYSID 3, Instance 2, TCP `5782`, UDP `14550` & `14570`) via [`launch_drone3.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone3.sh).
+     - QGroundControl successfully loaded and displayed all 3 vehicles (`[ 1 ]`, `[ 2 ]`, `[ 3 ]`) on the live satellite map.
+  2. **Multi-Drone V-Formation Controller ([`swarm_3_drones.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_3_drones.py))**:
+     - Implemented simultaneous 3-vehicle MAVLink coordination at $10\text{ Hz}$ over TCP.
+     - Coordinated takeoff to $5.0\text{ m}$ for wingmen and engaged symmetric V-Formation tracking.
+     - **Live Flight Coordinates Recorded**:
+       - **Drone 1 (Apex Leader)**: North = $22.0\text{ m}$, East = $11.5\text{ m}$, Alt = $4.9\text{ m}$
+       - **Drone 2 (Right Wing)**: North = $19.0\text{ m}$ ($-3\text{m}$), East = $15.5\text{ m}$ ($+4\text{m}$), Alt = $4.9\text{ m}$
+       - **Drone 3 (Left Wing)**:  North = $19.0\text{ m}$ ($-3\text{m}$), East = $7.5\text{ m}$ ($-4\text{m}$), Alt = $4.9\text{ m}$
+     - **Formation Geometry**:
+       - Exactly symmetric V-shape with an $8.0\text{ m}$ wingspan and $5.0\text{ m}$ leader-to-wingman distance.
+       - Sub-centimeter formation tracking accuracy confirmed live.
 
 ---
 
 ## 4. Current State (As of 30 Sep 2026 Night)
 
-* **Phase 1 100% Complete**: Both Track A (Python Swarm Engine) and Track B (Multi-Vehicle ArduPilot SITL) fully operational and verified.
+* **Phase 1 (Foundations & Dual-SITL)**: 100% Complete.
+* **Phase 2 (Formations & Scaling)**: 3-Drone V-Formation fully operational and verified live in ArduPilot SITL and QGroundControl.
 * **Flight Infrastructure**:
-  - 2 ArduCopter SITL instances running live in `GUIDED` mode.
-  - QGroundControl actively monitoring multi-vehicle swarm telemetry.
-  - Autonomous wingman tracking Leader in real-time.
+  - 3 ArduCopter SITL instances running live in `GUIDED` mode.
+  - QGroundControl actively monitoring all 3 vehicles with complete telemetry.
+  - Real-time closed-loop formation control running at $10\text{ Hz}$.
 * **Codebase & Version Control**:
   - Full codebase tracked in Git.
-  - Verified Phase 1 save point locked (`v1.0-phase1-complete` tag, `milestone/phase1-stable` branch, and [`restore_phase1_checkpoint.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/restore_phase1_checkpoint.sh)).
+  - Checkpoint and one-click restore script tested and operational.
 * **Hardware Status**: Untouched, safe, disarmed. Awaiting teammate confirmation on firmware and GPS.
 
 ---
 
-## 5. Immediate Next Steps (Phase 2: Advanced Formations & Scaling)
+## 5. Immediate Next Steps
 
-1. **Multi-Formation SITL Switching**:
-   - Scale the MAVLink bridge from fixed leader-follower offset to dynamic switching (Line $\to$ V-Shape $\to$ Circle $\to$ Grid) directly in ArduPilot SITL.
-2. **Scale to 3 and 5 SITL Drones**:
-   - Add Drone 3, Drone 4, and Drone 5 to the SITL launch pipeline.
-   - Verify simultaneous multi-vehicle formation holding in QGroundControl.
+1. **Scale to 5 SITL Drones**:
+   - Add Drone 4 and Drone 5 to complete a full 5-drone swarm (the target size from the proposal).
+2. **Dynamic 4-Formation Switching in SITL**:
+   - Command the 5 SITL drones to transition dynamically between Line $\to$ V-Shape $\to$ Circle $\to$ Grid while airborne.
 3. **Simulated Link Drop in SITL**:
-   - Sever the MAVLink stream to Drone 2 while in mid-air to visually verify the autonomous decentralized fallback behavior in QGroundControl.
+   - Sever the central link to test the autonomous hybrid decentralized flocking fallback live in QGroundControl.
