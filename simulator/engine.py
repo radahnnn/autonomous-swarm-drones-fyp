@@ -57,6 +57,7 @@ class SwarmSimulation:
 
         # Link control (for hybrid failure testing: if False, central coordinator is severed)
         self.coordinator_link_active = True
+        self.coordinator_seq_num = 0
 
     def set_formation(
         self,
@@ -101,18 +102,7 @@ class SwarmSimulation:
                         current_time=self.current_time,
                     )
 
-        # 3. Retrieve arrived packets per drone
-        perceived_neighbors: Dict[int, List[Dict]] = {d.id: [] for d in self.drones}
-        for d in self.drones:
-            pkts = self.channel.receive(d.id, self.current_time)
-            for pkt in pkts:
-                perceived_neighbors[d.id].append({
-                    "id": pkt.sender_id,
-                    "position": pkt.payload["position"],
-                    "velocity": pkt.payload["velocity"],
-                })
-
-        # 4. Target slot generation and optimal Hungarian matching
+        # 3. Coordinator Heartbeat Broadcast (if central link is physically active)
         local_offsets = FormationGenerator.get_formation_offsets(
             self.current_formation, n, spacing=self.formation_spacing
         )
@@ -120,6 +110,43 @@ class SwarmSimulation:
         current_positions = np.array([d.position for d in self.drones])
         assigned_targets = assign_optimal_slots(current_positions, world_slots)
         self.target_slots = assigned_targets
+
+        if self.coordinator_link_active:
+            self.coordinator_seq_num += 1
+            for i in range(n):
+                payload = {
+                    "seq_num": self.coordinator_seq_num,
+                    "target_pos": assigned_targets[i].copy(),
+                }
+                dist_to_gs = float(np.linalg.norm(self.drones[i].position - self.centroid_target))
+                self.channel.send(
+                    sender_id=-1,  # -1 represents Central Coordinator
+                    recipient_id=self.drones[i].id,
+                    payload=payload,
+                    distance=dist_to_gs,
+                    current_time=self.current_time,
+                )
+
+        # 4. Retrieve arrived packets per drone
+        perceived_neighbors: Dict[int, List[Dict]] = {d.id: [] for d in self.drones}
+        for d in self.drones:
+            pkts = self.channel.receive(d.id, self.current_time)
+            for pkt in pkts:
+                if pkt.sender_id == -1:
+                    # Heartbeat from coordinator: validates sequence & message age
+                    self.hybrid_ctrl.process_coordinator_heartbeat(
+                        drone_id=d.id,
+                        current_time=self.current_time,
+                        send_timestamp=pkt.sent_time,
+                        sequence_num=pkt.payload["seq_num"],
+                        target_pos=pkt.payload["target_pos"],
+                    )
+                else:
+                    perceived_neighbors[d.id].append({
+                        "id": pkt.sender_id,
+                        "position": pkt.payload["position"],
+                        "velocity": pkt.payload["velocity"],
+                    })
 
         # 5. Compute Control Inputs based on selected mode
         if self.control_mode == "centralized":
@@ -136,11 +163,9 @@ class SwarmSimulation:
         elif self.control_mode == "decentralized":
             # Pure local consensus & flocking towards target slots
             for i, d in enumerate(self.drones):
-                # Desired local offsets relative to perceived neighbors
                 target_i = assigned_targets[i]
                 desired_offsets = {}
                 for n_info in perceived_neighbors[d.id]:
-                    # Find nominal offset relative to neighbor j
                     n_idx = [idx for idx, other in enumerate(self.drones) if other.id == n_info["id"]][0]
                     desired_offsets[n_info["id"]] = target_i - assigned_targets[n_idx]
 
@@ -155,9 +180,6 @@ class SwarmSimulation:
 
         elif self.control_mode == "hybrid":
             for i, d in enumerate(self.drones):
-                if self.coordinator_link_active:
-                    self.hybrid_ctrl.update_heartbeat(d.id, self.current_time)
-
                 target_i = assigned_targets[i]
                 desired_offsets = {}
                 for n_info in perceived_neighbors[d.id]:
@@ -167,7 +189,7 @@ class SwarmSimulation:
                 accel_i = self.hybrid_ctrl.compute_hybrid_control(
                     drone=d,
                     current_time=self.current_time,
-                    central_target_pos=target_i if self.coordinator_link_active else None,
+                    dt=self.dt,
                     neighbor_states=perceived_neighbors[d.id],
                     desired_neighbor_offsets=desired_offsets,
                 )
@@ -178,12 +200,25 @@ class SwarmSimulation:
             d.step(self.dt)
 
         # 7. Record metrics snapshot
+        mode_switches = (
+            self.hybrid_ctrl.get_total_mode_switches()
+            if self.control_mode == "hybrid"
+            else 0
+        )
+        mean_alpha = (
+            float(np.mean([self.hybrid_ctrl.get_alpha(d.id) for d in self.drones]))
+            if self.control_mode == "hybrid"
+            else 1.0
+        )
+
         self.metrics.record_step(
             current_time=self.current_time,
             drones=self.drones,
             target_positions=assigned_targets,
             adj_matrix=adj_matrix,
             fiedler_val=fiedler,
+            total_mode_switches=mode_switches,
+            mean_alpha=mean_alpha,
         )
 
         self.current_time += self.dt

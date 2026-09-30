@@ -19,6 +19,8 @@ class SwarmMetricsSnapshot:
     collision_occurred: bool
     active_connections: int
     algebraic_connectivity: float
+    total_mode_switches: int = 0
+    mean_alpha: float = 1.0
 
 
 class SwarmMetricsTracker:
@@ -35,6 +37,8 @@ class SwarmMetricsTracker:
         target_positions: Optional[np.ndarray] = None,
         adj_matrix: Optional[np.ndarray] = None,
         fiedler_val: float = 0.0,
+        total_mode_switches: int = 0,
+        mean_alpha: float = 1.0,
     ) -> SwarmMetricsSnapshot:
         """Compute metrics for the current timestep."""
         n = len(drones)
@@ -80,6 +84,8 @@ class SwarmMetricsTracker:
             collision_occurred=collision,
             active_connections=active_conns,
             algebraic_connectivity=fiedler_val,
+            total_mode_switches=total_mode_switches,
+            mean_alpha=mean_alpha,
         )
         self.history.append(snapshot)
         return snapshot
@@ -93,6 +99,7 @@ class SwarmMetricsTracker:
         min_dists = [s.min_inter_drone_dist for s in self.history]
         collisions = [s.collision_occurred for s in self.history]
         times = [s.time for s in self.history]
+        switches = [s.total_mode_switches for s in self.history]
 
         # Calculate convergence time (first time error enters and stays below tol)
         conv_time = -1.0
@@ -108,4 +115,5 @@ class SwarmMetricsTracker:
             "any_collision": float(any(collisions)),
             "convergence_time_s": float(conv_time if conv_time >= 0 else times[-1]),
             "mean_formation_error_m": float(np.mean(errors)),
+            "total_mode_switches": float(switches[-1] if switches else 0.0),
         }
