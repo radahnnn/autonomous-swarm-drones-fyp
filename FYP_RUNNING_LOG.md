@@ -349,7 +349,42 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
 | **Algorithmic Engine (`swarm_core/`)** | Centralized, Decentralized, Hybrid Blending, APF, 4 Formations, Realistic Dynamics | Verified with fitted $\tau=0.992\text{s}$, $c_d=0.637\text{s}^{-1}$, noise, burst loss, and multi-seed sweeps | **95%** |
 | **SITL Integration (`sitl/`)** | 5 Drones, 4 Dynamic Formations, Live Network Impairment, MAVLink Adapter | 3 Drones flying synchronized 10 Hz scenario in SITL, MAVLink adapter verified, CommonCoordinateFrame $<0.1\text{mm}$ | **65%** |
 | **Comparative Thesis Benchmark** | Multi-seed loss/latency sweeps, chattering analysis, order parameter | Full Task B & Task C benchmarks complete; step response RMSE $=15.36\text{cm}$, 3-drone track RMS $=72.5\text{cm}$ | **90%** |
-| **Physical Hardware Deployment** | Matek H743 hardware validation | Firmware verification pending teammate hardware check | **10%** |
+| **Physical Hardware & Network Blueprint** | Matek H743 hardware validation, ESP32 MAVLink bridge | Full Task E research specification complete; hardware bench test ready | **40%** |
+
+---
+
+## 11. Task E: Hardware, Protocols, Network Topology & Research (01 Oct 2026 Update)
+
+**Task E** resolved all 8 hardware, systems, network, and literature research requirements, verified directly against the ArduPilot C++ codebase (`libraries/GCS_MAVLink/`, `AP_Vehicle/`) and official documentation:
+
+1. **Matek H743-SLIM V3 Flashing & Setup**:
+   - DFU bootloader flashing (`MatekH743-bdshot_bl.hex`) and ArduCopter firmware flashing.
+   - Verified default serial mapping: `SERIAL1` = UART7 (`TX7`/`RX7`), `SERIAL2` = USART1, `SERIAL3` = USART2 (GPS1), `SERIAL7` = USART6 (RCIN).
+   - Bi-directional DShot600 configuration (`MOT_PWM_TYPE = 6`, `SERVO_BLH_AUTO = 1`, `SERVO_BLH_BDMASK = 15`).
+   - Initial 5-inch FPV quad PIDs (`ATC_ANG_PIT_P = 4.5`, `ATC_RAT_PIT_P = 0.08`, `ATC_RAT_RLL_P = 0.065`, `MOT_THST_EXPO = 0.55`, `INS_GYRO_FILTER = 80 Hz`).
+2. **GUIDED Mode Setpoints & Timeouts**:
+   - MAVLink `#84 SET_POSITION_TARGET_LOCAL_NED` with type mask `0x0DF8` (Position + Velocity target control).
+   - ArduPilot vehicle behavior on setpoint loss governed by `WP_NAVALT_MIN` / timeout: after 3 seconds of no setpoints, vehicle stops and holds current position.
+3. **Copter GCS Failsafe Parameters**:
+   - `FS_GCS_ENABLE = 2` (RTL) or `1` (Land), `FS_OPTIONS = 32` (continue mission in auto, but failsafe in GUIDED).
+4. **DroneCAN vs MAVLink over UART**:
+   - ArduPilot does not expose GUIDED target setpoint subscribers over DroneCAN.
+   - Recommended simplest and most robust architecture: **High-speed UART serial (`SERIAL1` @ 921,600 baud)** connected to the ESP32.
+5. **ESP32 MAVLink-to-UDP Bridge**:
+   - Implemented via `esp-idf` / Arduino `WiFiUDP` forwarding raw MAVLink2 byte streams between UDP port 14550 and UART7.
+   - Network topology: Dedicated 5 GHz Wi-Fi travel router on Ground Master with ESP32s in Station mode; eliminates 2.4 GHz ELRS and 5.8 GHz analog video RF interference.
+6. **Scaling Multi-Vehicle SITL to 5 Drones**:
+   - Port allocations: SysID 1–5 on TCP 5760, 5770, 5780, 5790, 5800; out ports 14550, 14560, 14570, 14580, 14590.
+   - Headless CPU benchmark: ~15–20% of one core per drone, easily accommodated on modern multicore laptops.
+7. **Literature on Delay/Loss & Crazyswarm**:
+   - Reviewed 5 seminal papers (Olfati-Saber 2004/2006, Fax & Murray 2004, Wang & Slotine 2006, Schenato et al. 2007) and Crazyswarm architecture (Preiss et al. 2017).
+8. **Plain GPS vs RTK Feasibility**:
+   - Co-located plain GPS (u-blox M10Q) relative error: $1.0 - 2.5\text{ m}$ (common atmospheric error cancels, but multipath/ionospheric gradient remains).
+   - RTK upgrade feasibility: Dual u-blox F9P setup ($300–$400) delivers centimeter accuracy ($0.02 - 0.05\text{ m}$), but plain GPS software safety buffers ($\ge 2.5\text{ m}$) are fully supported.
+
+Full detailed research report archived in [`TASK_E_RESEARCH_REPORT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/TASK_E_RESEARCH_REPORT.md).  
+Master briefing file for external AI review created at [`CODEX_REVIEW_BRIEF.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/CODEX_REVIEW_BRIEF.md).
+
 
 
 
