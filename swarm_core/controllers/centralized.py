@@ -31,6 +31,8 @@ class CentralizedController:
         centroid_target: np.ndarray,
         centroid_velocity: Optional[np.ndarray] = None,
         spacing: float = 2.5,
+        use_velocity_feedforward: bool = True,
+        drag_coeff: float = 0.20,
     ) -> np.ndarray:
         """
         Compute acceleration commands for all drones.
@@ -40,10 +42,10 @@ class CentralizedController:
         current_pos = np.array([d.position for d in drones])
         current_vel = np.array([d.velocity for d in drones])
 
-        if centroid_velocity is None:
-            target_vel = np.zeros(2)
-        else:
+        if centroid_velocity is not None and use_velocity_feedforward:
             target_vel = np.array(centroid_velocity, dtype=np.float64)
+        else:
+            target_vel = np.zeros(2, dtype=np.float64)
 
         # 1. Compute nominal local offsets and translate to world centroid
         local_offsets = FormationGenerator.get_formation_offsets(
@@ -58,6 +60,10 @@ class CentralizedController:
         pos_error = assigned_targets - current_pos
         vel_error = target_vel - current_vel
         accel_commands = self.kp * pos_error + self.kd * vel_error
+
+        # Feedforward drag compensation if moving target tracking is enabled
+        if use_velocity_feedforward and np.linalg.norm(target_vel) > 1e-6:
+            accel_commands += drag_coeff * target_vel
 
         # 4. Centralized safety barrier (Artificial Potential Field collision avoidance)
         for i in range(num_drones):

@@ -56,15 +56,30 @@ class Drone:
         else:
             self.commanded_accel = accel
 
-    def get_measured_position(self, rng: Optional[np.random.Generator] = None) -> np.ndarray:
-        """Returns realistic measured position including sensor noise (GPS/EKF)."""
-        if self.measurement_noise_std <= 0:
+    def get_measured_position(
+        self,
+        rng: Optional[np.random.Generator] = None,
+        common_noise: Optional[np.ndarray] = None,
+        indep_std: Optional[float] = None,
+    ) -> np.ndarray:
+        """
+        Returns realistic measured position including sensor noise (GPS/EKF):
+        p_meas = p_actual + w_common + w_indep
+        """
+        std = self.measurement_noise_std if indep_std is None else float(indep_std)
+        if std <= 0 and common_noise is None:
             return self.position.copy()
-        if rng is None:
-            noise = np.random.normal(0, self.measurement_noise_std, size=self.dim)
+            
+        if std > 0:
+            if rng is None:
+                indep = np.random.normal(0, std, size=self.dim)
+            else:
+                indep = rng.normal(0, std, size=self.dim)
         else:
-            noise = rng.normal(0, self.measurement_noise_std, size=self.dim)
-        return self.position + noise
+            indep = np.zeros(self.dim, dtype=np.float64)
+            
+        common = common_noise if common_noise is not None else np.zeros(self.dim, dtype=np.float64)
+        return self.position + common + indep
 
     def step(self, dt: float) -> None:
         """

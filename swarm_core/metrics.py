@@ -108,6 +108,14 @@ class SwarmMetricsTracker:
                 conv_time = times[i]
                 break
 
+        # Transient window during mid-flight morph (t in [5.0, 7.5s])
+        morph_errors = [s.formation_error for s in self.history if 5.0 <= s.time <= 7.5]
+        transient_morph_error = float(np.mean(morph_errors)) if morph_errors else float(errors[-1])
+
+        # Settled steady-state window post-morph (t >= 8.5s)
+        steady_errors = [s.formation_error for s in self.history if s.time >= 8.5]
+        steady_state_error = float(np.mean(steady_errors)) if steady_errors else float(errors[-1])
+
         return {
             "initial_formation_error_m": float(errors[0]),
             "final_formation_error_m": float(errors[-1]),
@@ -115,5 +123,7 @@ class SwarmMetricsTracker:
             "any_collision": float(any(collisions)),
             "convergence_time_s": float(conv_time if conv_time >= 0 else times[-1]),
             "mean_formation_error_m": float(np.mean(errors)),
+            "transient_morph_error_m": transient_morph_error,
+            "steady_state_error_m": steady_state_error,
             "total_mode_switches": float(switches[-1] if switches else 0.0),
         }

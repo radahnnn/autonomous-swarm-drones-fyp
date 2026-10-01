@@ -123,8 +123,64 @@ def test_smooth_controller_blending():
         assert np.isclose(alphas[i] - alphas[i + 1], 0.1, atol=1e-5)
 
 
+def test_forced_fallback_and_sliding_window_recovery():
+    """
+    Explicitly forces fallback via outage/silence, verifies dwell-time lockout,
+    and proves recovery via sliding-window delivery ratio (>= 70%) rather than consecutive packets.
+    """
+    # Disable consecutive recovery requirement (set to 999) to strictly test sliding window ratio
+    ctrl = HybridController(
+        degrade_timeout=0.5,
+        recovery_consecutive_hb=999,
+        min_dwell_time=2.0,
+        ramp_duration=0.8,
+        window_size=20,
+        recovery_ratio_threshold=0.70,
+    )
+    drone_id = 0
+    t = 0.0
+    dt = 0.05
+
+    # 1. Start in Centralized mode
+    ctrl._init_drone_if_needed(drone_id, t)
+    mode, _ = ctrl.update_state_machine(drone_id, t, dt)
+    assert mode == HybridMode.CENTRALIZED
+
+    # 2. Force complete outage (0.8s of silence > degrade_timeout 0.5s)
+    t = 0.8
+    mode, _ = ctrl.update_state_machine(drone_id, t, dt)
+    assert mode == HybridMode.DECENTRALIZED_FALLBACK
+    assert ctrl.switch_counts[drone_id] == 1
+    fallback_start = ctrl.fallback_entry_time[drone_id]
+
+    # 3. Simulate degraded channel: only 50% delivery ratio (10 successes, 10 drops)
+    # Even after advancing past min_dwell_time (2.0s), 50% is below the 70% threshold!
+    t = fallback_start + 2.5
+    for seq in range(1, 21):
+        if seq % 2 == 0:
+            ctrl.process_coordinator_heartbeat(drone_id, t, t - 0.02, seq, np.array([0.0, 0.0]))
+        else:
+            ctrl.record_heartbeat_attempt(drone_id, False)
+
+    mode, _ = ctrl.update_state_machine(drone_id, t, dt)
+    assert mode == HybridMode.DECENTRALIZED_FALLBACK  # MUST remain in fallback (50% < 70%)
+
+    # 4. Now simulate healthy channel recovery: 80% delivery ratio (16 successes, 4 drops)
+    t += 1.0
+    for seq in range(21, 41):
+        if seq % 5 != 0:  # 80% success
+            ctrl.process_coordinator_heartbeat(drone_id, t, t - 0.02, seq, np.array([0.0, 0.0]))
+        else:
+            ctrl.record_heartbeat_attempt(drone_id, False)
+
+    mode, _ = ctrl.update_state_machine(drone_id, t, dt)
+    assert mode == HybridMode.CENTRALIZED  # Now delivery ratio >= 70% and dwell time met -> RECOVERS!
+    assert ctrl.switch_counts[drone_id] == 2
+
+
 if __name__ == "__main__":
     test_stale_and_sequence_rejection()
     test_asymmetric_hysteresis_and_dwell_time()
     test_smooth_controller_blending()
+    test_forced_fallback_and_sliding_window_recovery()
     print("All hybrid feature tests passed successfully!")

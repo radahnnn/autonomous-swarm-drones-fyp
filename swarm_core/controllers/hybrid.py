@@ -62,6 +62,9 @@ class HybridController:
         self.consecutive_good_hb: Dict[int, int] = {}
         self.reception_window: Dict[int, List[int]] = {}
         self.fallback_entry_time: Dict[int, float] = {}
+        self.fallback_entry_counts: Dict[int, int] = {}
+        self.time_in_fallback: Dict[int, float] = {}
+        self.recovery_times: Dict[int, List[float]] = {}
         self.last_known_target: Dict[int, np.ndarray] = {}
         
         # Ramping weight alpha(t) per drone (1.0 = Centralized, 0.0 = Decentralized)
@@ -95,6 +98,9 @@ class HybridController:
             self.consecutive_good_hb[drone_id] = 0
             self.reception_window[drone_id] = [1] * 5  # Initial healthy baseline
             self.fallback_entry_time[drone_id] = 0.0
+            self.fallback_entry_counts[drone_id] = 0
+            self.time_in_fallback[drone_id] = 0.0
+            self.recovery_times[drone_id] = []
             self.alpha[drone_id] = 1.0
             self.switch_counts[drone_id] = 0
             self.stale_rejected_count[drone_id] = 0
@@ -155,10 +161,12 @@ class HybridController:
             if time_since_valid > self.degrade_timeout:
                 target_mode = HybridMode.DECENTRALIZED_FALLBACK
                 self.fallback_entry_time[drone_id] = current_time
+                self.fallback_entry_counts[drone_id] += 1
                 self.consecutive_good_hb[drone_id] = 0
                 self.switch_counts[drone_id] += 1
 
         elif current_mode == HybridMode.DECENTRALIZED_FALLBACK:
+            self.time_in_fallback[drone_id] += dt
             # Recovery condition: Requires:
             # 1. Sufficient delivery ratio (>= 70% in sliding window) OR N consecutive good heartbeats
             # 2. Minimum dwell time in fallback state (prevents chattering)
@@ -178,6 +186,8 @@ class HybridController:
                 and time_since_valid <= self.degrade_timeout
             ):
                 target_mode = HybridMode.CENTRALIZED
+                recovery_dur = current_time - self.fallback_entry_time[drone_id]
+                self.recovery_times[drone_id].append(recovery_dur)
                 self.switch_counts[drone_id] += 1
 
         self.modes[drone_id] = target_mode
@@ -199,19 +209,30 @@ class HybridController:
         dt: float,
         neighbor_states: List[Dict[str, np.ndarray]],
         desired_neighbor_offsets: Optional[Dict[int, np.ndarray]] = None,
+        target_velocity: Optional[np.ndarray] = None,
+        use_velocity_feedforward: bool = True,
+        drag_coeff: float = 0.20,
     ) -> np.ndarray:
         """
         Computes smoothly blended control command:
             u(t) = alpha(t) * u_central + (1 - alpha(t)) * u_decentral + u_safe_apf
         Safety barrier APF is always applied at 100% gain regardless of alpha(t).
+        Optional target velocity feedforward and drag compensation eliminates steady-state lag.
         """
         mode, alpha = self.update_state_machine(drone.id, current_time, dt)
 
         # 1. Centralized guidance component (tracked using last validated target slot)
         target_pos = self.last_known_target.get(drone.id, drone.position)
         p_err = target_pos - drone.position
-        v_err = -drone.velocity
-        u_central = self.central_controller.kp * p_err + self.central_controller.kd * v_err
+        
+        if use_velocity_feedforward and target_velocity is not None:
+            v_err = np.array(target_velocity, dtype=np.float64) - drone.velocity
+            u_ff = drag_coeff * np.array(target_velocity, dtype=np.float64)
+        else:
+            v_err = -drone.velocity
+            u_ff = np.zeros(drone.dim, dtype=np.float64)
+            
+        u_central = self.central_controller.kp * p_err + self.central_controller.kd * v_err + u_ff
 
         # 2. Decentralized flocking & consensus component
         u_decentral = self.decentral_controller.compute_drone_control(
@@ -247,3 +268,18 @@ class HybridController:
 
     def get_alpha(self, drone_id: int) -> float:
         return self.alpha.get(drone_id, 1.0)
+
+    def get_fallback_stats(self) -> Dict[str, float]:
+        """Aggregate fallback entries, total time in fallback, and average recovery times."""
+        total_entries = sum(self.fallback_entry_counts.values())
+        total_time_fallback = sum(self.time_in_fallback.values())
+        all_recovery = []
+        for rec_list in self.recovery_times.values():
+            all_recovery.extend(rec_list)
+        avg_recovery = float(np.mean(all_recovery)) if all_recovery else 0.0
+        return {
+            "total_fallback_entries": float(total_entries),
+            "total_time_in_fallback_s": float(total_time_fallback),
+            "avg_recovery_time_s": float(avg_recovery),
+            "recovery_events_count": float(len(all_recovery)),
+        }

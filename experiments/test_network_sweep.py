@@ -43,6 +43,8 @@ def run_single_trial(
         packet_loss_rate=loss_rate,
         latency_mean=0.03,  # 30ms nominal latency
         dt=0.05,
+        use_velocity_feedforward=True,
+        seed=seed,
     )
 
     if naive_switching:
@@ -160,11 +162,11 @@ def main():
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5.2), dpi=180)
 
     # 1. Formation Error vs Packet Loss (with shaded std bands)
-    for m_key in ["centralized", "decentralized", "hybrid_proposed"]:
+    for m_key, _, _ in modes_to_test:
         m_vals = np.array(results[m_key]["mean_err"])
         s_vals = np.array(results[m_key]["std_err"])
-        ax1.plot(loss_percent, m_vals, linewidth=2.2, **styles[m_key])
-        ax1.fill_between(loss_percent, m_vals - s_vals, m_vals + s_vals, color=styles[m_key]["color"], alpha=0.15)
+        ax1.plot(loss_percent, m_vals, linewidth=2.0, **styles[m_key])
+        ax1.fill_between(loss_percent, m_vals - s_vals, m_vals + s_vals, color=styles[m_key]["color"], alpha=0.12)
         
     ax1.set_xlabel("Packet Loss Rate (%)", fontsize=11, fontweight="bold")
     ax1.set_ylabel("Final Formation Error (m)", fontsize=11, fontweight="bold")
@@ -173,9 +175,9 @@ def main():
     ax1.legend(fontsize=9, loc="upper left")
 
     # 2. Min Inter-Drone Distance (Physical Safety Verification)
-    for m_key in ["centralized", "decentralized", "hybrid_proposed"]:
+    for m_key, _, _ in modes_to_test:
         m_dist = np.array(results[m_key]["min_dist"])
-        ax2.plot(loss_percent, m_dist, linewidth=2.2, **styles[m_key])
+        ax2.plot(loss_percent, m_dist, linewidth=2.0, **styles[m_key])
     ax2.axhline(0.70, color="black", linestyle="--", linewidth=1.5, label="Collision Threshold (0.7m)")
     ax2.set_xlabel("Packet Loss Rate (%)", fontsize=11, fontweight="bold")
     ax2.set_ylabel("Min Inter-Drone Distance (m)", fontsize=11, fontweight="bold")

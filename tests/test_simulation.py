@@ -59,8 +59,42 @@ def test_hybrid_fallback():
     assert summary["min_recorded_distance_m"] > 0.6
 
 
+def test_outage_and_feedforward_simulation():
+    drones = create_non_overlapping_drones(5, seed=303)
+    sim = SwarmSimulation(
+        drones=drones,
+        control_mode="hybrid",
+        comm_range=15.0,
+        packet_loss_rate=0.0,
+        use_velocity_feedforward=True,
+        gps_noise_std=0.5,
+        gps_common_mode_fraction=0.60,
+        seed=303,
+    )
+    sim.set_formation(FormationType.LINE, centroid=np.array([0.0, 0.0]))
+    sim.centroid_velocity = np.array([0.8, 0.3])
+    
+    # Schedule full outage from t = 2.0s to 3.0s
+    sim.channel.add_outage(start_time=2.0, duration=1.0)
+
+    for step_i in range(120):  # 6.0 seconds
+        t = step_i * sim.dt
+        sim.centroid_target += sim.centroid_velocity * sim.dt
+        sim.step()
+
+    summary = sim.metrics.get_summary()
+    assert summary["any_collision"] == 0.0
+    assert summary["min_recorded_distance_m"] > 0.70  # Collision barrier preserved
+    # Fallback occurred and recovered
+    fb_stats = sim.hybrid_ctrl.get_fallback_stats()
+    assert fb_stats["total_fallback_entries"] > 0
+    assert fb_stats["total_time_in_fallback_s"] > 0
+
+
 if __name__ == "__main__":
     test_centralized_simulation()
     test_decentralized_simulation()
     test_hybrid_fallback()
+    test_outage_and_feedforward_simulation()
     print("Simulation tests passed successfully!")
+
