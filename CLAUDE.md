@@ -37,29 +37,40 @@ Develop an autonomous swarm control framework for 5–10 multirotors capable of:
   - `run_demo.py`: 6-drone 4-formation transition scenario (Line -> V -> Circle -> Grid).
   - `test_network_sweep.py`: Monte Carlo parameter sweep across $0\%\dots 50\%$ packet loss.
   - `results/`: Output plots (`demo_metrics.png`, `network_loss_comparison.png`, formation snapshots).
+* `sitl/`:
+  - `common_frame.py`: WGS84 flat-earth tangent plane coordinate frame anchoring all SITL drones to shared datum.
+  - `mavlink_swarm_adapter.py`: Unified adapter directly executing swarm_core controllers on live SITL MAVLink.
+  - `swarm_3_drones.py`: Multi-drone coordinated takeoff and V-formation flight.
+  - `interactive_swarm_flight.py`: Interactive 1-key flight maneuver and patrol tool.
+  - `sync_hud.py`: Real-time 5 Hz ASCII synchronization radar HUD.
 * `tests/`:
-  - `test_graph.py`, `test_formations.py`, `test_simulation.py`.
-* `FYP_RUNNING_LOG.md`: Comprehensive history from project inception, all 9 problems solved, and current status.
+  - `test_graph.py`, `test_formations.py`, `test_simulation.py`, `test_hybrid_features.py`.
+* `FYP_RUNNING_LOG.md`: Comprehensive running history, architectural details, and defense notes.
+* `ACADEMIC_REVIEW_RESPONSE.md`: Point-by-point technical responses to all 8 concerns from the 01 Oct 2026 review.
 
 ---
 
 ## 3. How to Run & Verify
 ```bash
 # Run test suite
-PYTHONPATH=. python3 tests/test_graph.py
-PYTHONPATH=. python3 tests/test_formations.py
-PYTHONPATH=. python3 tests/test_simulation.py
+PYTHONPATH=. pytest tests/
 
-# Run 4-formation demo
-PYTHONPATH=. python3 experiments/run_demo.py
-
-# Run network sweep
+# Run dynamic stress-tested network sweep (moving centroid + mid-flight morph)
 PYTHONPATH=. python3 experiments/test_network_sweep.py
+
+# Run unified MAVLink Swarm Adapter against SITL
+PYTHONPATH=. python3 sitl/mavlink_swarm_adapter.py
 ```
 
 ---
 
-## 4. Key Questions for Second-Opinion Review
-1. Are there mathematical or numerical stability edge cases in the Laplacian consensus, APF repulsion, or Hungarian assignment?
-2. Is the Hybrid switching logic robust against intermittent packet drop (chattering/hysteresis)?
-3. What considerations should be kept in mind when mapping these velocity/acceleration commands to ArduPilot SITL via `pymavlink` (`SET_POSITION_TARGET_LOCAL_NED`)?
+## 4. Academic Review Hardening Status (01 Oct 2026)
+All 8 reviewer concerns have been formally resolved:
+1. **Hybrid Recovery**: Upgraded to 20-tick sliding window delivery ratio ($\ge 70\%$) replacing brittle consecutive counter.
+2. **Adaptive Stale-Age**: Dynamically scales with nominal latency ($\tau_{\text{stale}} = \max(3\tau_{\text{lat}}, 0.15\text{s})$).
+3. **Multirotor Dynamics**: Added first-order attitude lag ($\tau=0.18\text{s}$), aerodynamic drag ($c_d=0.20$), and sensor noise ($\sigma=0.04\text{m}$).
+4. **Unified Codebase**: `mavlink_swarm_adapter.py` bridges the exact `swarm_core` algorithms to SITL.
+5. **Honest Scope**: Core engine: $90\%$, SITL fleet integration: $35\%$, Hardware: $10\%$.
+6. **Gold-Plating Ceased**: Retracted "digital twin" misnomer, standardized geometry ($7.00\text{m}$ wingspan).
+7. **Coordinate Frames**: `common_frame.py` anchors all SITL drones to common datum.
+8. **Defense Preparation**: Full mathematical derivations and examiner Q&A documented in `FYP_RUNNING_LOG.md`.
