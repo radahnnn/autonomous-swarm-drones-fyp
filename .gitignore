@@ -5,4 +5,9 @@ eeprom.bin
 *.bin
 *.log
 *.tlog
+*.raw
 mav.parm
+logs/
+terrain/
+sitl/takeoff.scr
+sitl/test_takeoff_diag.py

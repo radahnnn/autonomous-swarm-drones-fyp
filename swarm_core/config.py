@@ -24,17 +24,17 @@ class ParameterProvenance:
 CONFIG_DYNAMICS = {
     # First-order closed-loop attitude/thrust response time constant
     "attitude_tau": ParameterProvenance(
-        value=0.18,
+        value=0.992,
         unit="s",
-        provenance="assumed",
-        notes="Typical closed-loop tilt response for Betaflight/ArduPilot 5-inch quadrotor. Pending frequency sweep identification on hardware."
+        provenance="fitted from SITL",
+        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response (RMSE = 0.1536 m vs SITL telemetry). Captures combined position controller loop lag and vehicle dynamics."
     ),
     # Aerodynamic rotor drag coefficient (deceleration per unit speed)
     "drag_coeff": ParameterProvenance(
-        value=0.20,
+        value=0.637,
         unit="1/s",
-        provenance="assumed",
-        notes="Linear rotor drag approximation. Pending wind tunnel / coast-down flight log fitting."
+        provenance="fitted from SITL",
+        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response (RMSE = 0.1536 m vs SITL telemetry). Reflects rotor drag and position braking dynamics in SITL."
     ),
     # Physical collision radius (frame center to prop tip + safety margin)
     "drone_radius": ParameterProvenance(

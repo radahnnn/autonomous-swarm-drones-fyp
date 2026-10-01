@@ -58,7 +58,12 @@ class MAVLinkDroneInterface:
         self.connected = False
 
     def connect(self) -> bool:
-        endpoint = f"udpin:127.0.0.1:{self.port}"
+        if isinstance(self.port, str):
+            endpoint = self.port
+        elif self.port in [5760, 5770, 5780]:
+            endpoint = f"tcp:127.0.0.1:{self.port}"
+        else:
+            endpoint = f"udpin:127.0.0.1:{self.port}"
         try:
             self.conn = mavutil.mavlink_connection(endpoint)
             msg = self.conn.wait_heartbeat(timeout=4.0)
