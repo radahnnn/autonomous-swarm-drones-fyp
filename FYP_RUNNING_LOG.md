@@ -262,3 +262,42 @@ Following a comprehensive expert review, 8 key technical vulnerabilities were id
 2. Run live in-flight formation morphing ($\text{V-Shape} \longleftrightarrow \text{Line} \longleftrightarrow \text{Circle} \longleftrightarrow \text{Grid}$) through `mavlink_swarm_adapter.py`.
 3. Practice defending the hysteresis state machine mathematics and $\alpha(t)$ continuous blending equations.
 
+---
+
+## 9. Task B Experiments & Defensible Benchmarks (01 Oct 2026, Post-Audit Update)
+
+In response to the audit recommendations, **Task B** was executed to eliminate remaining empirical ambiguities, validate recovery mechanisms under deterministic outages, and rigorously evaluate sensor noise and feedforward control across 4 baselines on identical random seeds.
+
+### 9.1 Parameter Provenance Architecture (`swarm_core/config.py`)
+All parameters in the simulation were consolidated into [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py) and stamped with explicit `"assumed"` provenance labels:
+- Multirotor closed-loop attitude lag: $\tau = 0.18\text{ s}$ (`provenance="assumed"`).
+- Aerodynamic linear rotor drag: $c_d = 0.20\text{ s}^{-1}$ (`provenance="assumed"`).
+- Plain GPS noise baseline: $\sigma = 1.50\text{ m}$ (`provenance="assumed"`).
+- Common-mode GPS constellation correlation: $\gamma = 0.60$ (`provenance="assumed"`).
+- Fallback degrade timeout: $0.50\text{ s}$; Dwell time lockout: $2.00\text{ s}$; Sliding window: $20$ ticks ($\ge 70\%$).
+
+### 9.2 Velocity Feedforward & Analytical Proof of the ~1.14m Lag
+- **Theoretical Derivation**: When following a moving reference at $\|\mathbf{v}_{\text{target}}\| = 0.8544\text{ m/s}$ without feedforward, velocity damping $k_d = 2.2$ and rotor drag $c_d = 0.20$ oppose forward motion. Steady-state error balances these forces:
+  $$e_{\text{steady}} = \frac{k_d + c_d}{k_p} \|\mathbf{v}_{\text{target}}\| = \frac{2.2 + 0.20}{1.8} \times 0.8544 = \frac{2.4}{1.8} \times 0.8544 = 1.1392\text{ m} \approx 1.14\text{ m}$$
+- **Empirical Validation (6 Seeds)**:
+  - Without Feedforward: Transient morph error $= 1.849 \pm 0.000\text{ m}$, Steady-state error $= \mathbf{1.140 \pm 0.000\text{ m}}$ (exact $0.07\%$ match to theory!).
+  - With Feedforward: Transient morph error $= 1.329 \pm 0.000\text{ m}$, Steady-state error $= \mathbf{0.018 \pm 0.000\text{ m}}$ ($98.4\%$ reduction).
+
+### 9.3 Deterministic Outages (1s, 2s, 3s) & Gilbert-Elliott Burst Loss
+Evaluated 4 baselines on 6 identical seeds (`[42, 59, 76, 93, 110, 127]`):
+- **Gilbert-Elliott Burst Loss**:
+  - *Naive Hybrid*: Violent chattering with **$107.5 \pm 6.8$ mode switches/run** ($10.8$ fallback entries/drone).
+  - *Proposed Hybrid*: **$0.0 \pm 0.0$ mode switches/run** ($0.0$ fallback entries) because bursts $< 0.5\text{s}$ are filtered by the degrade timer.
+- **1.0s to 3.0s Outages**:
+  - *Proposed Hybrid*: Entered fallback exactly once per drone ($1.0 \pm 0.0$), locked in decentralized mode for the $2.05\text{s}$ dwell time, and smoothly recovered in $0.34\text{s} - 1.65\text{s}$ post-restoration.
+  - *Physical Safety*: Minimum inter-drone clearance was maintained at $1.38 \pm 0.26\text{ m}$ (safety limit $= 0.70\text{ m}$).
+
+### 9.4 GPS Noise Sweep ($\sigma \in \{0.04, 0.5, 1.5, 2.5\}\text{ m}$)
+Evaluated with $60\%$ shared common-mode error across the swarm:
+- *Proposed Hybrid Steady Error*: $0.058\text{ m}$ at $\sigma=0.04\text{ m} \to 0.084\text{ m}$ at $\sigma=2.50\text{ m}$. Common-mode error shifts the entire formation synchronously, preserving internal geometry.
+- *Decentralized Error*: Grows from $0.561\text{ m}$ to **$3.054 \pm 1.222\text{ m}$** due to noise propagation across the Laplacian graph.
+- *Zero Collisions*: APF collision avoidance preserved $> 1.63\text{ m}$ clearance with $0$ collisions in all 72 vehicle runs.
+
+Detailed tables and plots are archived in [`TASK_B_EXPERIMENTAL_REPORT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/TASK_B_EXPERIMENTAL_REPORT.md).
+
+
