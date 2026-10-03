@@ -11,7 +11,7 @@ Profiles:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, Union
 
 
 @dataclass(frozen=True)
@@ -336,3 +336,55 @@ def set_active_profile(name: str) -> SwarmConfigProfile:
         raise ValueError(f"Unknown configuration profile: '{name}'. Available: {list(PROFILES.keys())}")
     _ACTIVE_PROFILE_NAME = name
     return PROFILES[_ACTIVE_PROFILE_NAME]
+
+
+def build_controllers_from_profile(
+    profile: Union[str, SwarmConfigProfile],
+    nominal_latency: Optional[float] = None,
+) -> Tuple[Any, Any, Any]:
+    """
+    Constructs (CentralizedController, DecentralizedController, HybridController)
+    identically configured from the specified configuration profile.
+    Guarantees shared gains, safety distances, and hysteresis thresholds
+    across both the pure numerical simulator and the SITL integration adapter.
+    """
+    if isinstance(profile, str):
+        profile = get_profile(profile)
+
+    # Local imports to avoid circular dependencies
+    from swarm_core.controllers.centralized import CentralizedController
+    from swarm_core.controllers.decentralized import DecentralizedController
+    from swarm_core.controllers.hybrid import HybridController
+
+    apf_dist = float(profile.get("apf_activation_dist"))
+    k_repulse = float(profile.get("k_repulse"))
+
+    central_ctrl = CentralizedController(
+        kp=float(profile.get("centralized_kp")),
+        kd=float(profile.get("centralized_kd")),
+        k_repulse=k_repulse,
+        collision_dist=apf_dist,
+    )
+    decentral_ctrl = DecentralizedController(
+        k_sep=k_repulse,
+        k_align=float(profile.get("decentralized_kv")),
+        k_form=float(profile.get("decentralized_k_form")),
+        safe_radius=apf_dist,
+    )
+    hybrid_ctrl = HybridController(
+        degrade_timeout=float(profile.get("hybrid_degrade_timeout")),
+        recovery_ratio_threshold=float(profile.get("hybrid_recovery_ratio")),
+        min_dwell_time=float(profile.get("hybrid_dwell_time")),
+        ramp_duration=float(profile.get("hybrid_ramp_duration")),
+        window_size=int(profile.get("hybrid_recovery_window")),
+        central_controller=central_ctrl,
+        decentral_controller=decentral_ctrl,
+    )
+
+    if nominal_latency is not None:
+        hybrid_ctrl.set_nominal_latency(float(nominal_latency))
+    elif "latency_mean" in profile.parameters:
+        hybrid_ctrl.set_nominal_latency(float(profile.get("latency_mean")))
+
+    return central_ctrl, decentral_ctrl, hybrid_ctrl
+

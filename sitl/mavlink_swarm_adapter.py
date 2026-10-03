@@ -20,14 +20,42 @@ try:
 except ImportError:
     mavutil = None
 
-from swarm_core.config import get_profile
+from swarm_core.config import get_profile, build_controllers_from_profile
 from swarm_core.drone import Drone
-from swarm_core.formations import FormationGenerator, FormationType
+from swarm_core.formations import (
+    FormationGenerator,
+    FormationType,
+    compute_formation_slots,
+    compute_desired_neighbor_offsets,
+)
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.network import WirelessChannel
 from sitl.common_frame import CommonCoordinateFrame
+
+
+def acceleration_to_position_setpoint(
+    current_pos_2d: np.ndarray,
+    accel_2d: np.ndarray,
+    dt: float,
+    cruise_alt: float = 5.05,
+    lookahead_scale: float = 1.0,
+) -> np.ndarray:
+    """
+    Translates 2D guidance acceleration into a 3D ArduPilot local-NED position setpoint:
+        P_sp = [p_x + a_x * dt * lookahead_scale, p_y + a_y * dt * lookahead_scale, -cruise_alt]
+
+    ArduPilot's internal position PID (POS_XYZ_P, VEL_XYZ_PID) tracks this setpoint.
+    The lookahead_scale provides lead compensation against autopilot tracking lag
+    (e.g., lookahead_scale=2.0 for hybrid mode translates to 200ms lead time at 10Hz).
+    """
+    disp = np.asarray(accel_2d, dtype=np.float64)[:2] * float(dt) * float(lookahead_scale)
+    return np.array([
+        float(current_pos_2d[0] + disp[0]),
+        float(current_pos_2d[1] + disp[1]),
+        -float(cruise_alt),
+    ], dtype=np.float64)
 
 
 DRONE_SPECS = [
@@ -156,31 +184,12 @@ class MAVLinkSwarmAdapter:
             for i in range(len(self.interfaces))
         ]
 
-        # Core controllers configured for SITL translation
+        # Core controllers configured identically from profile for SITL translation
         self.control_mode = control_mode
-        self.central_ctrl = CentralizedController(
-            kp=self.profile.get("centralized_kp"),
-            kd=self.profile.get("centralized_kd"),
-            k_repulse=self.profile.get("k_repulse"),
-            collision_dist=self.profile.get("apf_activation_dist"),
-        )
-        self.decentral_ctrl = DecentralizedController(
-            k_sep=self.profile.get("k_repulse"),
-            k_align=self.profile.get("decentralized_kv"),
-            k_form=self.profile.get("decentralized_k_form"),
-            safe_radius=self.profile.get("apf_activation_dist"),
-        )
-        self.hybrid_ctrl = HybridController(
-            degrade_timeout=self.profile.get("hybrid_degrade_timeout"),
-            recovery_ratio_threshold=self.profile.get("hybrid_recovery_ratio"),
-            min_dwell_time=self.profile.get("hybrid_dwell_time"),
-            ramp_duration=self.profile.get("hybrid_ramp_duration"),
-            window_size=self.profile.get("hybrid_recovery_window"),
-            central_controller=self.central_ctrl,
-            decentral_controller=self.decentral_ctrl,
+        self.central_ctrl, self.decentral_ctrl, self.hybrid_ctrl = build_controllers_from_profile(
+            self.profile, nominal_latency=0.03
         )
         self.channel = WirelessChannel(packet_loss_rate=packet_loss, latency_mean=0.03)
-        self.hybrid_ctrl.set_nominal_latency(0.03)
 
         # Swarm Mission State
         self.current_formation = FormationType.V_SHAPE
@@ -227,7 +236,7 @@ class MAVLinkSwarmAdapter:
         print(f">> Simulated channel packet loss set to: {loss_rate * 100:.0f}%")
 
     def run_control_cycle(self, current_time: float, dt: float = 0.1):
-        """Executes one 10 Hz iteration of the exact swarm_core guidance pipeline."""
+        """Executes one 10 Hz iteration of the swarm_core guidance pipeline and dispatches setpoints to ArduPilot."""
         # 1. Ingest telemetry and update core_drones
         for i, iface in enumerate(self.interfaces):
             iface.poll_telemetry()
@@ -236,23 +245,25 @@ class MAVLinkSwarmAdapter:
 
         n = len(self.core_drones)
 
-        # 2. Compute Target Slots from Formation Generator
-        local_offsets = FormationGenerator.get_formation_offsets(
-            self.current_formation, n, spacing=self.formation_spacing
+        # 2. Compute Target Slots from Formation Generator with Hungarian matching
+        current_pos_2d = np.array([d.position for d in self.core_drones])
+        local_offsets, world_slots_2d, assigned_slots_2d = compute_formation_slots(
+            formation_type=self.current_formation,
+            num_drones=n,
+            centroid=self.centroid_target[:2],
+            spacing=self.formation_spacing,
+            current_positions=current_pos_2d,
         )
-        # 3D world slots
-        world_slots_3d = np.zeros((n, 3))
-        for i in range(n):
-            world_slots_3d[i, 0] = self.centroid_target[0] + local_offsets[i, 0]
-            world_slots_3d[i, 1] = self.centroid_target[1] + local_offsets[i, 1]
-            world_slots_3d[i, 2] = -self.cruise_alt
+        world_slots_3d = np.column_stack([
+            assigned_slots_2d, np.full(n, -self.cruise_alt, dtype=np.float64)
+        ])
 
         # 3. Simulate Central Heartbeat Broadcast via WirelessChannel
         self.seq_num += 1
         for i in range(n):
             payload = {
                 "seq_num": self.seq_num,
-                "target_pos": world_slots_3d[i, :2].copy(),
+                "target_pos": assigned_slots_2d[i].copy(),
             }
             self.channel.send(
                 sender_id=-1, recipient_id=i, payload=payload,
@@ -282,31 +293,54 @@ class MAVLinkSwarmAdapter:
             {"id": d.id, "position": d.position.copy(), "velocity": d.velocity.copy()}
             for d in self.core_drones
         ]
+        drone_ids = [d.id for d in self.core_drones]
 
         target_setpoints_3d = []
         for i, d in enumerate(self.core_drones):
+            neighbors = [s for s in neighbor_states if s["id"] != d.id]
+            desired_offsets = compute_desired_neighbor_offsets(
+                drone_id=d.id,
+                assigned_targets=assigned_slots_2d,
+                neighbor_ids=[s["id"] for s in neighbors],
+                drone_ids=drone_ids,
+            )
+
             if self.control_mode == "centralized":
-                # Direct centralized slot assignment
+                # Direct centralized slot assignment waypoint dispatched to ArduPilot position loop
                 tgt = world_slots_3d[i].copy()
             elif self.control_mode == "decentralized":
-                # Pure local neighbor consensus
-                neighbors = [s for s in neighbor_states if s["id"] != d.id]
+                # Pure local neighbor consensus with formation cohesion
                 u_dec = self.decentral_ctrl.compute_drone_control(
-                    drone=d, neighbor_states=neighbors, goal_pos=world_slots_3d[i, :2]
+                    drone=d,
+                    neighbor_states=neighbors,
+                    desired_offsets=desired_offsets,
+                    goal_pos=assigned_slots_2d[i],
                 )
-                # Integrate step for target setpoint
-                tgt = np.array([d.position[0] + u_dec[0] * dt, d.position[1] + u_dec[1] * dt, -self.cruise_alt])
+                tgt = acceleration_to_position_setpoint(
+                    current_pos_2d=d.position,
+                    accel_2d=u_dec,
+                    dt=dt,
+                    cruise_alt=self.cruise_alt,
+                    lookahead_scale=1.0,
+                )
             else:
                 # Proposed Hybrid Controller with smooth alpha blending and hysteresis
-                neighbors = [s for s in neighbor_states if s["id"] != d.id]
                 u_hyb = self.hybrid_ctrl.compute_hybrid_control(
                     drone=d,
                     current_time=current_time,
                     dt=dt,
                     neighbor_states=neighbors,
+                    desired_neighbor_offsets=desired_offsets,
                     drag_coeff=float(self.profile.get("drag_coeff")),
                 )
-                tgt = np.array([d.position[0] + u_hyb[0] * dt * 2.0, d.position[1] + u_hyb[1] * dt * 2.0, -self.cruise_alt])
+                # Hybrid lookahead lead filter (* 2.0) compensates for ArduPilot's position loop lag (tau=0.992s)
+                tgt = acceleration_to_position_setpoint(
+                    current_pos_2d=d.position,
+                    accel_2d=u_hyb,
+                    dt=dt,
+                    cruise_alt=self.cruise_alt,
+                    lookahead_scale=2.0,
+                )
 
             target_setpoints_3d.append(tgt)
 

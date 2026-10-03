@@ -6,11 +6,22 @@ Coordinates the physics step, wireless network exchange, control computation, an
 from typing import Dict, List, Optional, Union
 import numpy as np
 
-from swarm_core.config import SwarmConfigProfile, get_active_profile, get_profile
+from swarm_core.config import (
+    SwarmConfigProfile,
+    build_controllers_from_profile,
+    get_active_profile,
+    get_profile,
+)
 from swarm_core.drone import Drone
 from swarm_core.graph import SwarmGraph
 from swarm_core.network import WirelessChannel
-from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
+from swarm_core.formations import (
+    FormationGenerator,
+    FormationType,
+    assign_optimal_slots,
+    compute_desired_neighbor_offsets,
+    compute_formation_slots,
+)
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
@@ -76,30 +87,9 @@ class SwarmSimulation:
         self.metrics = SwarmMetricsTracker(collision_threshold=collision_thresh)
 
         # Controllers configured with profile gains and thresholds
-        apf_dist = float(self.profile.get("apf_activation_dist"))
-        k_repulse = float(self.profile.get("k_repulse"))
-        self.central_ctrl = CentralizedController(
-            kp=float(self.profile.get("centralized_kp")),
-            kd=float(self.profile.get("centralized_kd")),
-            k_repulse=k_repulse,
-            collision_dist=apf_dist,
+        self.central_ctrl, self.decentral_ctrl, self.hybrid_ctrl = build_controllers_from_profile(
+            self.profile, nominal_latency=self.latency_mean
         )
-        self.decentral_ctrl = DecentralizedController(
-            k_sep=k_repulse,
-            k_align=float(self.profile.get("decentralized_kv")),
-            k_form=float(self.profile.get("decentralized_k_form")),
-            safe_radius=apf_dist,
-        )
-        self.hybrid_ctrl = HybridController(
-            degrade_timeout=float(self.profile.get("hybrid_degrade_timeout")),
-            recovery_ratio_threshold=float(self.profile.get("hybrid_recovery_ratio")),
-            min_dwell_time=float(self.profile.get("hybrid_dwell_time")),
-            ramp_duration=float(self.profile.get("hybrid_ramp_duration")),
-            window_size=int(self.profile.get("hybrid_recovery_window")),
-            central_controller=self.central_ctrl,
-            decentral_controller=self.decentral_ctrl,
-        )
-        self.hybrid_ctrl.set_nominal_latency(self.latency_mean)
 
         # Mission state
         self.current_formation = FormationType.LINE
@@ -183,12 +173,13 @@ class SwarmSimulation:
                     )
 
         # 3. Coordinator Heartbeat Broadcast (if central link is physically active)
-        local_offsets = FormationGenerator.get_formation_offsets(
-            self.current_formation, n, spacing=self.formation_spacing
+        local_offsets, world_slots, assigned_targets = compute_formation_slots(
+            formation_type=self.current_formation,
+            num_drones=n,
+            centroid=self.centroid_target,
+            spacing=self.formation_spacing,
+            current_positions=np.array([d.position for d in self.drones]),
         )
-        world_slots = local_offsets + self.centroid_target
-        current_positions = np.array([d.position for d in self.drones])
-        assigned_targets = assign_optimal_slots(current_positions, world_slots)
         self.target_slots = assigned_targets
 
         # Compute centralized commands
@@ -249,6 +240,8 @@ class SwarmSimulation:
                 self.hybrid_ctrl.record_heartbeat_attempt(d.id, False)
 
         # 5. Compute Control Inputs based on selected mode
+        drone_ids = [d.id for d in self.drones]
+
         if self.control_mode == "centralized":
             # Pure centralized with hold-last-command under loss
             for d in self.drones:
@@ -259,10 +252,12 @@ class SwarmSimulation:
             goal_v = self.centroid_velocity if self.use_velocity_feedforward else None
             for i, d in enumerate(self.drones):
                 target_i = assigned_targets[i]
-                desired_offsets = {}
-                for n_info in perceived_neighbors[d.id]:
-                    n_idx = [idx for idx, other in enumerate(self.drones) if other.id == n_info["id"]][0]
-                    desired_offsets[n_info["id"]] = target_i - assigned_targets[n_idx]
+                desired_offsets = compute_desired_neighbor_offsets(
+                    drone_id=d.id,
+                    assigned_targets=assigned_targets,
+                    neighbor_ids=[n_info["id"] for n_info in perceived_neighbors[d.id]],
+                    drone_ids=drone_ids,
+                )
 
                 accel_i = self.decentral_ctrl.compute_drone_control(
                     drone=d,
@@ -276,10 +271,12 @@ class SwarmSimulation:
         elif self.control_mode == "hybrid":
             for i, d in enumerate(self.drones):
                 target_i = assigned_targets[i]
-                desired_offsets = {}
-                for n_info in perceived_neighbors[d.id]:
-                    n_idx = [idx for idx, other in enumerate(self.drones) if other.id == n_info["id"]][0]
-                    desired_offsets[n_info["id"]] = target_i - assigned_targets[n_idx]
+                desired_offsets = compute_desired_neighbor_offsets(
+                    drone_id=d.id,
+                    assigned_targets=assigned_targets,
+                    neighbor_ids=[n_info["id"] for n_info in perceived_neighbors[d.id]],
+                    drone_ids=drone_ids,
+                )
 
                 accel_i = self.hybrid_ctrl.compute_hybrid_control(
                     drone=d,
