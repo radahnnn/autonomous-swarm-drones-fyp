@@ -17,6 +17,7 @@ import swarm_core
 import simulator
 from swarm_core.config import (
     PROFILES,
+    ParameterProvenance,
     SwarmConfigProfile,
     get_profile,
     get_active_profile,
@@ -264,38 +265,94 @@ def test_total_coordinator_outage_transition():
 
 def test_controller_parameters_and_thresholds_from_profile():
     """
-    Verify that Centralized, Decentralized, and Hybrid controller gains
-    and thresholds are populated directly from the selected profile.
+    Verify that SwarmSimulation receives all 12 controller parameters directly from the selected profile:
+    1. centralized proportional gain (centralized_kp)
+    2. centralized derivative gain (centralized_kd)
+    3. centralized repulsion gain (k_repulse)
+    4. centralized APF distance (apf_activation_dist)
+    5. decentralized alignment gain (decentralized_kv)
+    6. decentralized formation gain (decentralized_k_form)
+    7. decentralized safe radius (apf_activation_dist)
+    8. hybrid degradation timeout (hybrid_degrade_timeout)
+    9. hybrid recovery window (hybrid_recovery_window)
+    10. hybrid recovery ratio (hybrid_recovery_ratio)
+    11. hybrid dwell time (hybrid_dwell_time)
+    12. hybrid ramp duration (hybrid_ramp_duration)
     """
-    drones = [Drone(i, [float(i * 2), 0.0], profile="assumed_baseline") for i in range(3)]
-    sim_base = SwarmSimulation(drones, profile="assumed_baseline")
+    # 1. Standard assumed_baseline profile propagation
+    drones_base = [Drone(i, [float(i * 2), 0.0], profile="assumed_baseline") for i in range(3)]
+    sim_base = SwarmSimulation(drones_base, profile="assumed_baseline")
+    prof_base = sim_base.profile
 
-    # Centralized controller gains
-    assert sim_base.central_ctrl.kp == 1.8
-    assert sim_base.central_ctrl.kd == 2.2
-    assert sim_base.central_ctrl.k_repulse == 4.0
-    assert sim_base.central_ctrl.collision_dist == 1.20
+    # Verify all 12 controller values match the profile getters
+    assert sim_base.central_ctrl.kp == prof_base.get("centralized_kp") == 1.8
+    assert sim_base.central_ctrl.kd == prof_base.get("centralized_kd") == 2.2
+    assert sim_base.central_ctrl.k_repulse == prof_base.get("k_repulse") == 4.0
+    assert sim_base.central_ctrl.collision_dist == prof_base.get("apf_activation_dist") == 1.20
 
-    # Decentralized controller gains
-    assert sim_base.decentral_ctrl.k_sep == 4.0
-    assert sim_base.decentral_ctrl.k_align == 1.6
-    assert sim_base.decentral_ctrl.k_form == 1.4
-    assert sim_base.decentral_ctrl.safe_radius == 1.20
+    assert sim_base.decentral_ctrl.k_sep == prof_base.get("k_repulse") == 4.0
+    assert sim_base.decentral_ctrl.k_align == prof_base.get("decentralized_kv") == 1.6
+    assert sim_base.decentral_ctrl.k_form == prof_base.get("decentralized_k_form") == 1.4
+    assert sim_base.decentral_ctrl.safe_radius == prof_base.get("apf_activation_dist") == 1.20
 
-    # Hybrid controller thresholds
-    assert sim_base.hybrid_ctrl.degrade_timeout == 0.50
-    assert sim_base.hybrid_ctrl.recovery_ratio_threshold == 0.70
-    assert sim_base.hybrid_ctrl.min_dwell_time == 2.00
-    assert sim_base.hybrid_ctrl.ramp_duration == 0.80
-    assert sim_base.hybrid_ctrl.window_size == 20
+    assert sim_base.hybrid_ctrl.degrade_timeout == prof_base.get("hybrid_degrade_timeout") == 0.50
+    assert sim_base.hybrid_ctrl.window_size == prof_base.get("hybrid_recovery_window") == 20
+    assert sim_base.hybrid_ctrl.recovery_ratio_threshold == prof_base.get("hybrid_recovery_ratio") == 0.70
+    assert sim_base.hybrid_ctrl.min_dwell_time == prof_base.get("hybrid_dwell_time") == 2.00
+    assert sim_base.hybrid_ctrl.ramp_duration == prof_base.get("hybrid_ramp_duration") == 0.80
 
-    # Switch to SITL fitted profile
+    # 2. Verify sitl_fitted profile modifications propagate
     drones_sitl = [Drone(i, [float(i * 2), 0.0], profile="sitl_fitted") for i in range(3)]
     sim_sitl = SwarmSimulation(drones_sitl, profile="sitl_fitted")
+    prof_sitl = sim_sitl.profile
 
-    # SITL fitted adjustments
-    assert sim_sitl.central_ctrl.collision_dist == 1.50
-    assert sim_sitl.decentral_ctrl.safe_radius == 1.50
+    assert sim_sitl.central_ctrl.collision_dist == prof_sitl.get("apf_activation_dist") == 1.50
+    assert sim_sitl.decentral_ctrl.safe_radius == prof_sitl.get("apf_activation_dist") == 1.50
+
+    # 3. Dynamic propagation proof using a custom profile with non-default values for all 12 parameters
+    def make_prov(name: str, val: float):
+        return ParameterProvenance(
+            name=name, value=val, unit="-", meaning="Custom test", provenance="test", notes="test"
+        )
+
+    custom_params = dict(prof_base.parameters)
+    custom_params["centralized_kp"] = make_prov("centralized_kp", 3.75)
+    custom_params["centralized_kd"] = make_prov("centralized_kd", 4.25)
+    custom_params["k_repulse"] = make_prov("k_repulse", 8.50)
+    custom_params["apf_activation_dist"] = make_prov("apf_activation_dist", 1.95)
+    custom_params["decentralized_kv"] = make_prov("decentralized_kv", 2.65)
+    custom_params["decentralized_k_form"] = make_prov("decentralized_k_form", 2.15)
+    custom_params["hybrid_degrade_timeout"] = make_prov("hybrid_degrade_timeout", 0.95)
+    custom_params["hybrid_recovery_window"] = make_prov("hybrid_recovery_window", 35)
+    custom_params["hybrid_recovery_ratio"] = make_prov("hybrid_recovery_ratio", 0.85)
+    custom_params["hybrid_dwell_time"] = make_prov("hybrid_dwell_time", 3.25)
+    custom_params["hybrid_ramp_duration"] = make_prov("hybrid_ramp_duration", 1.45)
+
+    custom_profile = SwarmConfigProfile(
+        name="custom_propagation_test",
+        description="Profile with distinct non-default values to prove propagation",
+        parameters=custom_params,
+    )
+
+    drones_custom = [Drone(i, [float(i * 2), 0.0]) for i in range(3)]
+    sim_custom = SwarmSimulation(drones_custom, profile=custom_profile)
+
+    # Prove that SwarmSimulation received and assigned all 12 custom values
+    assert sim_custom.central_ctrl.kp == 3.75
+    assert sim_custom.central_ctrl.kd == 4.25
+    assert sim_custom.central_ctrl.k_repulse == 8.50
+    assert sim_custom.central_ctrl.collision_dist == 1.95
+
+    assert sim_custom.decentral_ctrl.k_sep == 8.50
+    assert sim_custom.decentral_ctrl.k_align == 2.65
+    assert sim_custom.decentral_ctrl.k_form == 2.15
+    assert sim_custom.decentral_ctrl.safe_radius == 1.95
+
+    assert sim_custom.hybrid_ctrl.degrade_timeout == 0.95
+    assert sim_custom.hybrid_ctrl.window_size == 35
+    assert sim_custom.hybrid_ctrl.recovery_ratio_threshold == 0.85
+    assert sim_custom.hybrid_ctrl.min_dwell_time == 3.25
+    assert sim_custom.hybrid_ctrl.ramp_duration == 1.45
 
 
 def test_hybrid_feedforward_receives_profile_drag_coeff():
