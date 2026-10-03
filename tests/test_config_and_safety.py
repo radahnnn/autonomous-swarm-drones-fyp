@@ -301,7 +301,10 @@ def test_controller_parameters_and_thresholds_from_profile():
 def test_hybrid_feedforward_receives_profile_drag_coeff():
     """
     Verify that compute_hybrid_control receives the active profile drag coefficient
-    and applies drag compensation feedforward matching the profile.
+    and applies drag compensation feedforward matching the profile:
+    - assumed_baseline uses drag_coeff = 0.20
+    - sitl_fitted uses drag_coeff = 0.637
+    - hybrid feedforward output changes accordingly for a nonzero target velocity.
     """
     v_target = 0.5
     d_base = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[v_target, 0.0], profile="assumed_baseline")
@@ -309,6 +312,10 @@ def test_hybrid_feedforward_receives_profile_drag_coeff():
 
     sim_base = SwarmSimulation([d_base], control_mode="hybrid", profile="assumed_baseline", latency_mean=0.0)
     sim_sitl = SwarmSimulation([d_sitl], control_mode="hybrid", profile="sitl_fitted", latency_mean=0.0)
+
+    # Prove that the configuration profiles have the expected drag coefficients
+    assert sim_base.profile.get("drag_coeff") == 0.20
+    assert sim_sitl.profile.get("drag_coeff") == 0.637
 
     # Provide matched centroid velocity target (error = 0, so command is purely feedforward u_ff = c_d * v)
     sim_base.centroid_velocity = np.array([v_target, 0.0])
@@ -333,22 +340,22 @@ def test_hybrid_feedforward_receives_profile_drag_coeff():
 def test_set_formation_preserves_profile_spacing():
     """
     Verify that set_formation() preserves the active profile formation spacing
-    when spacing=None is passed, rather than silently overwriting it with 2.5.
+    when spacing=None is passed, and that an explicitly supplied spacing overrides it.
     """
     drones = [Drone(i, [float(i * 2), 0.0], profile="assumed_baseline") for i in range(3)]
     sim = SwarmSimulation(drones, profile="assumed_baseline")
     initial_spacing = sim.formation_spacing
 
-    # Call set_formation without specifying spacing
-    sim.set_formation(FormationType.CIRCLE)
+    # 1. Passing spacing=None preserves the initial profile spacing
+    sim.set_formation(FormationType.CIRCLE, spacing=None)
     assert sim.formation_spacing == initial_spacing
 
-    # Call set_formation with explicit spacing
+    # 2. Explicitly supplied spacing overrides the spacing
     sim.set_formation(FormationType.GRID, spacing=4.0)
     assert sim.formation_spacing == 4.0
 
-    # Call again without spacing: should preserve 4.0
-    sim.set_formation(FormationType.LINE)
+    # 3. Passing spacing=None again preserves the updated spacing (4.0)
+    sim.set_formation(FormationType.LINE, spacing=None)
     assert sim.formation_spacing == 4.0
 
 
