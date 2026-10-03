@@ -1,14 +1,17 @@
 """
-GPS Noise Sweep Experiment (Task B Item 2).
+GPS Noise Sweep Experiment (Task B Item 2 & Recommendation 1).
 Evaluates the effect of horizontal GPS positioning noise on:
 1. Formation Tracking Error (True Physical Position vs Intended Formation Target)
-2. Minimum Inter-Drone Separation vs Collision Threshold (0.70m) and APF Safety Radius (2.5m)
+2. Minimum Inter-Drone Separation vs Collision Threshold (0.70m) and APF Safety Radius (1.20m/1.50m)
 
-Noise Model:
-- Dual-component GPS error:
+Sensor Modeling:
+- First-order Gauss-Markov time-correlated GPS error (tau_corr ~ 30s):
+  e_GPS,i[k+1] = phi * e_GPS,i[k] + sqrt(1 - phi^2) * w_GPS,i
   w_GPS,i = w_common + w_indep,i
   where w_common is shared across the swarm (60% variance) due to identical satellite geometry / atmosphere,
   and w_indep,i is independent per quad (40% variance) due to multipath / receiver noise.
+- Velocity error is modeled separately (sigma_v ~ 0.08 m/s, reflecting fused GNSS Doppler/IMU estimation).
+- Separation is evaluated strictly on true ground-truth physical coordinates, not corrupted sensor measurements.
 
 Noise Levels Tested:
   sigma in {0.04, 0.5, 1.5, 2.5} m

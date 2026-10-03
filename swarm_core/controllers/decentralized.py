@@ -33,6 +33,8 @@ class DecentralizedController:
         desired_offsets: Optional[Dict[int, np.ndarray]] = None,
         goal_pos: Optional[np.ndarray] = None,
         goal_vel: Optional[np.ndarray] = None,
+        measured_position: Optional[np.ndarray] = None,
+        measured_velocity: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
         Compute control acceleration for a single drone given perceived neighbor data.
@@ -43,15 +45,22 @@ class DecentralizedController:
             desired_offsets: Dict mapping neighbor_id -> desired relative vector (p_drone - p_neighbor).
             goal_pos: Optional navigational waypoint.
             goal_vel: Optional velocity target.
+            measured_position: Optional measured/estimated local position (defaults to drone.position).
+            measured_velocity: Optional measured/estimated local velocity (defaults to drone.velocity).
         """
+        pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
+        vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
         accel = np.zeros(drone.dim, dtype=np.float64)
 
         if not neighbor_states:
             # Isolated drone - track goal directly if available
             if goal_pos is not None:
-                accel += self.k_goal * (goal_pos - drone.position)
+                accel += self.k_goal * (goal_pos - pos)
                 if goal_vel is not None:
-                    accel += 0.5 * self.k_goal * (goal_vel - drone.velocity)
+                    accel += 0.5 * self.k_goal * (goal_vel - vel)
+            else:
+                # Bounded failsafe: actively brake to hover when isolated without an active goal
+                accel -= self.k_align * vel
             return accel
 
         f_sep = np.zeros(drone.dim, dtype=np.float64)
@@ -63,7 +72,7 @@ class DecentralizedController:
             p_j = n_state["position"]
             v_j = n_state["velocity"]
 
-            diff = drone.position - p_j
+            diff = pos - p_j
             dist = np.linalg.norm(diff)
 
             # 1. Separation force (strictly local collision avoidance)
@@ -72,7 +81,7 @@ class DecentralizedController:
                 f_sep += repulse * (diff / dist)
 
             # 2. Velocity consensus (Laplacian alignment matching: dot{v}_i = - sum (v_i - v_j))
-            f_align -= self.k_align * (drone.velocity - v_j)
+            f_align -= self.k_align * (vel - v_j)
 
             # 3. Formation cohesion / relative displacement consensus
             if desired_offsets is not None and n_id in desired_offsets:
@@ -87,9 +96,9 @@ class DecentralizedController:
         # 4. Optional navigational feedback
         f_goal = np.zeros(drone.dim, dtype=np.float64)
         if goal_pos is not None:
-            f_goal += self.k_goal * (goal_pos - drone.position)
+            f_goal += self.k_goal * (goal_pos - pos)
             if goal_vel is not None:
-                f_goal += 0.5 * self.k_goal * (goal_vel - drone.velocity)
+                f_goal += 0.5 * self.k_goal * (goal_vel - vel)
 
         total_accel = f_sep + f_align + f_form + f_goal
         return total_accel

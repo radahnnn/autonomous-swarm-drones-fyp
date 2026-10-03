@@ -24,10 +24,21 @@ class SwarmMetricsSnapshot:
 
 
 class SwarmMetricsTracker:
-    """Collects and aggregates performance data over the course of a simulation run."""
+    """
+    Collects and aggregates performance data over the course of a simulation run.
+    Evaluates physical ground-truth inter-drone distances, formation tracking errors,
+    and link vs formation recovery dynamics.
+    """
 
-    def __init__(self, collision_threshold: float = 0.7):
-        self.collision_threshold = float(collision_threshold)
+    def __init__(self, collision_threshold: Optional[float] = None):
+        if collision_threshold is None:
+            try:
+                from swarm_core.config import get_active_profile
+                self.collision_threshold = float(get_active_profile().get("collision_threshold", 0.70))
+            except Exception:
+                self.collision_threshold = 0.70
+        else:
+            self.collision_threshold = float(collision_threshold)
         self.history: List[SwarmMetricsSnapshot] = []
 
     def record_step(
@@ -127,3 +138,25 @@ class SwarmMetricsTracker:
             "steady_state_error_m": steady_state_error,
             "total_mode_switches": float(switches[-1] if switches else 0.0),
         }
+
+    def calculate_formation_recovery_time(
+        self,
+        disturbance_end_time: float,
+        convergence_tol: float = 0.25,
+    ) -> float:
+        """
+        Calculates formation recovery duration: elapsed time from when an RF disturbance
+        (outage / burst) ceases until tracking error settles and stays below convergence_tol.
+        Returns 0.0 if already converged, or elapsed seconds, or -1.0 if never converged.
+        """
+        post_snapshots = [(s.time, s.formation_error) for s in self.history if s.time >= disturbance_end_time]
+        if not post_snapshots:
+            return 0.0
+
+        times = [t for t, _ in post_snapshots]
+        errors = [err for _, err in post_snapshots]
+
+        for i, err in enumerate(errors):
+            if all(e <= convergence_tol for e in errors[i:]):
+                return float(times[i] - disturbance_end_time)
+        return -1.0

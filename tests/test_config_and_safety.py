@@ -367,8 +367,8 @@ def test_hybrid_feedforward_receives_profile_drag_coeff():
     d_base = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[v_target, 0.0], profile="assumed_baseline")
     d_sitl = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[v_target, 0.0], profile="sitl_fitted")
 
-    sim_base = SwarmSimulation([d_base], control_mode="hybrid", profile="assumed_baseline", latency_mean=0.0)
-    sim_sitl = SwarmSimulation([d_sitl], control_mode="hybrid", profile="sitl_fitted", latency_mean=0.0)
+    sim_base = SwarmSimulation([d_base], control_mode="hybrid", profile="assumed_baseline", latency_mean=0.0, gps_noise_std=0.0)
+    sim_sitl = SwarmSimulation([d_sitl], control_mode="hybrid", profile="sitl_fitted", latency_mean=0.0, gps_noise_std=0.0)
 
     # Prove that the configuration profiles have the expected drag coefficients
     assert sim_base.profile.get("drag_coeff") == 0.20

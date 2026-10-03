@@ -178,9 +178,75 @@ def test_forced_fallback_and_sliding_window_recovery():
     assert ctrl.switch_counts[drone_id] == 2
 
 
+def test_isolated_fallback_bounded_hover_deceleration():
+    """
+    Recommendation 5: When an isolated drone has no neighbors and goal_pos is None,
+    verify that the controller issues a bounded braking command to decelerate to hover
+    (accel = -k_align * velocity) rather than drifting at constant velocity.
+    """
+    from swarm_core.controllers.decentralized import DecentralizedController
+
+    ctrl = DecentralizedController(k_align=1.6)
+    drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[2.0, -1.5])
+
+    # No neighbors, no goal
+    cmd = ctrl.compute_drone_control(drone=drone, neighbor_states=[], goal_pos=None)
+
+    # Command must directly oppose velocity: a = -k_align * v
+    expected_cmd = -1.6 * np.array([2.0, -1.5])
+    assert np.allclose(cmd, expected_cmd)
+
+    # Forward step verification: speed must decrease
+    drone.set_control_input(cmd)
+    initial_speed = np.linalg.norm(drone.velocity)
+    drone.step(0.05)
+    new_speed = np.linalg.norm(drone.velocity)
+    assert new_speed < initial_speed, f"Speed did not decrease: {initial_speed:.3f} -> {new_speed:.3f}"
+
+
+def test_hybrid_controller_measured_state_inputs():
+    """
+    Recommendation 1: Verify that HybridController takes measured_position and
+    measured_velocity inputs for centralized guidance and local APF repulsion,
+    rather than reading uncorrupted ground truth drone.position / drone.velocity.
+    """
+    ctrl = HybridController()
+    drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[0.0, 0.0])
+
+    # Send valid coordinator heartbeat at target [0, 0] so drone 0 is in CENTRALIZED mode with alpha=1.0
+    ctrl.process_coordinator_heartbeat(
+        drone_id=0,
+        current_time=1.0,
+        send_timestamp=0.98,
+        sequence_num=1,
+        target_pos=np.array([0.0, 0.0]),
+    )
+
+    meas_pos = np.array([0.5, -0.2])
+    meas_vel = np.array([0.1, 0.0])
+
+    cmd = ctrl.compute_hybrid_control(
+        drone=drone,
+        current_time=1.0,
+        dt=0.05,
+        neighbor_states=[],
+        use_velocity_feedforward=False,
+        measured_position=meas_pos,
+        measured_velocity=meas_vel,
+    )
+
+    # Under pure centralized (alpha=1.0), p_err = target - meas_pos = [0, 0] - [0.5, -0.2] = [-0.5, 0.2]
+    # v_err = -meas_vel = [-0.1, 0.0]
+    # Expected command: kp * p_err + kd * v_err
+    expected_cmd = ctrl.central_controller.kp * np.array([-0.5, 0.2]) + ctrl.central_controller.kd * np.array([-0.1, 0.0])
+    assert np.allclose(cmd, expected_cmd), f"Command {cmd} does not match expected {expected_cmd}"
+
+
 if __name__ == "__main__":
     test_stale_and_sequence_rejection()
     test_asymmetric_hysteresis_and_dwell_time()
     test_smooth_controller_blending()
     test_forced_fallback_and_sliding_window_recovery()
+    test_isolated_fallback_bounded_hover_deceleration()
+    test_hybrid_controller_measured_state_inputs()
     print("All hybrid feature tests passed successfully!")

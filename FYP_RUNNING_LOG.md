@@ -446,6 +446,44 @@ Audited, aligned, and documented the exact architectural relationship between th
    - Test suite expanded from 15 to **45 unit and regression tests** passing in ~1.5 seconds.
    - All tests passing across Python 3.10, 3.11, and 3.12 on GitHub Actions CI.
 
+---
+
+## 15. Phase 5: Hybrid Specification Hardening, Sensor Realism & Channel Parity (03 Oct 2026)
+
+Addressed architectural critiques and recommendations covering sensor estimation realism, network Markov chain validation, sub-swarm network partitions, failsafe hover damping, and metric disambiguation:
+
+1. **Sensor Measurement Realism & Gauss-Markov GPS Drift (Recommendation 1)**:
+   - Updated [`HybridController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L207) and [`CentralizedController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/centralized.py#L27) to accept `measured_position` and `measured_velocity` rather than reading ground-truth `drone.position` / `drone.velocity`. Centralized and APF feedback loops now operate realistically on sensor-corrupted states.
+   - Replaced white Gaussian GPS noise with a **first-order Gauss-Markov (Ornstein-Uhlenbeck) process**:
+     $$e_{\text{gps}}[k+1] = e^{-\Delta t / \tau_{\text{corr}}} e_{\text{gps}}[k] + \sigma_{\text{gps}} \sqrt{1 - e^{-2\Delta t / \tau_{\text{corr}}}} \, w[k]$$
+     with time correlation constant $\tau_{\text{corr}} = 30.0\text{ s}$ capturing low-frequency atmospheric/ephemeris drift rather than unphysical 20 Hz white noise.
+   - Modeled velocity estimation error separately ($\sigma_v = 0.08\text{ m/s}$ in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L159)) reflecting Doppler/IMU EKF fusion performance.
+   - Reran [`experiments/test_gps_noise_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_gps_noise_sweep.py) with true-position physical separation evaluation. Steady-state error now rigorously tracks the sensor noise floor ($\sim 0.087\text{ m}$ at $\sigma=0.04\text{ m} \to 2.67\text{ m}$ at $\sigma=2.50\text{ m}$).
+2. **Analytic Validation of Gilbert-Elliott WirelessChannel (Recommendation 2)**:
+   - Added standalone Monte Carlo test [`test_wireless_channel_gilbert_elliott_statistics()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L94) running 40,000 ticks at 20 Hz ($p_{G \to B} = 0.05, p_{B \to G} = 0.20$).
+   - Analytically and empirically proved:
+     - Stationary BAD loss rate: $\pi_{\text{BAD}} = \frac{p}{p + q} = \frac{0.05}{0.25} = 20.0\%$ (empirical: $20.0\%$).
+     - Expected burst length: $\mathbb{E}[L] = \frac{1}{q} = 5.0\text{ ticks}$ (empirical: $5.04\text{ ticks}$).
+     - Burst tail probability: $P(L \ge 11) = (1 - q)^{10} = (0.80)^{10} = 0.1074$ (empirical: $0.108$).
+3. **Per-Tick Channel Coherence vs. Per-Send Transitions (Recommendation 3)**:
+   - Discovered that previously, the Gilbert-Elliott Markov chain was transitioning on every `send()` call. In an $n=5$ swarm, each recipient receives $(n-1) = 4$ peer broadcasts $+ 1$ coordinator heartbeat $= 5$ sends/tick, which caused the Markov chain to advance 5 times within a single 50 ms tick.
+   - Fixed [`WirelessChannel._update_ge_state()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L81) to enforce per-tick temporal coherence, advancing state at most once per tick timestamp.
+   - Added diagnostic logging in [`experiments/test_burst_outage_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_burst_outage_sweep.py) reporting sends per recipient per tick and per-tick accept/miss state sequences.
+4. **Targeted Outages & 2-of-5 Drone Partition Experiment (Recommendation 4)**:
+   - Enhanced [`WirelessChannel.add_outage()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L59) with optional `recipients` parameter to simulate localized sub-swarm partitions.
+   - Built a 2-of-5 drone partition experiment in `test_burst_outage_sweep.py`: drones 3 and 4 lose coordinator connectivity for 6.0 s during a mid-flight morph from V-Shape to Line at $t = 6.0\text{ s}$.
+   - Demonstrated that under pure centralized hold-last, partitioned drones execute frozen commands and drift out of formation, whereas Proposed Hybrid degrades them to peer-to-peer consensus, maintaining safe relative clearance ($> 1.37\text{ m}$) with zero collisions.
+5. **Bounded Deceleration-to-Hover on Isolated Fallback (Recommendation 5)**:
+   - Hardened [`DecentralizedController.compute_drone_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L57) so that when a drone has no neighbors and `goal_pos=None`, it actively commands velocity damping $a = -k_{\text{align}} v$ rather than returning zero acceleration and drifting.
+   - Added unit test [`test_isolated_fallback_bounded_hover_deceleration()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L181).
+6. **Metric Disambiguation & Constant Unification (Recommendation 6)**:
+   - Formalized distinct recovery metrics:
+     - `link_recovery_time_s`: duration from outage end until the hybrid supervisor re-engages centralized mode.
+     - `formation_recovery_time_s`: duration from outage end until RMS formation tracking error re-enters $\epsilon_{\text{tol}} \le 0.25\text{ m}$ ([`calculate_formation_recovery_time()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L142)).
+   - Unified `collision_threshold` ($0.70\text{ m}$) in [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L33) to automatically pull from active profile provenance.
+   - Test suite expanded from 45 to **49 passing tests**.
+
+
 
 
 

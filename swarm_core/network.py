@@ -42,8 +42,9 @@ class WirelessChannel:
         self.p_b_to_g = float(p_b_to_g)
         self.loss_rate_bad = float(loss_rate_bad)
         self.channel_state: Dict[int, str] = {}  # Per-recipient state: "GOOD" or "BAD"
+        self.last_channel_update: Dict[int, float] = {}  # Tracks last simulation timestamp when GE state updated
         
-        # Scheduled full outage intervals: List of (start_time, duration)
+        # Scheduled full or targeted outage intervals: List of (start_time, duration, optional_recipients_set)
         self.outages: List[tuple] = []
         
         self.rng = np.random.default_rng(seed)
@@ -57,28 +58,46 @@ class WirelessChannel:
         self.total_dropped_burst = 0
         self.total_delivered = 0
 
-    def add_outage(self, start_time: float, duration: float) -> None:
-        """Schedule a deterministic complete RF outage window [start_time, start_time + duration]."""
-        self.outages.append((float(start_time), float(duration)))
+    def add_outage(
+        self,
+        start_time: float,
+        duration: float,
+        recipients: Optional[List[int]] = None,
+    ) -> None:
+        """
+        Schedule a deterministic RF outage window [start_time, start_time + duration].
+        If recipients is specified, only packets destined to those recipients are dropped (partition mode).
+        If None, all transmissions across the entire channel are dropped.
+        """
+        recip_set = set(recipients) if recipients is not None else None
+        self.outages.append((float(start_time), float(duration), recip_set))
 
-    def is_in_outage(self, current_time: float) -> bool:
-        """Check if channel is currently experiencing a scheduled full outage."""
-        for start, dur in self.outages:
+    def is_in_outage(self, current_time: float, recipient_id: Optional[int] = None) -> bool:
+        """Check if channel (or specific recipient link) is currently experiencing a scheduled outage."""
+        for start, dur, recip_set in self.outages:
             if start <= current_time <= start + dur:
-                return True
+                if recip_set is None or (recipient_id is not None and recipient_id in recip_set):
+                    return True
         return False
 
-    def _update_ge_state(self, recipient_id: int) -> str:
-        """Advance Gilbert-Elliott Markov chain state for the given recipient link."""
-        cur = self.channel_state.get(recipient_id, "GOOD")
-        if cur == "GOOD":
-            if self.rng.random() < self.p_g_to_b:
-                cur = "BAD"
-        else:
-            if self.rng.random() < self.p_b_to_g:
-                cur = "GOOD"
-        self.channel_state[recipient_id] = cur
-        return cur
+    def _update_ge_state(self, recipient_id: int, current_time: float) -> str:
+        """
+        Advance Gilbert-Elliott Markov chain state for the given recipient link.
+        Transitions at most once per distinct time tick to ensure physical coherence
+        across multiple packets dispatched within the same tick.
+        """
+        last_t = self.last_channel_update.get(recipient_id, -1.0)
+        if current_time > last_t + 1e-6:
+            cur = self.channel_state.get(recipient_id, "GOOD")
+            if cur == "GOOD":
+                if self.rng.random() < self.p_g_to_b:
+                    cur = "BAD"
+            else:
+                if self.rng.random() < self.p_b_to_g:
+                    cur = "GOOD"
+            self.channel_state[recipient_id] = cur
+            self.last_channel_update[recipient_id] = current_time
+        return self.channel_state.get(recipient_id, "GOOD")
 
     def send(
         self,
@@ -91,8 +110,8 @@ class WirelessChannel:
         """Attempt to transmit a packet across the wireless channel."""
         self.total_transmitted += 1
 
-        # 1. Check scheduled complete outage (100% loss during outage window)
-        if self.is_in_outage(current_time):
+        # 1. Check scheduled outage (100% loss during outage window, filtered by recipient)
+        if self.is_in_outage(current_time, recipient_id=recipient_id):
             self.total_dropped_outage += 1
             self.total_dropped_loss += 1
             return False
@@ -104,7 +123,7 @@ class WirelessChannel:
 
         # 3. Check Gilbert-Elliott burst loss (if enabled)
         if self.use_gilbert_elliott:
-            state = self._update_ge_state(recipient_id)
+            state = self._update_ge_state(recipient_id, current_time)
             if state == "BAD" and self.rng.random() < self.loss_rate_bad:
                 self.total_dropped_burst += 1
                 self.total_dropped_loss += 1
@@ -154,3 +173,4 @@ class WirelessChannel:
         self.total_delivered = 0
         self.in_flight_packets.clear()
         self.channel_state.clear()
+        self.last_channel_update.clear()

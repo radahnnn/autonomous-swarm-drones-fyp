@@ -32,8 +32,10 @@ class SwarmConfigProfile:
     description: str
     parameters: Dict[str, ParameterProvenance] = field(default_factory=dict)
 
-    def get(self, param_name: str) -> Any:
+    def get(self, param_name: str, default: Any = None) -> Any:
         if param_name not in self.parameters:
+            if default is not None:
+                return default
             raise KeyError(f"Parameter '{param_name}' not defined in profile '{self.name}'")
         return self.parameters[param_name].value
 
@@ -147,6 +149,22 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             meaning="Fraction of GPS error shared across co-located drones due to identical satellite geometry",
             provenance="assumed",
             notes="Common-mode error cancels out in relative inter-drone baseline estimation.",
+        ),
+        "gps_corr_time": ParameterProvenance(
+            name="gps_corr_time",
+            value=30.0,
+            unit="s",
+            meaning="First-order Gauss-Markov correlation time constant for low-frequency GPS position drift",
+            provenance="assumed",
+            notes="Models time-correlated atmospheric and ephemeris drift rather than unphysical high-frequency white noise.",
+        ),
+        "gps_vel_noise_std": ParameterProvenance(
+            name="gps_vel_noise_std",
+            value=0.08,
+            unit="m/s",
+            meaning="Standard deviation of velocity estimation error modeled separately from position",
+            provenance="assumed",
+            notes="Reflects GNSS Doppler and IMU fused velocity estimation accuracy (e.g., ArduPilot EKF3).",
         ),
         # Control Gains
         "centralized_kp": ParameterProvenance(

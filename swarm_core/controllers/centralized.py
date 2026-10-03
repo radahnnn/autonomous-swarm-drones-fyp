@@ -3,7 +3,7 @@ Centralized Swarm Controller.
 A global mission planner assigns optimal formation slots and commands trajectories.
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
@@ -33,14 +33,23 @@ class CentralizedController:
         spacing: float = 2.5,
         use_velocity_feedforward: bool = True,
         drag_coeff: float = 0.20,
+        measured_positions: Optional[Dict[int, np.ndarray]] = None,
+        measured_velocities: Optional[Dict[int, np.ndarray]] = None,
     ) -> np.ndarray:
         """
         Compute acceleration commands for all drones.
         Returns array of shape (N, 2) representing commanded accelerations.
         """
         num_drones = len(drones)
-        current_pos = np.array([d.position for d in drones])
-        current_vel = np.array([d.velocity for d in drones])
+        if measured_positions is not None:
+            current_pos = np.array([measured_positions[d.id] for d in drones])
+        else:
+            current_pos = np.array([d.position for d in drones])
+
+        if measured_velocities is not None:
+            current_vel = np.array([measured_velocities[d.id] for d in drones])
+        else:
+            current_vel = np.array([d.velocity for d in drones])
 
         if centroid_velocity is not None and use_velocity_feedforward:
             target_vel = np.array(centroid_velocity, dtype=np.float64)

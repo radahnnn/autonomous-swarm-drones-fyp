@@ -1,5 +1,5 @@
 {
-  "git_commit": "b9a2d3fca15abc8020d201e2775f07cd7ccfa503",
+  "git_commit": "093b4e7bebc3efb6ad93b64b51ebe13972edc2b4",
   "profile": "assumed_baseline",
   "seed": 123,
   "python_version": "3.12.3",
@@ -18,20 +18,20 @@
     "circle",
     "grid"
   ],
-  "min_recorded_distance_m": 1.7514226204348924,
+  "min_recorded_distance_m": 1.7836552979878915,
   "any_collision": 0,
-  "final_formation_error_m": 0.0018714140885394332,
+  "final_formation_error_m": 0.05366692443554097,
   "packets_delivered": 16418,
   "packets_dropped": 828,
   "metrics_summary": {
-    "initial_formation_error_m": 4.215546623313913,
-    "final_formation_error_m": 0.0018714140885394332,
-    "min_recorded_distance_m": 1.7514226204348924,
+    "initial_formation_error_m": 4.215578484911265,
+    "final_formation_error_m": 0.05366692443554097,
+    "min_recorded_distance_m": 1.7836552979878915,
     "any_collision": 0.0,
-    "convergence_time_s": 19.95000000000015,
-    "mean_formation_error_m": 0.685088644102788,
-    "transient_morph_error_m": 1.476091522394747,
-    "steady_state_error_m": 0.29046569181379267,
+    "convergence_time_s": 20.00000000000015,
+    "mean_formation_error_m": 0.6991145083767449,
+    "transient_morph_error_m": 1.4863153703272425,
+    "steady_state_error_m": 0.3084678849104255,
     "total_mode_switches": 0.0
   }
 }

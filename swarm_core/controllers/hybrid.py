@@ -214,24 +214,30 @@ class HybridController:
         target_velocity: Optional[np.ndarray] = None,
         use_velocity_feedforward: bool = True,
         drag_coeff: float = 0.20,
+        measured_position: Optional[np.ndarray] = None,
+        measured_velocity: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
         Computes smoothly blended control command:
             u(t) = alpha(t) * u_central + (1 - alpha(t)) * u_decentral + u_safe_apf
         Safety barrier APF is always applied at 100% gain regardless of alpha(t).
         Optional target velocity feedforward and drag compensation eliminates steady-state lag.
+        Uses measured_position and measured_velocity for realistic feedback control when provided.
         """
         mode, alpha = self.update_state_machine(drone.id, current_time, dt)
 
-        # 1. Centralized guidance component (tracked using last validated target slot)
-        target_pos = self.last_known_target.get(drone.id, drone.position)
-        p_err = target_pos - drone.position
+        pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
+        vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
+
+        # 1. Centralized guidance component (tracked using last validated target slot and measured state)
+        target_pos = self.last_known_target.get(drone.id, pos)
+        p_err = target_pos - pos
         
         if use_velocity_feedforward and target_velocity is not None:
-            v_err = np.array(target_velocity, dtype=np.float64) - drone.velocity
+            v_err = np.array(target_velocity, dtype=np.float64) - vel
             u_ff = drag_coeff * np.array(target_velocity, dtype=np.float64)
         else:
-            v_err = -drone.velocity
+            v_err = -vel
             u_ff = np.zeros(drone.dim, dtype=np.float64)
             
         u_central = self.central_controller.kp * p_err + self.central_controller.kd * v_err + u_ff
@@ -242,12 +248,14 @@ class HybridController:
             neighbor_states=neighbor_states,
             desired_offsets=desired_neighbor_offsets,
             goal_pos=None,
+            measured_position=pos,
+            measured_velocity=vel,
         )
 
         # 3. Always-on local decentralized APF safety barrier (unaffected by alpha)
         u_safe_apf = np.zeros(drone.dim, dtype=np.float64)
         for n_state in neighbor_states:
-            diff = drone.position - n_state["position"]
+            diff = pos - n_state["position"]
             dist = np.linalg.norm(diff)
             if 1e-4 < dist < self.decentral_controller.safe_radius:
                 repulse = (

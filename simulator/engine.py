@@ -71,6 +71,12 @@ class SwarmSimulation:
         self.latency_mean = float(self.profile.get("latency_mean") if latency_mean is None else latency_mean)
         self.gps_noise_std = float(self.profile.get("gps_noise_std") if gps_noise_std is None else gps_noise_std)
         self.gps_common_mode_fraction = float(self.profile.get("gps_common_mode_fraction") if gps_common_mode_fraction is None else gps_common_mode_fraction)
+        self.gps_corr_time = float(self.profile.get("gps_corr_time", 30.0))
+        self.gps_vel_noise_std = float(self.profile.get("gps_vel_noise_std", 0.08)) if self.gps_noise_std > 0 else 0.0
+
+        dim = self.drones[0].dim if self.drones else 2
+        self.gps_noise_common = np.zeros(dim, dtype=np.float64)
+        self.gps_noise_indep = {d.id: np.zeros(d.dim, dtype=np.float64) for d in self.drones}
 
         # Subsystems
         self.graph = SwarmGraph(comm_radius=self.comm_range)
@@ -142,27 +148,45 @@ class SwarmSimulation:
         laplacian = self.graph.compute_laplacian_matrix(adj_matrix)
         fiedler = self.graph.algebraic_connectivity(laplacian)
 
-        # 1b. Sensor measurement with dual-component GPS noise (common-mode + independent)
+        # 1b. Sensor measurement with first-order Gauss-Markov time-correlated noise (common-mode + independent)
+        # and separate velocity estimation error modeling
         if self.gps_noise_std > 0:
+            phi = float(np.exp(-self.dt / max(1e-3, self.gps_corr_time)))
+            driver_scale = np.sqrt(max(0.0, 1.0 - phi**2))
+
             sigma_common = np.sqrt(self.gps_common_mode_fraction) * self.gps_noise_std
             sigma_indep = np.sqrt(max(0.0, 1.0 - self.gps_common_mode_fraction)) * self.gps_noise_std
-            w_common = self.rng.normal(0, sigma_common, size=self.drones[0].dim)
-            measured_positions = {
-                d.id: d.get_measured_position(rng=self.rng, common_noise=w_common, indep_std=sigma_indep)
-                for d in self.drones
-            }
+
+            w_common_step = self.rng.normal(0, sigma_common, size=self.drones[0].dim)
+            self.gps_noise_common = phi * self.gps_noise_common + driver_scale * w_common_step
+
+            measured_positions = {}
+            measured_velocities = {}
+            for d in self.drones:
+                w_indep_step = self.rng.normal(0, sigma_indep, size=d.dim)
+                self.gps_noise_indep[d.id] = phi * self.gps_noise_indep[d.id] + driver_scale * w_indep_step
+                measured_positions[d.id] = d.position + self.gps_noise_common + self.gps_noise_indep[d.id]
+
+                # Velocity estimation error modeled separately (fused Doppler / IMU)
+                v_noise = (
+                    self.rng.normal(0, self.gps_vel_noise_std, size=d.dim)
+                    if self.gps_vel_noise_std > 0
+                    else np.zeros(d.dim, dtype=np.float64)
+                )
+                measured_velocities[d.id] = d.velocity + v_noise
         else:
             measured_positions = {d.id: d.position.copy() for d in self.drones}
+            measured_velocities = {d.id: d.velocity.copy() for d in self.drones}
 
         # 2. Inter-drone wireless broadcast (Decentralized state exchange)
-        # Each drone broadcasts its measured position & velocity to nearby peers
+        # Each drone broadcasts its measured position & measured velocity to nearby peers
         for i in range(n):
             for j in range(n):
                 if i != j:
                     dist = self.drones[i].distance_to(self.drones[j])
                     payload = {
                         "position": measured_positions[self.drones[i].id].copy(),
-                        "velocity": self.drones[i].velocity.copy(),
+                        "velocity": measured_velocities[self.drones[i].id].copy(),
                     }
                     self.channel.send(
                         sender_id=self.drones[i].id,
@@ -191,6 +215,8 @@ class SwarmSimulation:
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
             drag_coeff=float(self.profile.get("drag_coeff")),
+            measured_positions=measured_positions,
+            measured_velocities=measured_velocities,
         )
 
         if self.coordinator_link_active:
@@ -265,6 +291,8 @@ class SwarmSimulation:
                     desired_offsets=desired_offsets,
                     goal_pos=target_i,
                     goal_vel=goal_v,
+                    measured_position=measured_positions[d.id],
+                    measured_velocity=measured_velocities[d.id],
                 )
                 d.set_control_input(accel_i)
 
@@ -287,6 +315,8 @@ class SwarmSimulation:
                     target_velocity=self.centroid_velocity,
                     use_velocity_feedforward=self.use_velocity_feedforward,
                     drag_coeff=float(self.profile.get("drag_coeff")),
+                    measured_position=measured_positions[d.id],
+                    measured_velocity=measured_velocities[d.id],
                 )
                 d.set_control_input(accel_i)
 
