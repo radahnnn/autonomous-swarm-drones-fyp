@@ -1,0 +1,30 @@
+{
+  "git_commit": "bd344bf16996b9d70def33dcbdfa3cd84786e493",
+  "profile": "assumed_baseline",
+  "seed": 123,
+  "dt": 0.05,
+  "swarm_size": 6,
+  "control_mode": "hybrid",
+  "formations": [
+    "line",
+    "v_shape",
+    "circle",
+    "grid"
+  ],
+  "min_recorded_distance_m": 1.7514226204348924,
+  "any_collision": 0,
+  "final_formation_error_m": 0.0018714140885394332,
+  "packets_delivered": 16418,
+  "packets_dropped": 828,
+  "metrics_summary": {
+    "initial_formation_error_m": 4.215546623313913,
+    "final_formation_error_m": 0.0018714140885394332,
+    "min_recorded_distance_m": 1.7514226204348924,
+    "any_collision": 0.0,
+    "convergence_time_s": 19.95000000000015,
+    "mean_formation_error_m": 0.685088644102788,
+    "transient_morph_error_m": 1.476091522394747,
+    "steady_state_error_m": 0.29046569181379267,
+    "total_mode_switches": 0.0
+  }
+}

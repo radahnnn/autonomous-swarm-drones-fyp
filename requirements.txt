@@ -1,3 +1,11 @@
+# Core Numerical Simulation
 numpy>=1.24.0
 scipy>=1.10.0
 matplotlib>=3.6.0
+
+# Testing & Quality Assurance (dev)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# SITL & ArduPilot MAVLink Integration (sitl)
+pymavlink>=2.4.40

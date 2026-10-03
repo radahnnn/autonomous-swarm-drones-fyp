@@ -42,9 +42,11 @@ class HybridController:
         ramp_duration: float = 0.8,             # Smooth ramping duration tau_ramp for alpha(t)
         window_size: int = 20,                  # Sliding window size for delivery ratio calculation
         recovery_ratio_threshold: float = 0.70, # Recover if delivery ratio >= 70% in sliding window
+        central_controller: Optional[CentralizedController] = None,
+        decentral_controller: Optional[DecentralizedController] = None,
     ):
-        self.central_controller = CentralizedController()
-        self.decentral_controller = DecentralizedController()
+        self.central_controller = central_controller if central_controller is not None else CentralizedController()
+        self.decentral_controller = decentral_controller if decentral_controller is not None else DecentralizedController()
 
         # Thresholds
         self.degrade_timeout = float(degrade_timeout)

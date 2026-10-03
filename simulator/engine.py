@@ -3,9 +3,10 @@ Swarm Simulation Engine.
 Coordinates the physics step, wireless network exchange, control computation, and metrics tracking.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import numpy as np
 
+from swarm_core.config import SwarmConfigProfile, get_active_profile, get_profile
 from swarm_core.drone import Drone
 from swarm_core.graph import SwarmGraph
 from swarm_core.network import WirelessChannel
@@ -23,17 +24,18 @@ class SwarmSimulation:
         self,
         drones: List[Drone],
         control_mode: str = "centralized",  # "centralized", "decentralized", or "hybrid"
-        comm_range: float = 12.0,
-        packet_loss_rate: float = 0.0,
-        latency_mean: float = 0.02,
+        comm_range: Optional[float] = None,
+        packet_loss_rate: Optional[float] = None,
+        latency_mean: Optional[float] = None,
         dt: float = 0.05,
         use_velocity_feedforward: bool = True,
-        gps_noise_std: float = 0.0,
-        gps_common_mode_fraction: float = 0.60,
+        gps_noise_std: Optional[float] = None,
+        gps_common_mode_fraction: Optional[float] = None,
         seed: Optional[int] = None,
         use_gilbert_elliott: bool = False,
         p_g_to_b: float = 0.05,
         p_b_to_g: float = 0.20,
+        profile: Optional[Union[str, SwarmConfigProfile]] = None,
     ):
         self.drones = drones
         self.num_drones = len(drones)
@@ -42,31 +44,66 @@ class SwarmSimulation:
         self.current_time = 0.0
         self.rng = np.random.default_rng(seed)
         self.use_velocity_feedforward = bool(use_velocity_feedforward)
-        self.gps_noise_std = float(gps_noise_std)
-        self.gps_common_mode_fraction = float(gps_common_mode_fraction)
+
+        # Profile resolution: explicit arg > drone profile > active global profile
+        if profile is not None:
+            self.profile = get_profile(profile) if isinstance(profile, str) else profile
+        elif drones and hasattr(drones[0], "profile_name"):
+            self.profile = get_profile(drones[0].profile_name)
+        else:
+            self.profile = get_active_profile()
+        self.profile_name = self.profile.name
+
+        # Resolve parameters from profile if not explicitly passed
+        self.comm_range = float(self.profile.get("comm_radius") if comm_range is None else comm_range)
+        self.packet_loss_rate = float(self.profile.get("packet_loss_rate") if packet_loss_rate is None else packet_loss_rate)
+        self.latency_mean = float(self.profile.get("latency_mean") if latency_mean is None else latency_mean)
+        self.gps_noise_std = float(self.profile.get("gps_noise_std") if gps_noise_std is None else gps_noise_std)
+        self.gps_common_mode_fraction = float(self.profile.get("gps_common_mode_fraction") if gps_common_mode_fraction is None else gps_common_mode_fraction)
 
         # Subsystems
-        self.graph = SwarmGraph(comm_radius=comm_range)
+        self.graph = SwarmGraph(comm_radius=self.comm_range)
         self.channel = WirelessChannel(
-            comm_range=comm_range,
-            packet_loss_rate=packet_loss_rate,
-            latency_mean=latency_mean,
+            comm_range=self.comm_range,
+            packet_loss_rate=self.packet_loss_rate,
+            latency_mean=self.latency_mean,
             seed=seed,
             use_gilbert_elliott=use_gilbert_elliott,
             p_g_to_b=p_g_to_b,
             p_b_to_g=p_b_to_g,
         )
-        self.metrics = SwarmMetricsTracker(collision_threshold=drones[0].radius * 2.0)
+        collision_thresh = float(self.profile.get("collision_threshold"))
+        self.metrics = SwarmMetricsTracker(collision_threshold=collision_thresh)
 
-        # Controllers
-        self.central_ctrl = CentralizedController()
-        self.decentral_ctrl = DecentralizedController()
-        self.hybrid_ctrl = HybridController()
-        self.hybrid_ctrl.set_nominal_latency(latency_mean)
+        # Controllers configured with profile gains and thresholds
+        apf_dist = float(self.profile.get("apf_activation_dist"))
+        k_repulse = float(self.profile.get("k_repulse"))
+        self.central_ctrl = CentralizedController(
+            kp=float(self.profile.get("centralized_kp")),
+            kd=float(self.profile.get("centralized_kd")),
+            k_repulse=k_repulse,
+            collision_dist=apf_dist,
+        )
+        self.decentral_ctrl = DecentralizedController(
+            k_sep=k_repulse,
+            k_align=float(self.profile.get("decentralized_kv")),
+            k_form=float(self.profile.get("decentralized_k_form")),
+            safe_radius=apf_dist,
+        )
+        self.hybrid_ctrl = HybridController(
+            degrade_timeout=float(self.profile.get("hybrid_degrade_timeout")),
+            recovery_ratio_threshold=float(self.profile.get("hybrid_recovery_ratio")),
+            min_dwell_time=float(self.profile.get("hybrid_dwell_time")),
+            ramp_duration=float(self.profile.get("hybrid_ramp_duration")),
+            window_size=int(self.profile.get("hybrid_recovery_window")),
+            central_controller=self.central_ctrl,
+            decentral_controller=self.decentral_ctrl,
+        )
+        self.hybrid_ctrl.set_nominal_latency(self.latency_mean)
 
         # Mission state
         self.current_formation = FormationType.LINE
-        self.formation_spacing = 2.5
+        self.formation_spacing = float(self.profile.get("nominal_spacing"))
         self.centroid_target = np.array([0.0, 0.0], dtype=np.float64)
         self.centroid_velocity = np.array([0.0, 0.0], dtype=np.float64)
         self.target_slots: Optional[np.ndarray] = None
@@ -79,6 +116,7 @@ class SwarmSimulation:
             self.centroid_velocity,
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
+            drag_coeff=float(self.profile.get("drag_coeff")),
         )
         self.last_central_accel: Dict[int, np.ndarray] = {
             d.id: init_accels[i].copy() for i, d in enumerate(self.drones)
@@ -160,6 +198,7 @@ class SwarmSimulation:
             self.centroid_velocity,
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
+            drag_coeff=float(self.profile.get("drag_coeff")),
         )
 
         if self.coordinator_link_active:

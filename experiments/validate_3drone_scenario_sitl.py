@@ -22,13 +22,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# PyMAVLink import paths
-sys.path.insert(0, "/home/drone/.local/lib/python3.12/site-packages")
-sys.path.insert(0, "/home/drone/venv-ardupilot/lib/python3.12/site-packages")
-from pymavlink import mavutil
+from pathlib import Path
+try:
+    from pymavlink import mavutil
+except ImportError:
+    mavutil = None
 
-# Swarm Core import paths
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
 from swarm_core.controllers.centralized import CentralizedController
@@ -121,8 +120,16 @@ def run_sitl_3drone_scenario(duration: float = 10.0, dt: float = 0.1):
     subprocess.run(["pkill", "-9", "-f", "arducopter"], stderr=subprocess.DEVNULL)
     time.sleep(1)
 
-    sitl_bin = "/home/drone/ardupilot/build/sitl/bin/arducopter"
-    params_file = os.path.abspath("sitl/swarm_params.parm")
+    repo_root = Path(__file__).resolve().parent.parent
+    default_sitl_bin = Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
+    sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(default_sitl_bin)))
+
+    if not sitl_bin.exists():
+        print(f"[ERROR] ArduCopter SITL binary not found at: {sitl_bin}")
+        print("Please install ArduPilot SITL or set the ARDUCOPTER_BIN environment variable.")
+        sys.exit(1)
+
+    params_file = str(repo_root / "sitl" / "swarm_params.parm")
     datum_lat, datum_lon, datum_alt = -35.363261, 149.165230, 584.0
     frame = CommonCoordinateFrame(datum_lat, datum_lon, datum_alt)
 
@@ -143,7 +150,7 @@ def run_sitl_3drone_scenario(duration: float = 10.0, dt: float = 0.1):
         # 1. Launch 3 SITL instances
         for cfg in drone_configs:
             cmd = [
-                sitl_bin,
+                str(sitl_bin),
                 f"-I{cfg['inst']}",
                 "--model", "quad",
                 "--home", cfg["home"],
@@ -455,13 +462,7 @@ def generate_comparison_plots(merged_df: pd.DataFrame, output_dir: str):
     plt.savefig(plot_path)
     plt.close(fig)
 
-    # Copy to brain artifact directory
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/swarm_core_vs_sitl_overlay.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-    print(f"Validation plot saved to: {plot_path} and brain artifact.")
+    print(f"Validation plot saved to: {plot_path}.")
 
 
 def main():

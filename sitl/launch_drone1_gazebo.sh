@@ -3,8 +3,14 @@
 # Launch ArduCopter SITL Instance 0 (Drone 1) connected to Gazebo 3D
 # ==============================================================================
 
-source ~/venv-ardupilot/bin/activate
-cd ~/ardupilot/ArduCopter
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARDUPILOT_HOME="${ARDUPILOT_HOME:-$HOME/ardupilot}"
+
+if [ -f "$HOME/venv-ardupilot/bin/activate" ]; then
+    source "$HOME/venv-ardupilot/bin/activate"
+fi
+
+cd "${ARDUPILOT_HOME}/ArduCopter" || exit 1
 
 echo "================================================================="
 echo "   Starting Drone 1 (SYSID 1) connected to Gazebo JSON Model     "
@@ -12,7 +18,7 @@ echo "   FDM Port: 9002 <-> Gazebo                                    "
 echo "   MAVLink Out: UDP 14550 (QGC) & UDP 14552 (Controller)       "
 echo "================================================================="
 
-python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
+python3 "${ARDUPILOT_HOME}/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
     -f gazebo-iris \
     --model JSON \
@@ -21,5 +27,5 @@ python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
     --auto-sysid \
     --out=udp:127.0.0.1:14550 \
     --out=udp:127.0.0.1:14552 \
-    --add-param-file=/home/drone/swarm_drones_fyp/sitl/swarm_params.parm \
+    --add-param-file="${SCRIPT_DIR}/swarm_params.parm" \
     --map

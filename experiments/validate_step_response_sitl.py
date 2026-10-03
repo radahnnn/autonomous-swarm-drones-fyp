@@ -21,15 +21,20 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# Ensure pymavlink is accessible
-sys.path.insert(0, "/home/drone/.local/lib/python3.12/site-packages")
-from pymavlink import mavutil
+from pathlib import Path
+try:
+    from pymavlink import mavutil
+except ImportError:
+    mavutil = None
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from swarm_core.drone import Drone
 
 
 def run_sitl_step_test(sim_time_limit: float = 8.0, step_distance: float = 5.0):
+    if mavutil is None:
+        print("[ERROR] pymavlink is required for SITL validation. Install with: pip install pymavlink")
+        sys.exit(1)
+
     print("=================================================================")
     print("  TASK C.1: ARDUPILOT SITL 5m POSITION STEP RESPONSE TEST        ")
     print("=================================================================")
@@ -38,13 +43,21 @@ def run_sitl_step_test(sim_time_limit: float = 8.0, step_distance: float = 5.0):
     subprocess.run(["pkill", "-9", "-f", "arducopter"], stderr=subprocess.DEVNULL)
     time.sleep(1)
 
-    sitl_bin = "/home/drone/ardupilot/build/sitl/bin/arducopter"
+    repo_root = Path(__file__).resolve().parent.parent
+    default_sitl_bin = Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
+    sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(default_sitl_bin)))
+
+    if not sitl_bin.exists():
+        print(f"[ERROR] ArduCopter SITL binary not found at: {sitl_bin}")
+        print("Please install ArduPilot SITL or set the ARDUCOPTER_BIN environment variable.")
+        sys.exit(1)
+
     home_loc = "-35.363261,149.165230,584,0"
-    params_file = os.path.abspath("sitl/swarm_params.parm")
+    params_file = str(repo_root / "sitl" / "swarm_params.parm")
 
     # Launch ArduCopter SITL headless with custom parameters
     cmd = [
-        sitl_bin,
+        str(sitl_bin),
         "-I0",
         "--model", "quad",
         "--home", home_loc,
@@ -382,13 +395,7 @@ def main():
     plt.savefig(plot_path)
     plt.close(fig)
 
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/sitl_step_response_fit.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-
-    print(f"Validation plot saved to: {plot_path} and brain artifact.")
+    print(f"Validation plot saved to: {plot_path}.")
 
 
 if __name__ == "__main__":

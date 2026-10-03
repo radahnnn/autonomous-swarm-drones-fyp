@@ -15,7 +15,10 @@ import math
 import threading
 from typing import Dict, List, Optional
 import numpy as np
-from pymavlink import mavutil
+try:
+    from pymavlink import mavutil
+except ImportError:
+    mavutil = None
 
 # Add repository root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -58,6 +61,9 @@ class MAVLinkDroneInterface:
         self.connected = False
 
     def connect(self) -> bool:
+        if mavutil is None:
+            print(f"Error connecting to {self.label}: pymavlink not installed")
+            return False
         if isinstance(self.port, str):
             endpoint = self.port
         elif self.port in [5760, 5770, 5780]:
@@ -90,8 +96,9 @@ class MAVLinkDroneInterface:
                 break
             mtype = msg.get_type()
             if mtype == "HEARTBEAT":
-                self.mode = mavutil.mode_string_v10(msg)
-                self.is_armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                self.mode = mavutil.mode_string_v10(msg) if mavutil is not None else "GUIDED"
+                arm_flag = mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED if (mavutil is not None and hasattr(mavutil, "mavlink")) else 128
+                self.is_armed = bool(msg.base_mode & arm_flag)
             elif mtype == "GLOBAL_POSITION_INT":
                 lat = msg.lat / 1e7
                 lon = msg.lon / 1e7
@@ -118,9 +125,10 @@ class MAVLinkDroneInterface:
         local_target = self.frame.global_to_local_ned(target_global_ned, self.home_global_ned)
         
         type_mask = 0b0000111111111000  # Position setpoint only
+        mav_frame = mavutil.mavlink.MAV_FRAME_LOCAL_NED if (mavutil is not None and hasattr(mavutil, 'mavlink')) else 1
         self.conn.mav.set_position_target_local_ned_send(
             0, self.conn.target_system, self.conn.target_component,
-            mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            mav_frame,
             type_mask,
             local_target[0], local_target[1], local_target[2],
             0, 0, 0, 0, 0, 0, 0, 0

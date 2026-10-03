@@ -84,8 +84,9 @@ def run_single_trial(
 
 
 def main():
-    output_dir = "experiments/results"
-    os.makedirs(output_dir, exist_ok=True)
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     loss_rates = [0.0, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50]
     num_trials = 6
@@ -206,18 +207,11 @@ def main():
     ax3.legend(fontsize=9, loc="upper left")
 
     plt.tight_layout()
-    plot_path = f"{output_dir}/network_loss_comparison.png"
+    plot_path = output_dir / "network_loss_comparison.png"
     plt.savefig(plot_path)
     plt.close(fig)
 
-    # Mirror to brain artifact directory
-    artifact_img = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/network_loss_comparison.png"
-    try:
-        shutil.copy(plot_path, artifact_img)
-    except Exception:
-        pass
-
-    print(f"\n>>> Stress-tested network sweep complete! Plot saved to: {plot_path} and artifact dir <<<")
+    print(f"\n>>> Stress-tested network sweep complete! Plot saved to: {plot_path} <<<")
 
 
 if __name__ == "__main__":

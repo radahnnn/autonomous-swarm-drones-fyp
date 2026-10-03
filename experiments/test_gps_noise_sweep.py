@@ -104,8 +104,9 @@ def run_gps_noise_trial(
 
 
 def main():
-    output_dir = "experiments/results"
-    os.makedirs(output_dir, exist_ok=True)
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     sigmas = [0.04, 0.50, 1.50, 2.50]
     num_seeds = 6
@@ -214,17 +215,11 @@ def main():
     ax2.legend()
 
     plt.tight_layout()
-    plot_path = f"{output_dir}/gps_noise_sweep_comparison.png"
+    plot_path = output_dir / "gps_noise_sweep_comparison.png"
     plt.savefig(plot_path)
     plt.close(fig)
 
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/gps_noise_sweep_comparison.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-
-    print(f"\nSaved GPS noise sweep plot to {plot_path} and brain artifact.")
+    print(f"\nSaved GPS noise sweep plot to {plot_path}.")
 
 
 if __name__ == "__main__":
