@@ -373,3 +373,18 @@ def test_optional_pymavlink_behavior(monkeypatch):
     with pytest.raises(ImportError, match="pymavlink is required to connect to Drone 1"):
         iface.connect()
 
+
+def test_no_live_sitl_process_during_collection_or_tests():
+    """
+    Verify that no live ArduPilot SITL binary process (arducopter) is spawned
+    or running in the background during unit test execution.
+    """
+    import subprocess
+    try:
+        res = subprocess.run(["pgrep", "-f", "arducopter"], capture_output=True, text=True)
+        running_pids = [p for p in res.stdout.strip().split() if p]
+        assert len(running_pids) == 0, f"Found running arducopter processes: {running_pids}"
+    except FileNotFoundError:
+        pass
+
+

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 MAVLink Swarm Adapter Layer (SITL & Physical Hardware Integration).
-Bridges the pure mathematical algorithms in swarm_core with real-time MAVLink autopilots:
-- Uses the EXACT SAME controllers: Centralized, Decentralized, and Hybrid from swarm_core.controllers
+Reuses the swarm_core controller implementations and translates guidance outputs into ArduPilot local-NED position setpoints. ArduPilot’s onboard position controller and SITL dynamics remain part of the execution path.
+- Integrates Centralized, Decentralized, and Hybrid control modes with ArduPilot position setpoints
 - Embeds WirelessChannel network emulator to apply packet loss & latency directly to SITL/hardware
-- Uses CommonCoordinateFrame to guarantee unified multi-drone metric geometry
+- Uses CommonCoordinateFrame to anchor all drones to a shared WGS84 metric datum
 - Supports 4 dynamic in-flight formation morphs: V-Shape, Line, Circle, Grid
 """
 
@@ -20,6 +20,7 @@ try:
 except ImportError:
     mavutil = None
 
+from swarm_core.config import get_profile
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
 from swarm_core.controllers.centralized import CentralizedController
@@ -147,17 +148,37 @@ class MAVLinkSwarmAdapter:
             for s in DRONE_SPECS
         ]
         
+        self.profile = get_profile("sitl_fitted")
+
         # swarm_core Drones (2D mathematical state representations)
         self.core_drones = [
-            Drone(drone_id=i, initial_position=np.zeros(2))
+            Drone(drone_id=i, initial_position=np.zeros(2), profile="sitl_fitted")
             for i in range(len(self.interfaces))
         ]
 
-        # Exact swarm_core controllers
+        # Core controllers configured for SITL translation
         self.control_mode = control_mode
-        self.central_ctrl = CentralizedController()
-        self.decentral_ctrl = DecentralizedController()
-        self.hybrid_ctrl = HybridController()
+        self.central_ctrl = CentralizedController(
+            kp=self.profile.get("centralized_kp"),
+            kd=self.profile.get("centralized_kd"),
+            k_repulse=self.profile.get("k_repulse"),
+            collision_dist=self.profile.get("apf_activation_dist"),
+        )
+        self.decentral_ctrl = DecentralizedController(
+            k_sep=self.profile.get("k_repulse"),
+            k_align=self.profile.get("decentralized_kv"),
+            k_form=self.profile.get("decentralized_k_form"),
+            safe_radius=self.profile.get("apf_activation_dist"),
+        )
+        self.hybrid_ctrl = HybridController(
+            degrade_timeout=self.profile.get("hybrid_degrade_timeout"),
+            recovery_ratio_threshold=self.profile.get("hybrid_recovery_ratio"),
+            min_dwell_time=self.profile.get("hybrid_dwell_time"),
+            ramp_duration=self.profile.get("hybrid_ramp_duration"),
+            window_size=self.profile.get("hybrid_recovery_window"),
+            central_controller=self.central_ctrl,
+            decentral_controller=self.decentral_ctrl,
+        )
         self.channel = WirelessChannel(packet_loss_rate=packet_loss, latency_mean=0.03)
         self.hybrid_ctrl.set_nominal_latency(0.03)
 
@@ -279,7 +300,11 @@ class MAVLinkSwarmAdapter:
                 # Proposed Hybrid Controller with smooth alpha blending and hysteresis
                 neighbors = [s for s in neighbor_states if s["id"] != d.id]
                 u_hyb = self.hybrid_ctrl.compute_hybrid_control(
-                    drone=d, current_time=current_time, dt=dt, neighbor_states=neighbors
+                    drone=d,
+                    current_time=current_time,
+                    dt=dt,
+                    neighbor_states=neighbors,
+                    drag_coeff=float(self.profile.get("drag_coeff")),
                 )
                 tgt = np.array([d.position[0] + u_hyb[0] * dt * 2.0, d.position[1] + u_hyb[1] * dt * 2.0, -self.cruise_alt])
 
