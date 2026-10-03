@@ -10,7 +10,7 @@
 ## 1. Project Overview & Scope
 Autonomous swarm control framework enabling multirotors to achieve coordinated movement:
 * **4 Formations**: Line, V-Formation, Circle, Grid with dynamic topology reconfiguration.
-* **Hungarian Algorithm Slot Assignment**: Solves Linear Sum Assignment to minimize total swarm displacement and reduce crossing risk (not a formal collision-free guarantee; safe separation is maintained by APF repulsion barriers).
+* **Hungarian Algorithm Slot Assignment**: Solves Linear Sum Assignment to minimize total swarm displacement and reduce crossing risk (not a formal collision-free guarantee; proximity risk is empirically mitigated by APF separation control).
 * **Three Control Modes**:
   1. Centralized (global planner + moving centroid feedforward + APF safety).
   2. Decentralized (Laplacian velocity consensus $\dot{v} = -k_v Lv$ + Reynolds flocking + relative cohesion).

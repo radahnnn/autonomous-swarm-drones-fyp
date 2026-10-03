@@ -130,11 +130,12 @@ class SwarmSimulation:
         self,
         formation: FormationType,
         centroid: Optional[np.ndarray] = None,
-        spacing: float = 2.5,
+        spacing: Optional[float] = None,
     ) -> None:
-        """Update target formation geometry and centroid."""
+        """Update target formation geometry and centroid. If spacing is None, preserves active profile spacing."""
         self.current_formation = formation
-        self.formation_spacing = float(spacing)
+        if spacing is not None:
+            self.formation_spacing = float(spacing)
         if centroid is not None:
             self.centroid_target = np.array(centroid, dtype=np.float64)
 
@@ -288,6 +289,7 @@ class SwarmSimulation:
                     desired_neighbor_offsets=desired_offsets,
                     target_velocity=self.centroid_velocity,
                     use_velocity_feedforward=self.use_velocity_feedforward,
+                    drag_coeff=float(self.profile.get("drag_coeff")),
                 )
                 d.set_control_input(accel_i)
 

@@ -297,7 +297,7 @@ def _build_sitl_fitted_profile() -> SwarmConfigProfile:
         unit="m",
         meaning="Repulsive activation boundary under plain GPS sensor noise",
         provenance="assumed",
-        notes="Increased to 1.50m to guarantee >= 1.50m clearance under 1.5m GPS noise.",
+        notes="Increased to 1.50m to maintain target clearance under 1.5m GPS noise.",
     )
 
     return SwarmConfigProfile(

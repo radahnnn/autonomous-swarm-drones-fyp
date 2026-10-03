@@ -18,7 +18,7 @@ This repository provides an autonomous swarm control framework enabling groups o
 
 ### Key Framework Capabilities
 * **Four Formation Geometries**: Line, V-Formation (Chevron), Circle, and Grid with dynamic reconfiguration.
-* **Hungarian Algorithm Slot Assignment**: Solves the Linear Sum Assignment Problem to minimize total swarm displacement during formation transitions, reducing trajectory crossing risk (note: does not provide a formal collision-free guarantee; collision safety is guaranteed by active APF repulsion barriers).
+* **Hungarian Algorithm Slot Assignment**: Solves the Linear Sum Assignment Problem to minimize total swarm displacement during formation transitions, reducing trajectory crossing risk (note: does not provide a formal collision-free guarantee; proximity risk is empirically mitigated by APF separation control).
 * **Three Control Regimes**:
   1. **Centralized**: Global coordinator computing optimal slot assignments, PD tracking, and moving centroid feedforward.
   2. **Decentralized**: Distributed Laplacian velocity consensus ($\dot{v}_i = -k_v L v$) and Reynolds/Olfati-Saber flocking relying strictly on 1-hop neighbor broadcasts.

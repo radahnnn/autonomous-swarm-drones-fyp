@@ -20,9 +20,6 @@ try:
 except ImportError:
     mavutil = None
 
-# Add repository root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
 from swarm_core.controllers.centralized import CentralizedController
@@ -62,8 +59,10 @@ class MAVLinkDroneInterface:
 
     def connect(self) -> bool:
         if mavutil is None:
-            print(f"Error connecting to {self.label}: pymavlink not installed")
-            return False
+            raise ImportError(
+                f"pymavlink is required to connect to {self.label}, but is not installed. "
+                "Install via: pip install -e '.[sitl]'"
+            )
         if isinstance(self.port, str):
             endpoint = self.port
         elif self.port in [5760, 5770, 5780]:

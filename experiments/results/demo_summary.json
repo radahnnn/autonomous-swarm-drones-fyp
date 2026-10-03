@@ -1,7 +1,14 @@
 {
-  "git_commit": "bd344bf16996b9d70def33dcbdfa3cd84786e493",
+  "git_commit": "98490b8dee4edc560c8f11915a3b389aa671cbe3",
   "profile": "assumed_baseline",
   "seed": 123,
+  "python_version": "3.12.3",
+  "dependencies": {
+    "python": "3.12.3",
+    "numpy": "1.26.4",
+    "scipy": "1.11.4",
+    "matplotlib": "3.6.3"
+  },
   "dt": 0.05,
   "swarm_size": 6,
   "control_mode": "hybrid",

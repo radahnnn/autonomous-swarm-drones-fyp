@@ -260,3 +260,116 @@ def test_total_coordinator_outage_transition():
     summary = sim.metrics.get_summary()
     assert summary["any_collision"] == 0.0
     assert summary["min_recorded_distance_m"] >= 0.70
+
+
+def test_controller_parameters_and_thresholds_from_profile():
+    """
+    Verify that Centralized, Decentralized, and Hybrid controller gains
+    and thresholds are populated directly from the selected profile.
+    """
+    drones = [Drone(i, [float(i * 2), 0.0], profile="assumed_baseline") for i in range(3)]
+    sim_base = SwarmSimulation(drones, profile="assumed_baseline")
+
+    # Centralized controller gains
+    assert sim_base.central_ctrl.kp == 1.8
+    assert sim_base.central_ctrl.kd == 2.2
+    assert sim_base.central_ctrl.k_repulse == 4.0
+    assert sim_base.central_ctrl.collision_dist == 1.20
+
+    # Decentralized controller gains
+    assert sim_base.decentral_ctrl.k_sep == 4.0
+    assert sim_base.decentral_ctrl.k_align == 1.6
+    assert sim_base.decentral_ctrl.k_form == 1.4
+    assert sim_base.decentral_ctrl.safe_radius == 1.20
+
+    # Hybrid controller thresholds
+    assert sim_base.hybrid_ctrl.degrade_timeout == 0.50
+    assert sim_base.hybrid_ctrl.recovery_ratio_threshold == 0.70
+    assert sim_base.hybrid_ctrl.min_dwell_time == 2.00
+    assert sim_base.hybrid_ctrl.ramp_duration == 0.80
+    assert sim_base.hybrid_ctrl.window_size == 20
+
+    # Switch to SITL fitted profile
+    drones_sitl = [Drone(i, [float(i * 2), 0.0], profile="sitl_fitted") for i in range(3)]
+    sim_sitl = SwarmSimulation(drones_sitl, profile="sitl_fitted")
+
+    # SITL fitted adjustments
+    assert sim_sitl.central_ctrl.collision_dist == 1.50
+    assert sim_sitl.decentral_ctrl.safe_radius == 1.50
+
+
+def test_hybrid_feedforward_receives_profile_drag_coeff():
+    """
+    Verify that compute_hybrid_control receives the active profile drag coefficient
+    and applies drag compensation feedforward matching the profile.
+    """
+    v_target = 0.5
+    d_base = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[v_target, 0.0], profile="assumed_baseline")
+    d_sitl = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[v_target, 0.0], profile="sitl_fitted")
+
+    sim_base = SwarmSimulation([d_base], control_mode="hybrid", profile="assumed_baseline", latency_mean=0.0)
+    sim_sitl = SwarmSimulation([d_sitl], control_mode="hybrid", profile="sitl_fitted", latency_mean=0.0)
+
+    # Provide matched centroid velocity target (error = 0, so command is purely feedforward u_ff = c_d * v)
+    sim_base.centroid_velocity = np.array([v_target, 0.0])
+    sim_sitl.centroid_velocity = np.array([v_target, 0.0])
+
+    # Execute one step to compute control inputs
+    sim_base.step()
+    sim_sitl.step()
+
+    # Drag feedforward is u_ff = drag_coeff * target_velocity
+    # In assumed_baseline, drag_coeff = 0.20 -> u_ff_x = 0.20 * 0.5 = 0.10 m/s^2
+    # In sitl_fitted, drag_coeff = 0.637 -> u_ff_x = 0.637 * 0.5 = 0.3185 m/s^2
+    # The difference in feedforward term must equal (0.637 - 0.20) * 0.5 = 0.2185 m/s^2
+    diff_cmd = sim_sitl.drones[0].commanded_accel[0] - sim_base.drones[0].commanded_accel[0]
+    expected_diff = (0.637 - 0.20) * v_target
+    assert np.isclose(diff_cmd, expected_diff, atol=1e-4), (
+        f"Hybrid feedforward did not receive profile drag coefficient. "
+        f"Diff: {diff_cmd:.4f}, Expected: {expected_diff:.4f}"
+    )
+
+
+def test_set_formation_preserves_profile_spacing():
+    """
+    Verify that set_formation() preserves the active profile formation spacing
+    when spacing=None is passed, rather than silently overwriting it with 2.5.
+    """
+    drones = [Drone(i, [float(i * 2), 0.0], profile="assumed_baseline") for i in range(3)]
+    sim = SwarmSimulation(drones, profile="assumed_baseline")
+    initial_spacing = sim.formation_spacing
+
+    # Call set_formation without specifying spacing
+    sim.set_formation(FormationType.CIRCLE)
+    assert sim.formation_spacing == initial_spacing
+
+    # Call set_formation with explicit spacing
+    sim.set_formation(FormationType.GRID, spacing=4.0)
+    assert sim.formation_spacing == 4.0
+
+    # Call again without spacing: should preserve 4.0
+    sim.set_formation(FormationType.LINE)
+    assert sim.formation_spacing == 4.0
+
+
+def test_optional_pymavlink_behavior(monkeypatch):
+    """
+    Verify that:
+    1. Core imports and SITL adapter classes function without pymavlink installed.
+    2. SITL connection fails clearly and safely with ImportError when pymavlink is absent.
+    """
+    import sitl.mavlink_swarm_adapter as adapter_mod
+    from sitl.common_frame import CommonCoordinateFrame
+
+    # Simulate pymavlink absence by setting mavutil = None in adapter module
+    monkeypatch.setattr(adapter_mod, "mavutil", None)
+
+    frame = CommonCoordinateFrame()
+    iface = adapter_mod.MAVLinkDroneInterface(
+        sysid=1, port=14552, label="Drone 1", frame=frame
+    )
+
+    # Calling connect() must raise ImportError with clear user instructions
+    with pytest.raises(ImportError, match="pymavlink is required to connect to Drone 1"):
+        iface.connect()
+

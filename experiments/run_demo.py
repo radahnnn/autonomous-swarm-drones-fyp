@@ -172,11 +172,21 @@ def main():
     print(f" - Final Formation Error: {summary['final_formation_error_m']:.3f} m")
     print(f" - Total Wireless Packets Exchanged: {sim.channel.total_delivered} (Delivered), {sim.channel.total_dropped_loss} (Dropped)")
 
+    import sys
+    import scipy
+
     json_path = output_dir / "demo_summary.json"
     results_metadata = {
         "git_commit": get_git_commit(),
         "profile": args.profile,
         "seed": args.seed,
+        "python_version": sys.version.split()[0],
+        "dependencies": {
+            "python": sys.version.split()[0],
+            "numpy": str(np.__version__),
+            "scipy": str(scipy.__version__),
+            "matplotlib": str(matplotlib.__version__),
+        },
         "dt": float(sim.dt),
         "swarm_size": num_drones,
         "control_mode": sim.control_mode,

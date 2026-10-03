@@ -2,9 +2,9 @@ name: Swarm Drones Framework CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master, main, phase-1-foundations-packaging ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, phase-1-foundations-packaging ]
 
 jobs:
   test:
@@ -36,4 +36,7 @@ jobs:
 
       - name: Run Reproducible Smoke Experiment
         run: |
-          python experiments/run_demo.py --profile assumed_baseline --seed 123
+          python experiments/run_demo.py \
+            --profile assumed_baseline \
+            --seed 123 \
+            --output-dir "${{ runner.temp }}/swarm-demo-results"
