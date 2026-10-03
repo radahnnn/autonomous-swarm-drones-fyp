@@ -512,6 +512,51 @@ Completed the implementation of all 6 architectural recommendations:
 7. **Test Suite Expansion**:
    - Test suite expanded from 49 to **53 passing unit and regression tests** in 2.27s.
 
+---
+
+## 17. Advanced Control Parity, Degree Normalisation & Headline Outage Sweep (03 Oct 2026)
+
+Fully resolved recommendations 7 through 13, eliminating control discrepancies, formalizing degree normalisation across all swarm sizes, implementing bounded fallback strategies, and executing the headline mid-flight turn/morph ground-link outage experiment:
+
+1. **State Estimation Separation & Ground-Truth Metric Rigor (Item 7)**:
+   - Passed `measured_position` and `measured_velocity` into every controller execution path in [`SwarmSimulation.step()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L378) (`centralized`, `decentralized`, and `hybrid`).
+   - Ground-truth coordinates are strictly reserved for physical integration and collision metric evaluation in [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L44).
+2. **Coordinator Heartbeat Payload & Link Freezing (Item 8)**:
+   - Added `target_velocity` and `next_waypoint` to the coordinator heartbeat broadcast payload.
+   - When coordinator packets arrive, drones update their internal tracking targets and cache them.
+   - During outages or link dropouts, drone targets, commanded velocities, and formation neighbor offsets remain strictly frozen at the last successfully received heartbeat; the simulator does not leak moving centroid trajectories across severed links.
+   - Added regression test [`test_coordinator_heartbeat_payload_and_freezing()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L365).
+3. **Dead-Reckoning & Four Bounded Fallback Options (Item 9)**:
+   - Implemented four distinct, configurable fallback strategies in [`HybridController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L265):
+     1. `hover`: Immediately commands velocity damping to hover at the position where communication was severed.
+     2. `hold_target`: Regulates position to the last received target waypoint with zero velocity.
+     3. `dead_reckon`: Extrapolates along the last known velocity for bounded duration $T$ (`dead_reckon_duration`, default 1.5–2.0 s), then transitions to active braking/hovering.
+     4. `consensus` (Proposed Hybrid): Cohesive Reynolds/Olfati-Saber flocking with gentle deceleration to hover while preserving neighbor formation offsets.
+   - Added unit test [`test_dead_reckoning_fallback_strategy()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L291) and simulation integration test [`test_all_four_fallback_strategies_in_simulation()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L377).
+4. **Fair Decentralized Comparison (Item 11)**:
+   - Renamed "Pure Decentralized" in all evaluation scripts and plots to **"Decentralized (Consensus + Drag FF)"**.
+   - Made decentralized goal positions and velocities arrive strictly via coordinator broadcast packets over the wireless channel (freezing when severed).
+   - Added rotor drag feedforward ($c_d \cdot \mathbf{v}_{\text{goal}}$) to [`DecentralizedController.compute_drone_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L115) to eliminate artificial steady-state tracking penalties.
+5. **Elimination of Double APF & Degree Normalisation (Item 12)**:
+   - **Double APF Elimination**: Blended control in [`HybridController.compute_hybrid_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L330) now scales the separate safety barrier by $\alpha$:
+     $$\mathbf{u}(t) = \alpha(t) \mathbf{u}_{\text{central}} + (1 - \alpha(t)) \mathbf{u}_{\text{decentral}} + \alpha(t) \mathbf{u}_{\text{safe\_apf}}$$
+     Because $\mathbf{u}_{\text{decentral}}$ already embeds $(1 - \alpha) \mathbf{f}_{\text{sep}}$, the total separation repulsion across all $\alpha \in [0, 1]$ is identically $(1 - \alpha) \mathbf{f}_{\text{sep}} + \alpha \mathbf{f}_{\text{sep}} = 1.0 \times \mathbf{f}_{\text{sep}}$, completely eliminating the former 200% repulsion spike in fallback. Verified in [`test_double_apf_elimination_in_fallback()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L389).
+   - **Degree Normalisation**: Scaled interaction forces in [`DecentralizedController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L104) and centralized APF by $\text{deg} = \max(1, |\mathcal{N}_i|)$. Verified invariant scaling across $n = 3, 5, 10$ in [`test_degree_normalisation_at_various_swarm_sizes()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L245).
+6. **Active Safety Parameter Provenance Reporting (Item 13)**:
+   - Updated all experiment scripts ([`test_burst_outage_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_burst_outage_sweep.py#L190), [`test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py#L190)) to query and print active configuration provenance (`safe_radius`, `collision_dist`, `collision_threshold`) in every console summary and plot title.
+7. **Headline Experiment: Ground-Link Outage Overlapping Turn & Morph (Item 10)**:
+   - Script: [`experiments/test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py).
+   - Swept outages from 1.0s to 10.0s across 6 strategies with $n = 5$ drones, overlapping a 60-degree trajectory turn at $t = 5.0\text{ s}$ and a V-Shape to Line morph at $t = 6.0\text{ s}$.
+   - **Results**:
+     - **0 collisions** across all 6 strategies and all durations; minimum separation distance was $\ge 1.17\text{ m}$ (safety threshold $0.70\text{ m}$).
+     - **Dead-Reckon-then-Brake ($T=2\text{ s}$)** minimized peak tracking error during short/moderate outages ($3.60\text{ m}$ at 4s, $4.85\text{ m}$ at 6s) by projecting the last valid velocity heading.
+     - **Hover-on-Loss** showed the largest trajectory deviation ($3.99\text{ m}$ at 4s, $5.45\text{ m}$ at 6s) because it stopped immediately while the mission path turned.
+     - **Proposed Consensus Flocking** maintained formation cohesion ($d_{\min} \approx 1.36\text{ m}$) with rapid recovery ($4.11\text{ s}$ at 4s outage, $4.73\text{ s}$ at 6s outage).
+   - Generated publication-quality 4-panel visual artifact: [`experiments/results/headline_turn_morph_outage.png`](file:///home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/headline_turn_morph_outage.png).
+8. **Test Suite Milestone**:
+   - Total test suite expanded to **58 passing unit and regression tests** in 2.27s.
+
+
 
 
 

@@ -182,15 +182,21 @@ def main():
     seeds = [42 + i * 17 for i in range(num_seeds)]
 
     baselines = [
-        ("centralized_hold", "Centralized (Hold Command)"),
-        ("decentralized", "Decentralized (Consensus)"),
+        ("centralized_hold", "Centralized (Hold-Last-Target)"),
+        ("decentralized", "Decentralized (Consensus + Drag FF)"),
         ("hybrid_naive", "Naive Hybrid (No Dwell)"),
         ("hybrid_proposed", "Proposed Hybrid (Hardened)"),
     ]
 
+    dummy_sim = SwarmSimulation([Drone(0, [0.0, 0.0])], control_mode="hybrid")
+    active_safe_radius = dummy_sim.decentral_ctrl.safe_radius
+    active_collision_thresh = dummy_sim.metrics.collision_threshold
+    active_collision_dist = dummy_sim.central_ctrl.collision_dist
+
     print("=========================================================================================")
     print("  EXPERIMENT 1: DETERMINISTIC OUTAGES & BURST LOSS ACROSS 4 BASELINES (IDENTICAL SEEDS)   ")
     print(f"  Seeds tested: {num_seeds} ({seeds}) | Outages: {outages}s | Drones: 5               ")
+    print(f"  Active Safety Provenance: safe_radius={active_safe_radius}m | collision_dist={active_collision_dist}m | collision_thresh={active_collision_thresh}m")
     print("=========================================================================================")
 
     results = {

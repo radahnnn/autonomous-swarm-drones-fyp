@@ -154,8 +154,11 @@ class WirelessChannel:
             self.total_dropped_loss += 1
             return False
 
-        # 5. Sample latency (Gaussian truncated at 0.001s)
-        delay = max(0.001, self.rng.normal(self.latency_mean, self.latency_std))
+        # 5. Sample latency (Gaussian truncated at 0.001s, or 0.0s when latency is disabled)
+        if self.latency_mean <= 0.0:
+            delay = 0.0
+        else:
+            delay = max(0.001, self.rng.normal(self.latency_mean, self.latency_std))
         delivery_time = current_time + delay
 
         packet = Packet(

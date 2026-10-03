@@ -374,6 +374,55 @@ def test_centralized_hold_target_vs_hold_accel():
     assert np.linalg.norm(sim_accel.drones[0].velocity) > 2.0, "Hold-accel did not maintain high runaway velocity"
 
 
+def test_all_four_fallback_strategies_in_simulation():
+    """
+    Recommendation 9: Compare all 4 fallback options in simulation:
+    - hover-on-loss (hover)
+    - hold-last-target (hold_target)
+    - dead-reckon-then-brake (dead_reckon)
+    - consensus flocking (consensus)
+    Assert all 4 remain bounded, collision-free, and exhibit expected trajectories under a ground outage.
+    """
+    strategies = ["hover", "hold_target", "dead_reckon", "consensus"]
+    final_positions = {}
+
+    for strat in strategies:
+        drones = [Drone(i, initial_position=[i * 2.0, 0.0]) for i in range(3)]
+        sim = SwarmSimulation(
+            drones=drones,
+            control_mode="hybrid",
+            fallback_strategy=strat,
+            dead_reckon_duration=1.0,
+            latency_mean=0.0,
+            gps_noise_std=0.0,
+        )
+        sim.set_formation(FormationType.LINE, centroid=np.array([2.0, 0.0]))
+        sim.centroid_velocity = np.array([1.0, 0.0])
+
+        # Step 5 ticks with active coordinator link
+        for _ in range(5):
+            sim.centroid_target += sim.centroid_velocity * sim.dt
+            sim.step()
+
+        # Inject ground-link outage
+        sim.channel.add_outage(start_time=sim.current_time, duration=4.0, scope="ground")
+
+        # Step through outage
+        for _ in range(60):  # 3.0s
+            sim.centroid_target += sim.centroid_velocity * sim.dt
+            sim.step()
+
+        summary = sim.metrics.get_summary()
+        assert summary["any_collision"] == 0, f"Collision occurred in fallback strategy '{strat}'"
+        assert summary["min_recorded_distance_m"] >= 0.70, f"Separation violation in '{strat}'"
+        final_positions[strat] = np.mean([d.position[0] for d in sim.drones])
+
+    # Dead-reckoning should advance further than hover-on-loss:
+    assert final_positions["dead_reckon"] > final_positions["hover"], (
+        f"Dead reckon ({final_positions['dead_reckon']:.2f}m) should travel further than hover ({final_positions['hover']:.2f}m)"
+    )
+
+
 if __name__ == "__main__":
     test_centralized_simulation()
     test_decentralized_simulation()
@@ -385,5 +434,6 @@ if __name__ == "__main__":
     test_locked_slot_assignment_preserves_mapping_during_transit()
     test_neighbor_memory_extrapolation_and_age_out()
     test_centralized_hold_target_vs_hold_accel()
+    test_all_four_fallback_strategies_in_simulation()
     print("All simulation tests passed successfully!")
 

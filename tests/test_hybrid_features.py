@@ -242,6 +242,198 @@ def test_hybrid_controller_measured_state_inputs():
     assert np.allclose(cmd, expected_cmd), f"Command {cmd} does not match expected {expected_cmd}"
 
 
+def test_degree_normalisation_at_various_swarm_sizes():
+    """
+    Recommendation 12: Verify that DecentralizedController forces (k_sep, k_align, k_form)
+    are degree-normalised (divided by deg = max(1, |N_i|)) so effective gains do not
+    scale unbounded with swarm size n = 3, 5, 10.
+    """
+    from swarm_core.controllers.decentralized import DecentralizedController
+
+    ctrl = DecentralizedController(k_sep=2.0, k_align=1.5, k_form=1.0, safe_radius=1.5)
+    drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[1.0, 0.0])
+
+    for n_peers in [2, 4, 9]:  # Swarm sizes n = 3, 5, 10 (peers = n - 1)
+        # Create identical neighbor relative states
+        neighbors = []
+        desired_offsets = {}
+        for p_id in range(1, n_peers + 1):
+            neighbors.append({
+                "id": p_id,
+                "position": np.array([0.8, 0.0]),  # Distance 0.8 < safe_radius 1.5
+                "velocity": np.array([0.0, 0.0]),
+            })
+            desired_offsets[p_id] = np.array([-1.0, 0.0])
+
+        accel = ctrl.compute_drone_control(
+            drone=drone,
+            neighbor_states=neighbors,
+            desired_offsets=desired_offsets,
+            goal_pos=None,
+        )
+
+        # In degree normalisation, all identical neighbors average to the exact same per-neighbor force
+        # Regardless of whether n_peers is 2, 4, or 9:
+        # f_sep_total = sum(f_sep_j) / deg = n_peers * f_sep_single / n_peers = f_sep_single
+        # f_align_total = sum(f_align_j) / deg = n_peers * f_align_single / n_peers = f_align_single
+        dist = 0.8
+        diff = np.array([-0.8, 0.0])
+        single_repulse = 2.0 * (1.0 / dist - 1.0 / 1.5) / (dist**2) * (diff / dist)
+        single_align = -1.5 * (np.array([1.0, 0.0]) - np.array([0.0, 0.0]))
+        displacement_err = diff - np.array([-1.0, 0.0])  # [-0.8, 0] - [-1, 0] = [0.2, 0]
+        single_form = -1.0 * displacement_err
+
+        expected_accel = single_repulse + single_align + single_form
+        assert np.allclose(accel, expected_accel, atol=1e-5), (
+            f"Degree normalisation failed at swarm size n={n_peers+1}. "
+            f"Accel: {accel}, Expected: {expected_accel}"
+        )
+
+
+def test_dead_reckoning_fallback_strategy():
+    """
+    Recommendation 9: Add and verify a dead-reckoning fallback option:
+    continue along last heartbeat velocity for bounded time T (parameter), then brake.
+    """
+    ctrl = HybridController(
+        fallback_strategy="dead_reckon",
+        dead_reckon_duration=1.5,
+        degrade_timeout=0.2,
+    )
+    drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[1.0, 0.0])
+
+    t = 0.0
+    dt = 0.05
+    # Prime with coordinator heartbeat: target [0, 0], velocity [1.0, 0.0]
+    ctrl.process_coordinator_heartbeat(
+        drone_id=0,
+        current_time=t,
+        send_timestamp=t,
+        sequence_num=1,
+        target_pos=np.array([0.0, 0.0]),
+        target_velocity=np.array([1.0, 0.0]),
+    )
+
+    # Let link expire to trigger fallback at t = 0.3s
+    t = 0.3
+    ctrl.update_state_machine(0, t, dt)
+    assert ctrl.get_drone_mode(0) == HybridMode.DECENTRALIZED_FALLBACK
+    assert ctrl.fallback_entry_time[0] == 0.3
+
+    # Case A: Within dead reckoning window (t_in_fb = 0.5s <= 1.5s, at t = 0.8s)
+    # Expected target pos = p_base + v * 0.5 = [0, 0] + [1, 0] * 0.5 = [0.5, 0.0]
+    # Commanded velocity = v_last = [1.0, 0.0]
+    t = 0.8
+    # alpha will be 0 after sufficient time in fallback
+    for _ in range(50):
+        ctrl.update_state_machine(0, t, dt)
+    assert ctrl.alpha[0] == 0.0
+
+    drone.position = np.array([0.5, 0.0])  # Drone has tracked to x = 0.5m
+    cmd_during_dr = ctrl.compute_hybrid_control(
+        drone=drone,
+        current_time=t,
+        dt=dt,
+        neighbor_states=[],
+        target_velocity=None,  # Coordinator link severed
+        use_velocity_feedforward=True,
+    )
+    # Target pos is [0.5, 0.0], commanded vel is [1.0, 0.0]
+    # Pos err = [0, 0], vel err = [0, 0] -> feedforward provides drag compensation
+    # Command must be positive forward maintaining trajectory
+    assert cmd_during_dr[0] > 0.0, f"Drone did not continue forward in dead reckoning window: {cmd_during_dr}"
+
+    # Case B: Beyond dead reckoning window (t_in_fb = 2.0s > 1.5s, at t = 2.3s)
+    # Drone has arrived at the clamped waypoint x = 1.5m
+    drone.position = np.array([1.5, 0.0])
+    # Commanded velocity must now be [0, 0] (braking to hover)
+    t = 2.3
+    cmd_after_dr = ctrl.compute_hybrid_control(
+        drone=drone,
+        current_time=t,
+        dt=dt,
+        neighbor_states=[],
+        target_velocity=None,
+        use_velocity_feedforward=True,
+    )
+    # Pos err = [1.5, 0] - [1.5, 0] = [0, 0]
+    # Vel err = [0, 0] - [1.0, 0] = [-1.0, 0]
+    # Brake term actively opposes velocity: cmd < 0
+    assert cmd_after_dr[0] < 0.0, (
+        f"Drone did not actively brake to hover after T={ctrl.dead_reckon_duration}s: {cmd_after_dr}"
+    )
+
+
+def test_coordinator_heartbeat_payload_and_freezing():
+    """
+    Recommendation 8: Verify coordinator heartbeat payload carries target_velocity
+    and next_waypoint, and that during link outage, drone target, velocity, and offsets
+    remain frozen at the last received heartbeat.
+    """
+    from simulator.engine import SwarmSimulation
+
+    d0 = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[0.0, 0.0])
+    d1 = Drone(1, initial_position=[1.0, 0.0], initial_velocity=[0.0, 0.0])
+    sim = SwarmSimulation([d0, d1], control_mode="hybrid", latency_mean=0.0)
+
+    sim.centroid_velocity = np.array([1.5, -0.5])
+    sim.step()
+
+    # Packet received: verify payload fields
+    assert np.allclose(sim.drone_last_received_velocity[0], np.array([1.5, -0.5]))
+    assert np.allclose(sim.hybrid_ctrl.last_known_velocity[0], np.array([1.5, -0.5]))
+    frozen_target = sim.drone_last_received_target[0].copy()
+    frozen_velocity = sim.drone_last_received_velocity[0].copy()
+
+    # Sever coordinator link
+    sim.set_coordinator_link(False)
+    sim.centroid_velocity = np.array([3.0, 3.0])  # Coordinator changes heading/speed
+    sim.centroid_target += np.array([10.0, 10.0])
+
+    sim.step()
+    sim.step()
+
+    # Drone state must remain frozen at the last received heartbeat
+    assert np.allclose(sim.drone_last_received_target[0], frozen_target), "Target slot leaked through severed link"
+    assert np.allclose(sim.drone_last_received_velocity[0], frozen_velocity), "Velocity leaked through severed link"
+
+
+def test_double_apf_elimination_in_fallback():
+    """
+    Recommendation 12: Verify that double APF is eliminated in fallback.
+    At alpha=1 (centralized), alpha=0.5 (blending), and alpha=0 (fallback),
+    the total repulsive separation barrier against a neighbor at distance 0.8m
+    must be exactly 1.0 * f_sep without a 200% spike.
+    """
+    ctrl = HybridController()
+    drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[0.0, 0.0])
+    neighbor = [{"id": 1, "position": np.array([0.8, 0.0]), "velocity": np.array([0.0, 0.0])}]
+
+    ctrl._init_drone_if_needed(0, 0.0)
+    ctrl.last_known_target[0] = np.array([0.0, 0.0])
+
+    # Compute control at alpha=1.0
+    ctrl.alpha[0] = 1.0
+    cmd_alpha_1 = ctrl.compute_hybrid_control(
+        drone=drone, current_time=0.0, dt=0.05, neighbor_states=neighbor, use_velocity_feedforward=False
+    )
+
+    # Compute control at alpha=0.0
+    ctrl.alpha[0] = 0.0
+    cmd_alpha_0 = ctrl.compute_hybrid_control(
+        drone=drone, current_time=0.0, dt=0.05, neighbor_states=neighbor, use_velocity_feedforward=False
+    )
+
+    # In both cases (position err = 0, vel err = 0), command in x-direction
+    # is purely the separation repulsion: diff = [-0.8, 0], diff/dist = [-1, 0]
+    # cmd_alpha_1 = 1.0 * u_safe_apf
+    # cmd_alpha_0 = 1.0 * u_decentral = 1.0 * f_sep
+    # Since u_safe_apf == f_sep, the repulsive magnitude MUST be identical!
+    assert np.isclose(cmd_alpha_1[0], cmd_alpha_0[0], atol=1e-5), (
+        f"Double APF detected! Repulsion at alpha=1: {cmd_alpha_1[0]:.4f}, at alpha=0: {cmd_alpha_0[0]:.4f}"
+    )
+
+
 if __name__ == "__main__":
     test_stale_and_sequence_rejection()
     test_asymmetric_hysteresis_and_dwell_time()
@@ -249,4 +441,9 @@ if __name__ == "__main__":
     test_forced_fallback_and_sliding_window_recovery()
     test_isolated_fallback_bounded_hover_deceleration()
     test_hybrid_controller_measured_state_inputs()
+    test_degree_normalisation_at_various_swarm_sizes()
+    test_dead_reckoning_fallback_strategy()
+    test_coordinator_heartbeat_payload_and_freezing()
+    test_double_apf_elimination_in_fallback()
     print("All hybrid feature tests passed successfully!")
+

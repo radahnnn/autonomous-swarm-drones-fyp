@@ -35,9 +35,12 @@ class DecentralizedController:
         goal_vel: Optional[np.ndarray] = None,
         measured_position: Optional[np.ndarray] = None,
         measured_velocity: Optional[np.ndarray] = None,
+        use_velocity_feedforward: bool = True,
+        drag_coeff: float = 0.20,
     ) -> np.ndarray:
         """
         Compute control acceleration for a single drone given perceived neighbor data.
+        Degree-normalised across perceived neighbors (Olfati-Saber flocking consensus).
         
         Parameters:
             drone: The local drone instance.
@@ -47,6 +50,8 @@ class DecentralizedController:
             goal_vel: Optional velocity target.
             measured_position: Optional measured/estimated local position (defaults to drone.position).
             measured_velocity: Optional measured/estimated local velocity (defaults to drone.velocity).
+            use_velocity_feedforward: Whether to apply drag feedforward compensation along goal_vel.
+            drag_coeff: Active aerodynamic drag coefficient.
         """
         pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
         vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
@@ -58,11 +63,18 @@ class DecentralizedController:
                 accel += self.k_goal * (goal_pos - pos)
                 if goal_vel is not None:
                     accel += 0.5 * self.k_goal * (goal_vel - vel)
+                    if use_velocity_feedforward and drag_coeff > 0:
+                        accel += drag_coeff * goal_vel
+            elif goal_vel is not None:
+                accel += 0.5 * self.k_goal * (goal_vel - vel)
+                if use_velocity_feedforward and drag_coeff > 0:
+                    accel += drag_coeff * goal_vel
             else:
                 # Bounded failsafe: actively brake to hover when isolated without an active goal
                 accel -= self.k_align * vel
             return accel
 
+        deg = max(1, len(neighbor_states))
         f_sep = np.zeros(drone.dim, dtype=np.float64)
         f_align = np.zeros(drone.dim, dtype=np.float64)
         f_form = np.zeros(drone.dim, dtype=np.float64)
@@ -93,12 +105,23 @@ class DecentralizedController:
                 if dist > self.safe_radius * 1.5:
                     f_form -= (self.k_form * 0.4) * (diff / dist) * (dist - self.safe_radius * 1.5)
 
-        # 4. Optional navigational feedback
+        # Degree normalisation across all perceived neighbors
+        f_sep = f_sep / deg
+        f_align = f_align / deg
+        f_form = f_form / deg
+
+        # 4. Optional navigational feedback & feedforward drag compensation
         f_goal = np.zeros(drone.dim, dtype=np.float64)
         if goal_pos is not None:
             f_goal += self.k_goal * (goal_pos - pos)
             if goal_vel is not None:
                 f_goal += 0.5 * self.k_goal * (goal_vel - vel)
+                if use_velocity_feedforward and drag_coeff > 0:
+                    f_goal += drag_coeff * goal_vel
+        elif goal_vel is not None:
+            f_goal += 0.5 * self.k_goal * (goal_vel - vel)
+            if use_velocity_feedforward and drag_coeff > 0:
+                f_goal += drag_coeff * goal_vel
 
         total_accel = f_sep + f_align + f_form + f_goal
         return total_accel

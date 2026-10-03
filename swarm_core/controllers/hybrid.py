@@ -42,6 +42,8 @@ class HybridController:
         ramp_duration: float = 0.8,             # Smooth ramping duration tau_ramp for alpha(t)
         window_size: int = 20,                  # Sliding window size for delivery ratio calculation
         recovery_ratio_threshold: float = 0.70, # Recover if delivery ratio >= 70% in sliding window
+        fallback_strategy: str = "consensus",   # "consensus", "dead_reckon", "hold_target", "hover"
+        dead_reckon_duration: float = 1.5,      # Parameter T: bounded dead reckoning duration in seconds
         central_controller: Optional[CentralizedController] = None,
         decentral_controller: Optional[DecentralizedController] = None,
     ):
@@ -56,6 +58,8 @@ class HybridController:
         self.ramp_duration = float(ramp_duration)
         self.window_size = int(window_size)
         self.recovery_ratio_threshold = float(recovery_ratio_threshold)
+        self.fallback_strategy = str(fallback_strategy).lower()
+        self.dead_reckon_duration = float(dead_reckon_duration)
 
         # State tracking per drone:
         self.modes: Dict[int, HybridMode] = {}
@@ -68,6 +72,8 @@ class HybridController:
         self.time_in_fallback: Dict[int, float] = {}
         self.recovery_times: Dict[int, List[float]] = {}
         self.last_known_target: Dict[int, np.ndarray] = {}
+        self.last_known_velocity: Dict[int, np.ndarray] = {}
+        self.last_known_next_waypoint: Dict[int, np.ndarray] = {}
         self.last_known_offsets: Dict[int, Dict[int, np.ndarray]] = {}
         self.last_known_formation: Dict[int, Any] = {}
         
@@ -117,6 +123,8 @@ class HybridController:
         send_timestamp: float,
         sequence_num: int,
         target_pos: np.ndarray,
+        target_velocity: Optional[np.ndarray] = None,
+        next_waypoint: Optional[np.ndarray] = None,
         desired_offsets: Optional[Dict[int, np.ndarray]] = None,
         formation_type: Optional[Any] = None,
     ) -> bool:
@@ -125,7 +133,7 @@ class HybridController:
         1. Checks sequence number monotonicity (rejects out-of-order or duplicate packets).
         2. Checks message age (rejects stale commands).
         3. Updates sliding delivery window and consecutive reception counter.
-        4. Caches target position, formation type, and relative neighbor offsets.
+        4. Caches target position, target velocity, next waypoint, formation type, and relative neighbor offsets.
         Returns True if accepted, False if rejected.
         """
         self._init_drone_if_needed(drone_id, current_time)
@@ -148,6 +156,10 @@ class HybridController:
         self.last_sequence_num[drone_id] = sequence_num
         self.last_valid_timestamp[drone_id] = current_time
         self.last_known_target[drone_id] = np.array(target_pos, dtype=np.float64)
+        if target_velocity is not None:
+            self.last_known_velocity[drone_id] = np.array(target_velocity, dtype=np.float64)
+        if next_waypoint is not None:
+            self.last_known_next_waypoint[drone_id] = np.array(next_waypoint, dtype=np.float64)
         if desired_offsets is not None:
             self.last_known_offsets[drone_id] = {
                 int(k): np.array(v, dtype=np.float64) for k, v in desired_offsets.items()
@@ -240,17 +252,63 @@ class HybridController:
         pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
         vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
 
+        # Determine commanded velocity from heartbeat or cached history
+        if target_velocity is not None:
+            v_cmd = np.array(target_velocity, dtype=np.float64)
+        else:
+            v_cmd = self.last_known_velocity.get(drone.id, np.zeros(drone.dim, dtype=np.float64))
+
         # 1. Centralized guidance component (tracked using last validated target slot and measured state)
-        target_pos = self.last_known_target.get(drone.id, pos)
+        target_pos = self.last_known_target.get(drone.id, pos).copy()
+
+        # Apply fallback navigation strategy if degraded / in fallback
+        if alpha < 0.999:
+            if self.fallback_strategy == "hover":
+                # Immediately brake to hover at position where loss was entered
+                v_cmd = np.zeros(drone.dim, dtype=np.float64)
+                target_pos = pos
+                decentral_goal_pos = None
+                decentral_goal_vel = np.zeros(drone.dim, dtype=np.float64)
+            elif self.fallback_strategy == "hold_target":
+                # Maintain position hold at the last received target waypoint
+                v_cmd = np.zeros(drone.dim, dtype=np.float64)
+                target_pos = self.last_known_target.get(drone.id, pos).copy()
+                decentral_goal_pos = target_pos
+                decentral_goal_vel = np.zeros(drone.dim, dtype=np.float64)
+            elif self.fallback_strategy == "dead_reckon":
+                # Continue along last received velocity for bounded time T, then brake
+                t_in_fb = current_time - self.fallback_entry_time.get(drone.id, current_time)
+                v_last = self.last_known_velocity.get(drone.id, np.zeros(drone.dim, dtype=np.float64))
+                p_base = self.last_known_target.get(drone.id, pos)
+                if t_in_fb <= self.dead_reckon_duration:
+                    target_pos = p_base + v_last * t_in_fb
+                    v_cmd = v_last.copy()
+                    decentral_goal_pos = target_pos
+                    decentral_goal_vel = v_cmd
+                else:
+                    target_pos = p_base + v_last * self.dead_reckon_duration
+                    v_cmd = np.zeros(drone.dim, dtype=np.float64)
+                    decentral_goal_pos = target_pos
+                    decentral_goal_vel = v_cmd
+            else:  # "consensus" (default proposed hybrid fallback)
+                # Bounded behavior: consensus flocking with gentle deceleration to hover
+                v_cmd = np.zeros(drone.dim, dtype=np.float64)
+                target_pos = self.last_known_target.get(drone.id, pos).copy()
+                decentral_goal_pos = None
+                decentral_goal_vel = np.zeros(drone.dim, dtype=np.float64)
+        else:
+            decentral_goal_pos = None
+            decentral_goal_vel = None
+
         p_err = target_pos - pos
-        
-        if use_velocity_feedforward and target_velocity is not None:
-            v_err = np.array(target_velocity, dtype=np.float64) - vel
-            u_ff = drag_coeff * np.array(target_velocity, dtype=np.float64)
+
+        if use_velocity_feedforward and np.linalg.norm(v_cmd) > 1e-6:
+            v_err = v_cmd - vel
+            u_ff = drag_coeff * v_cmd
         else:
             v_err = -vel
             u_ff = np.zeros(drone.dim, dtype=np.float64)
-            
+
         u_central = self.central_controller.kp * p_err + self.central_controller.kd * v_err + u_ff
 
         # 2. Decentralized flocking & consensus component
@@ -259,13 +317,17 @@ class HybridController:
             drone=drone,
             neighbor_states=neighbor_states,
             desired_offsets=offsets,
-            goal_pos=None,
+            goal_pos=decentral_goal_pos,
+            goal_vel=decentral_goal_vel,
             measured_position=pos,
             measured_velocity=vel,
+            use_velocity_feedforward=use_velocity_feedforward,
+            drag_coeff=drag_coeff,
         )
 
-        # 3. Always-on local decentralized APF safety barrier (unaffected by alpha)
+        # 3. Always-on local decentralized APF safety barrier (degree-normalised)
         u_safe_apf = np.zeros(drone.dim, dtype=np.float64)
+        deg = max(1, len(neighbor_states))
         for n_state in neighbor_states:
             diff = pos - n_state["position"]
             dist = np.linalg.norm(diff)
@@ -276,9 +338,12 @@ class HybridController:
                     / (dist**2)
                 )
                 u_safe_apf += repulse * (diff / dist)
+        u_safe_apf = u_safe_apf / deg
 
-        # 4. Smooth continuous blending
-        blended_control = alpha * u_central + (1.0 - alpha) * u_decentral + u_safe_apf
+        # 4. Smooth continuous blending without double APF:
+        # u_decentral already contains (1 - alpha) * f_sep.
+        # Adding alpha * u_safe_apf ensures total separation is exactly 1.0 * f_sep for all alpha in [0, 1].
+        blended_control = alpha * u_central + (1.0 - alpha) * u_decentral + alpha * u_safe_apf
         return blended_control
 
     def get_total_mode_switches(self) -> int:

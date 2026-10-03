@@ -49,6 +49,8 @@ class SwarmSimulation:
         p_g_to_b: float = 0.05,
         p_b_to_g: float = 0.20,
         profile: Optional[Union[str, SwarmConfigProfile]] = None,
+        fallback_strategy: str = "consensus",
+        dead_reckon_duration: float = 1.5,
     ):
         self.drones = drones
         self.num_drones = len(drones)
@@ -57,6 +59,8 @@ class SwarmSimulation:
         self.current_time = 0.0
         self.rng = np.random.default_rng(seed)
         self.use_velocity_feedforward = bool(use_velocity_feedforward)
+        self.fallback_strategy = str(fallback_strategy).lower()
+        self.dead_reckon_duration = float(dead_reckon_duration)
 
         # Profile resolution: explicit arg > drone profile > active global profile
         if profile is not None:
@@ -98,6 +102,8 @@ class SwarmSimulation:
         self.central_ctrl, self.decentral_ctrl, self.hybrid_ctrl = build_controllers_from_profile(
             self.profile, nominal_latency=self.latency_mean
         )
+        self.hybrid_ctrl.fallback_strategy = self.fallback_strategy
+        self.hybrid_ctrl.dead_reckon_duration = self.dead_reckon_duration
 
         # Mission state and locked slot assignment
         self.current_formation = FormationType.LINE
@@ -112,6 +118,12 @@ class SwarmSimulation:
         # Onboard drone state received from coordinator (frozen under link loss)
         self.drone_last_received_target: Dict[int, np.ndarray] = {
             d.id: self.target_slots[i].copy() for i, d in enumerate(self.drones)
+        }
+        self.drone_last_received_velocity: Dict[int, np.ndarray] = {
+            d.id: self.centroid_velocity.copy() for d in self.drones
+        }
+        self.drone_last_received_next_waypoint: Dict[int, np.ndarray] = {
+            d.id: (self.target_slots[i] + self.centroid_velocity * 1.0).copy() for i, d in enumerate(self.drones)
         }
         self.drone_last_received_formation: Dict[int, FormationType] = {
             d.id: self.current_formation for d in self.drones
@@ -129,6 +141,10 @@ class SwarmSimulation:
                 neighbor_ids=[n.id for n in self.drones if n.id != d.id],
                 drone_ids=initial_drone_ids,
             )
+            self.hybrid_ctrl.last_known_target[d.id] = self.target_slots[i].copy()
+            self.hybrid_ctrl.last_known_velocity[d.id] = self.centroid_velocity.copy()
+            self.hybrid_ctrl.last_known_next_waypoint[d.id] = (self.target_slots[i] + self.centroid_velocity * 1.0).copy()
+            self.hybrid_ctrl.last_known_offsets[d.id] = self.drone_last_received_offsets[d.id]
 
         # Hold-last-command state for centralized baseline
         init_accels = self.central_ctrl.compute_control_inputs(
@@ -291,6 +307,8 @@ class SwarmSimulation:
                 payload = {
                     "seq_num": self.coordinator_seq_num,
                     "target_pos": assigned_targets[i].copy(),
+                    "target_velocity": self.centroid_velocity.copy(),
+                    "next_waypoint": (assigned_targets[i] + self.centroid_velocity * 1.0).copy(),
                     "cmd_accel": central_accels[i].copy(),
                     "formation_type": self.current_formation,
                     "desired_offsets": offsets_for_i,
@@ -314,6 +332,10 @@ class SwarmSimulation:
                     if "cmd_accel" in pkt.payload:
                         self.last_central_accel[d.id] = np.array(pkt.payload["cmd_accel"], dtype=np.float64)
                     self.drone_last_received_target[d.id] = np.array(pkt.payload["target_pos"], dtype=np.float64)
+                    if "target_velocity" in pkt.payload:
+                        self.drone_last_received_velocity[d.id] = np.array(pkt.payload["target_velocity"], dtype=np.float64)
+                    if "next_waypoint" in pkt.payload:
+                        self.drone_last_received_next_waypoint[d.id] = np.array(pkt.payload["next_waypoint"], dtype=np.float64)
                     self.drone_last_received_formation[d.id] = pkt.payload.get("formation_type", self.current_formation)
                     if "desired_offsets" in pkt.payload:
                         self.drone_last_received_offsets[d.id] = pkt.payload["desired_offsets"]
@@ -324,6 +346,8 @@ class SwarmSimulation:
                         send_timestamp=pkt.sent_time,
                         sequence_num=pkt.payload["seq_num"],
                         target_pos=pkt.payload["target_pos"],
+                        target_velocity=pkt.payload.get("target_velocity"),
+                        next_waypoint=pkt.payload.get("next_waypoint"),
                         desired_offsets=pkt.payload.get("desired_offsets"),
                         formation_type=pkt.payload.get("formation_type"),
                     )
@@ -360,18 +384,19 @@ class SwarmSimulation:
             for d in self.drones:
                 target_i = self.drone_last_received_target[d.id]
                 p_err = target_i - measured_positions[d.id]
-                v_target = (self.centroid_velocity if (self.use_velocity_feedforward and self.coordinator_link_active) else np.zeros(2))
+                v_target = (self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and self.coordinator_link_active) else np.zeros(2))
                 v_err = v_target - measured_velocities[d.id]
                 u_cmd = self.central_ctrl.kp * p_err + self.central_ctrl.kd * v_err
                 if self.use_velocity_feedforward and self.coordinator_link_active:
-                    u_cmd += float(self.profile.get("drag_coeff")) * self.centroid_velocity
+                    u_cmd += float(self.profile.get("drag_coeff")) * v_target
 
-                # Artificial Potential Field collision avoidance against perceived neighbors
+                # Artificial Potential Field collision avoidance against perceived neighbors (degree-normalised)
+                deg = max(1, len(perceived_neighbors[d.id]))
                 for n_info in perceived_neighbors[d.id]:
                     diff = measured_positions[d.id] - n_info["position"]
                     dist = float(np.linalg.norm(diff))
                     if 1e-4 < dist < self.central_ctrl.collision_dist:
-                        repulse = self.central_ctrl.k_repulse * (1.0 / dist - 1.0 / self.central_ctrl.collision_dist) / (dist**2)
+                        repulse = (self.central_ctrl.k_repulse / deg) * (1.0 / dist - 1.0 / self.central_ctrl.collision_dist) / (dist**2)
                         u_cmd += repulse * (diff / dist)
                 d.set_control_input(u_cmd)
 
@@ -381,8 +406,8 @@ class SwarmSimulation:
                 d.set_control_input(self.last_central_accel[d.id])
 
         elif self.control_mode == "decentralized":
-            # Pure local consensus & flocking towards last received target
-            goal_v = self.centroid_velocity if self.use_velocity_feedforward else None
+            # Pure local consensus & flocking towards last received target via channel
+            goal_v = self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and self.coordinator_link_active) else None
             for d in self.drones:
                 target_i = self.drone_last_received_target[d.id]
                 desired_offsets = self.drone_last_received_offsets[d.id]
@@ -395,10 +420,13 @@ class SwarmSimulation:
                     goal_vel=goal_v,
                     measured_position=measured_positions[d.id],
                     measured_velocity=measured_velocities[d.id],
+                    use_velocity_feedforward=self.use_velocity_feedforward,
+                    drag_coeff=float(self.profile.get("drag_coeff")),
                 )
                 d.set_control_input(accel_i)
 
         elif self.control_mode == "hybrid":
+            target_v = self.drone_last_received_velocity[d.id] if self.coordinator_link_active else None
             for d in self.drones:
                 desired_offsets = self.drone_last_received_offsets[d.id]
 
@@ -408,7 +436,7 @@ class SwarmSimulation:
                     dt=self.dt,
                     neighbor_states=perceived_neighbors[d.id],
                     desired_neighbor_offsets=desired_offsets,
-                    target_velocity=self.centroid_velocity,
+                    target_velocity=target_v,
                     use_velocity_feedforward=self.use_velocity_feedforward,
                     drag_coeff=float(self.profile.get("drag_coeff")),
                     measured_position=measured_positions[d.id],
