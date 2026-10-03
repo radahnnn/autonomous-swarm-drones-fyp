@@ -62,21 +62,41 @@ class WirelessChannel:
         self,
         start_time: float,
         duration: float,
+        scope: str = "all",
         recipients: Optional[List[int]] = None,
     ) -> None:
         """
-        Schedule a deterministic RF outage window [start_time, start_time + duration].
-        If recipients is specified, only packets destined to those recipients are dropped (partition mode).
-        If None, all transmissions across the entire channel are dropped.
+        Schedule an RF outage window [start_time, start_time + duration].
+        
+        Parameters:
+            start_time: Window start in simulation seconds.
+            duration: Window duration in seconds.
+            scope:
+              - "all": Drop all transmissions matching recipients (default).
+              - "ground": Drop only coordinator telemetry (sender_id == -1).
+              - "peer": Drop only inter-drone peer-to-peer broadcasts (sender_id >= 0).
+            recipients: Optional list of recipient drone IDs to isolate (partition mode).
+                        If None, applies across all recipients in the channel.
         """
         recip_set = set(recipients) if recipients is not None else None
-        self.outages.append((float(start_time), float(duration), recip_set))
+        self.outages.append((float(start_time), float(duration), str(scope).lower(), recip_set))
 
-    def is_in_outage(self, current_time: float, recipient_id: Optional[int] = None) -> bool:
-        """Check if channel (or specific recipient link) is currently experiencing a scheduled outage."""
-        for start, dur, recip_set in self.outages:
+    def is_in_outage(
+        self,
+        current_time: float,
+        sender_id: Optional[int] = None,
+        recipient_id: Optional[int] = None,
+    ) -> bool:
+        """Check if a transmission is currently blocked by a scheduled outage window."""
+        for start, dur, scope, recip_set in self.outages:
             if start <= current_time <= start + dur:
-                if recip_set is None or (recipient_id is not None and recipient_id in recip_set):
+                if recip_set is not None and (recipient_id is None or recipient_id not in recip_set):
+                    continue
+                if scope == "all":
+                    return True
+                elif scope == "ground" and sender_id == -1:
+                    return True
+                elif scope == "peer" and (sender_id is not None and sender_id >= 0):
                     return True
         return False
 
@@ -110,8 +130,8 @@ class WirelessChannel:
         """Attempt to transmit a packet across the wireless channel."""
         self.total_transmitted += 1
 
-        # 1. Check scheduled outage (100% loss during outage window, filtered by recipient)
-        if self.is_in_outage(current_time, recipient_id=recipient_id):
+        # 1. Check scheduled outage (filtered by scope and recipient)
+        if self.is_in_outage(current_time, sender_id=sender_id, recipient_id=recipient_id):
             self.total_dropped_outage += 1
             self.total_dropped_loss += 1
             return False

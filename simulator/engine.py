@@ -3,8 +3,9 @@ Swarm Simulation Engine.
 Coordinates the physics step, wireless network exchange, control computation, and metrics tracking.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from swarm_core.config import (
     SwarmConfigProfile,
@@ -21,6 +22,7 @@ from swarm_core.formations import (
     assign_optimal_slots,
     compute_desired_neighbor_offsets,
     compute_formation_slots,
+    create_world_slots,
 )
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
@@ -97,12 +99,36 @@ class SwarmSimulation:
             self.profile, nominal_latency=self.latency_mean
         )
 
-        # Mission state
+        # Mission state and locked slot assignment
         self.current_formation = FormationType.LINE
         self.formation_spacing = float(self.profile.get("nominal_spacing"))
         self.centroid_target = np.array([0.0, 0.0], dtype=np.float64)
         self.centroid_velocity = np.array([0.0, 0.0], dtype=np.float64)
-        self.target_slots: Optional[np.ndarray] = None
+        self.drone_slot_map: Dict[int, int] = {}
+        self.current_local_offsets: np.ndarray = np.zeros((self.num_drones, 2), dtype=np.float64)
+        self.target_slots: np.ndarray = np.zeros((self.num_drones, 2), dtype=np.float64)
+        self._lock_formation_slots()
+
+        # Onboard drone state received from coordinator (frozen under link loss)
+        self.drone_last_received_target: Dict[int, np.ndarray] = {
+            d.id: self.target_slots[i].copy() for i, d in enumerate(self.drones)
+        }
+        self.drone_last_received_formation: Dict[int, FormationType] = {
+            d.id: self.current_formation for d in self.drones
+        }
+        self.drone_last_received_offsets: Dict[int, Dict[int, np.ndarray]] = {
+            d.id: {} for d in self.drones
+        }
+
+        # Initial neighbor offsets
+        initial_drone_ids = [d.id for d in self.drones]
+        for i, d in enumerate(self.drones):
+            self.drone_last_received_offsets[d.id] = compute_desired_neighbor_offsets(
+                drone_id=d.id,
+                assigned_targets=self.target_slots,
+                neighbor_ids=[n.id for n in self.drones if n.id != d.id],
+                drone_ids=initial_drone_ids,
+            )
 
         # Hold-last-command state for centralized baseline
         init_accels = self.central_ctrl.compute_control_inputs(
@@ -118,9 +144,39 @@ class SwarmSimulation:
             d.id: init_accels[i].copy() for i, d in enumerate(self.drones)
         }
 
+        # Neighbor memory with age-out
+        self.neighbor_timeout: float = float(self.profile.get("neighbor_timeout", 0.30))
+        self.neighbor_memory: Dict[int, Dict[int, Dict[str, Any]]] = {
+            d.id: {} for d in self.drones
+        }
+
         # Link control (for hybrid failure testing: if False, central coordinator is severed)
         self.coordinator_link_active = True
         self.coordinator_seq_num = 0
+
+    def _lock_formation_slots(self) -> None:
+        """
+        Computes formation local offsets and locks drone-to-slot Hungarian matching
+        at morph start to prevent slot-swapping chattering during transitions.
+        """
+        n = self.num_drones
+        self.current_local_offsets = FormationGenerator.get_formation_offsets(
+            self.current_formation, n, spacing=self.formation_spacing
+        )
+        world_slots = create_world_slots(self.current_local_offsets, self.centroid_target[:2])
+        curr_pos = np.array([d.position[:2] for d in self.drones], dtype=np.float64)
+        cost_matrix = np.zeros((n, n), dtype=np.float64)
+        for i in range(n):
+            for j in range(n):
+                cost_matrix[i, j] = np.sum((curr_pos[i] - world_slots[j]) ** 2)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+        self.drone_slot_map = {int(r): int(c) for r, c in zip(row_ind, col_ind)}
+
+        # Update target_slots
+        self.target_slots = np.zeros((n, 2), dtype=np.float64)
+        for i in range(n):
+            slot_idx = self.drone_slot_map.get(i, i)
+            self.target_slots[i] = self.centroid_target[:2] + self.current_local_offsets[slot_idx]
 
     def set_formation(
         self,
@@ -134,10 +190,14 @@ class SwarmSimulation:
             self.formation_spacing = float(spacing)
         if centroid is not None:
             self.centroid_target = np.array(centroid, dtype=np.float64)
+        self._lock_formation_slots()
 
     def set_coordinator_link(self, active: bool) -> None:
         """Simulate ground station link cut or reconnection."""
         self.coordinator_link_active = active
+        if not active:
+            for d in self.drones:
+                self.hybrid_ctrl.record_heartbeat_attempt(d.id, False)
 
     def step(self) -> None:
         """Advance simulation by one timestep dt."""
@@ -197,13 +257,11 @@ class SwarmSimulation:
                     )
 
         # 3. Coordinator Heartbeat Broadcast (if central link is physically active)
-        local_offsets, world_slots, assigned_targets = compute_formation_slots(
-            formation_type=self.current_formation,
-            num_drones=n,
-            centroid=self.centroid_target,
-            spacing=self.formation_spacing,
-            current_positions=np.array([d.position for d in self.drones]),
-        )
+        # Target slots rigidly follow moving centroid based on locked slot assignment
+        assigned_targets = np.zeros((n, 2), dtype=np.float64)
+        for i in range(n):
+            slot_idx = self.drone_slot_map.get(i, i)
+            assigned_targets[i] = self.centroid_target[:2] + self.current_local_offsets[slot_idx]
         self.target_slots = assigned_targets
 
         # Compute centralized commands
@@ -219,25 +277,34 @@ class SwarmSimulation:
             measured_velocities=measured_velocities,
         )
 
+        drone_ids = [d.id for d in self.drones]
         if self.coordinator_link_active:
             self.coordinator_seq_num += 1
             for i in range(n):
+                d_id = self.drones[i].id
+                offsets_for_i = compute_desired_neighbor_offsets(
+                    drone_id=d_id,
+                    assigned_targets=assigned_targets,
+                    neighbor_ids=[o.id for o in self.drones if o.id != d_id],
+                    drone_ids=drone_ids,
+                )
                 payload = {
                     "seq_num": self.coordinator_seq_num,
                     "target_pos": assigned_targets[i].copy(),
                     "cmd_accel": central_accels[i].copy(),
+                    "formation_type": self.current_formation,
+                    "desired_offsets": offsets_for_i,
                 }
                 dist_to_gs = float(np.linalg.norm(self.drones[i].position - self.centroid_target))
                 self.channel.send(
                     sender_id=-1,  # -1 represents Central Coordinator
-                    recipient_id=self.drones[i].id,
+                    recipient_id=d_id,
                     payload=payload,
                     distance=dist_to_gs,
                     current_time=self.current_time,
                 )
 
-        # 4. Retrieve arrived packets per drone
-        perceived_neighbors: Dict[int, List[Dict]] = {d.id: [] for d in self.drones}
+        # 4. Retrieve arrived packets per drone & update neighbor memory
         for d in self.drones:
             pkts = self.channel.receive(d.id, self.current_time)
             coord_pkt_received = False
@@ -246,6 +313,10 @@ class SwarmSimulation:
                     coord_pkt_received = True
                     if "cmd_accel" in pkt.payload:
                         self.last_central_accel[d.id] = np.array(pkt.payload["cmd_accel"], dtype=np.float64)
+                    self.drone_last_received_target[d.id] = np.array(pkt.payload["target_pos"], dtype=np.float64)
+                    self.drone_last_received_formation[d.id] = pkt.payload.get("formation_type", self.current_formation)
+                    if "desired_offsets" in pkt.payload:
+                        self.drone_last_received_offsets[d.id] = pkt.payload["desired_offsets"]
                     # Heartbeat from coordinator: validates sequence & message age
                     self.hybrid_ctrl.process_coordinator_heartbeat(
                         drone_id=d.id,
@@ -253,37 +324,68 @@ class SwarmSimulation:
                         send_timestamp=pkt.sent_time,
                         sequence_num=pkt.payload["seq_num"],
                         target_pos=pkt.payload["target_pos"],
+                        desired_offsets=pkt.payload.get("desired_offsets"),
+                        formation_type=pkt.payload.get("formation_type"),
                     )
                 else:
-                    perceived_neighbors[d.id].append({
-                        "id": pkt.sender_id,
-                        "position": pkt.payload["position"],
-                        "velocity": pkt.payload["velocity"],
-                    })
+                    self.neighbor_memory[d.id][pkt.sender_id] = {
+                        "position": np.array(pkt.payload["position"], dtype=np.float64),
+                        "velocity": np.array(pkt.payload["velocity"], dtype=np.float64),
+                        "timestamp": self.current_time,
+                    }
 
-            # If coordinator was active but no packet arrived this step (dropped / delayed)
-            if self.coordinator_link_active and not coord_pkt_received:
+            if not coord_pkt_received:
                 self.hybrid_ctrl.record_heartbeat_attempt(d.id, False)
 
-        # 5. Compute Control Inputs based on selected mode
-        drone_ids = [d.id for d in self.drones]
+        # 4b. Assemble perceived neighbors from memory with age-out and linear extrapolation
+        perceived_neighbors: Dict[int, List[Dict]] = {d.id: [] for d in self.drones}
+        for d in self.drones:
+            valid_mem = {}
+            for peer_id, mem in self.neighbor_memory[d.id].items():
+                age = self.current_time - mem["timestamp"]
+                if age <= self.neighbor_timeout:
+                    extrap_pos = mem["position"] + mem["velocity"] * age
+                    perceived_neighbors[d.id].append({
+                        "id": peer_id,
+                        "position": extrap_pos,
+                        "velocity": mem["velocity"].copy(),
+                        "age": age,
+                    })
+                    valid_mem[peer_id] = mem
+            self.neighbor_memory[d.id] = valid_mem
 
-        if self.control_mode == "centralized":
-            # Pure centralized with hold-last-command under loss
+        # 5. Compute Control Inputs based on selected mode
+        if self.control_mode in ["centralized", "centralized_hold_target"]:
+            # Centralized with onboard target tracking under loss (Recommendation 5)
+            for d in self.drones:
+                target_i = self.drone_last_received_target[d.id]
+                p_err = target_i - measured_positions[d.id]
+                v_target = (self.centroid_velocity if (self.use_velocity_feedforward and self.coordinator_link_active) else np.zeros(2))
+                v_err = v_target - measured_velocities[d.id]
+                u_cmd = self.central_ctrl.kp * p_err + self.central_ctrl.kd * v_err
+                if self.use_velocity_feedforward and self.coordinator_link_active:
+                    u_cmd += float(self.profile.get("drag_coeff")) * self.centroid_velocity
+
+                # Artificial Potential Field collision avoidance against perceived neighbors
+                for n_info in perceived_neighbors[d.id]:
+                    diff = measured_positions[d.id] - n_info["position"]
+                    dist = float(np.linalg.norm(diff))
+                    if 1e-4 < dist < self.central_ctrl.collision_dist:
+                        repulse = self.central_ctrl.k_repulse * (1.0 / dist - 1.0 / self.central_ctrl.collision_dist) / (dist**2)
+                        u_cmd += repulse * (diff / dist)
+                d.set_control_input(u_cmd)
+
+        elif self.control_mode == "centralized_hold_accel":
+            # Extra baseline: Open-loop hold last acceleration command
             for d in self.drones:
                 d.set_control_input(self.last_central_accel[d.id])
 
         elif self.control_mode == "decentralized":
-            # Pure local consensus & flocking towards target slots
+            # Pure local consensus & flocking towards last received target
             goal_v = self.centroid_velocity if self.use_velocity_feedforward else None
-            for i, d in enumerate(self.drones):
-                target_i = assigned_targets[i]
-                desired_offsets = compute_desired_neighbor_offsets(
-                    drone_id=d.id,
-                    assigned_targets=assigned_targets,
-                    neighbor_ids=[n_info["id"] for n_info in perceived_neighbors[d.id]],
-                    drone_ids=drone_ids,
-                )
+            for d in self.drones:
+                target_i = self.drone_last_received_target[d.id]
+                desired_offsets = self.drone_last_received_offsets[d.id]
 
                 accel_i = self.decentral_ctrl.compute_drone_control(
                     drone=d,
@@ -297,14 +399,8 @@ class SwarmSimulation:
                 d.set_control_input(accel_i)
 
         elif self.control_mode == "hybrid":
-            for i, d in enumerate(self.drones):
-                target_i = assigned_targets[i]
-                desired_offsets = compute_desired_neighbor_offsets(
-                    drone_id=d.id,
-                    assigned_targets=assigned_targets,
-                    neighbor_ids=[n_info["id"] for n_info in perceived_neighbors[d.id]],
-                    drone_ids=drone_ids,
-                )
+            for d in self.drones:
+                desired_offsets = self.drone_last_received_offsets[d.id]
 
                 accel_i = self.hybrid_ctrl.compute_hybrid_control(
                     drone=d,

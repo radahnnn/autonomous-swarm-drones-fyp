@@ -181,6 +181,199 @@ def test_wireless_channel_targeted_outage_partition():
     assert channel.send(sender_id=-1, recipient_id=4, payload={}, distance=1.0, current_time=6.0)
 
 
+def test_wireless_channel_5_drone_per_recipient_bursts():
+    """
+    Recommendation 1: In a 5-drone swarm, each recipient receives multiple packets per tick
+    (4 peer broadcasts + 1 coordinator heartbeat = 5 sends/tick).
+    Verify that advancing the Gilbert-Elliott state at most once per tick per recipient
+    preserves the physical burst statistics in tick units:
+      - empirical loss ~ 20%
+      - mean burst ~ 5.0 ticks
+      - P(burst >= 11) ~ 0.107
+      - all packets sent to the same recipient within the same tick experience identical channel fate.
+    """
+    from swarm_core.network import WirelessChannel
+
+    dt = 0.05
+    num_ticks = 40000
+    channel = WirelessChannel(
+        use_gilbert_elliott=True,
+        p_g_to_b=0.05,
+        p_b_to_g=0.20,
+        loss_rate_bad=1.0,
+        comm_range=100.0,
+        latency_mean=0.0,
+        latency_std=0.0,
+        seed=101,
+    )
+
+    tick_drops = []
+    # Test recipient 0 receiving from 4 peers (1, 2, 3, 4) and coordinator (-1)
+    senders = [-1, 1, 2, 3, 4]
+
+    for step_i in range(num_ticks):
+        t = step_i * dt
+        step_results = []
+        for s_id in senders:
+            succ = channel.send(
+                sender_id=s_id,
+                recipient_id=0,
+                payload={"data": 1},
+                distance=2.0,
+                current_time=t,
+            )
+            step_results.append(1 if not succ else 0)
+
+        # All packets in the same tick must have identical drop status (channel coherence)
+        assert len(set(step_results)) == 1, f"Incoherent channel state at tick {step_i}: {step_results}"
+        tick_drops.append(step_results[0])
+
+    # 1. Overall empirical loss across ticks
+    loss_rate = float(np.mean(tick_drops))
+    assert np.isclose(loss_rate, 0.20, atol=0.015), f"5-drone loss rate {loss_rate:.4f} differs from 0.20"
+
+    # 2. Burst length calculation in ticks
+    burst_lengths = []
+    cur_burst = 0
+    for d in tick_drops:
+        if d == 1:
+            cur_burst += 1
+        else:
+            if cur_burst > 0:
+                burst_lengths.append(cur_burst)
+                cur_burst = 0
+    if cur_burst > 0:
+        burst_lengths.append(cur_burst)
+
+    assert len(burst_lengths) > 500, "Insufficient bursts sampled"
+    mean_burst = float(np.mean(burst_lengths))
+    assert np.isclose(mean_burst, 5.0, atol=0.25), f"Mean burst length {mean_burst:.3f} differs from 5.0 ticks"
+
+    # 3. P(burst >= 11 ticks)
+    ge_11 = sum(1 for b in burst_lengths if b >= 11)
+    p_ge_11 = ge_11 / len(burst_lengths)
+    assert np.isclose(p_ge_11, 0.107, atol=0.02), f"P(burst >= 11) = {p_ge_11:.4f} differs from 0.107"
+
+
+def test_locked_slot_assignment_preserves_mapping_during_transit():
+    """
+    Recommendation 6: Verify that SwarmSimulation locks Hungarian slot assignments
+    at morph start so drone-to-slot mapping remains stable without mid-trajectory chattering.
+    """
+    drones = create_non_overlapping_drones(5, seed=42)
+    sim = SwarmSimulation(drones, control_mode="centralized")
+    
+    # Start at V-Shape
+    sim.set_formation(FormationType.V_SHAPE, centroid=np.array([0.0, 0.0]))
+    initial_map = dict(sim.drone_slot_map)
+    assert len(initial_map) == 5
+
+    # Run for 20 steps with moving centroid
+    sim.centroid_velocity = np.array([1.0, 0.5])
+    for _ in range(20):
+        sim.centroid_target += sim.centroid_velocity * sim.dt
+        sim.step()
+        # Mapping must NOT change during transit
+        assert sim.drone_slot_map == initial_map
+
+    # Morph to LINE
+    sim.set_formation(FormationType.LINE, centroid=sim.centroid_target)
+    morph_map = dict(sim.drone_slot_map)
+    # Mapping is re-locked for new formation
+    assert len(morph_map) == 5
+
+    # Advance again - new mapping remains stable
+    for _ in range(20):
+        sim.centroid_target += sim.centroid_velocity * sim.dt
+        sim.step()
+        assert sim.drone_slot_map == morph_map
+
+
+def test_neighbor_memory_extrapolation_and_age_out():
+    """
+    Recommendation 6: Verify neighbor memory linearly extrapolates peer positions
+    across short packet drops and ages out after neighbor_timeout (0.30s).
+    """
+    drones = [Drone(0, [0.0, 0.0]), Drone(1, [2.0, 0.0])]
+    sim = SwarmSimulation(drones, control_mode="hybrid", comm_range=15.0, packet_loss_rate=0.0, gps_noise_std=0.0)
+    sim.neighbor_timeout = 0.30
+
+    # Step 1 & 2: Normal exchange (packet sent at step 1 arrives at step 2 with latency)
+    sim.drones[1].velocity = np.array([1.0, 0.0])
+    sim.step()
+    sim.step()
+
+    # Drone 0 should remember Drone 1
+    assert 1 in sim.neighbor_memory[0]
+    mem = sim.neighbor_memory[0][1]
+    assert np.allclose(mem["velocity"], [1.0, 0.0])
+
+    # Now sever peer link by setting 100% loss outage on peer broadcasts
+    sim.channel.add_outage(start_time=sim.current_time, duration=1.0, scope="peer")
+    
+    # Advance 2 steps (0.10s drop < 0.30s timeout)
+    # Neighbor memory must extrapolate position
+    sim.step()
+    # Drone 1's memory should still be active and linearly extrapolated
+    assert 1 in sim.neighbor_memory[0]
+    
+    # Advance past 0.30s timeout (8 steps = 0.40s)
+    for _ in range(8):
+        sim.step()
+
+    # Memory for Drone 1 must have aged out
+    assert 1 not in sim.neighbor_memory[0]
+
+
+def test_centralized_hold_target_vs_hold_accel():
+    """
+    Recommendation 5: Verify that 'centralized' (hold-last-target) bounds position error
+    and decelerates to hover around the last target under loss, while 'centralized_hold_accel'
+    diverges open-loop if severed during acceleration.
+    """
+    # 1. Hold-last-target baseline
+    d_target = Drone(0, [0.0, 0.0])
+    sim_target = SwarmSimulation([d_target], control_mode="centralized", latency_mean=0.0, gps_noise_std=0.0)
+    sim_target.set_formation(FormationType.LINE, centroid=np.array([5.0, 0.0]))
+    sim_target.centroid_velocity = np.array([1.0, 0.0])
+
+    # Sever coordinator link after 5 steps (drone is accelerating toward target)
+    for _ in range(5):
+        sim_target.centroid_target += sim_target.centroid_velocity * sim_target.dt
+        sim_target.step()
+
+    last_target = sim_target.drone_last_received_target[0].copy()
+    sim_target.set_coordinator_link(False)
+
+    for _ in range(120):  # 6.0 seconds severed to allow settle and hover
+        sim_target.centroid_target += sim_target.centroid_velocity * sim_target.dt
+        sim_target.step()
+
+    # Hold-target should converge near the last received target, not fly away
+    dist_to_last_target = np.linalg.norm(sim_target.drones[0].position - last_target)
+    assert dist_to_last_target < 0.25, f"Hold-target drifted {dist_to_last_target:.2f}m from last target"
+    assert np.linalg.norm(sim_target.drones[0].velocity) < 0.1, "Hold-target did not decelerate to hover"
+
+    # 2. Hold-last-accel baseline
+    d_accel = Drone(0, [0.0, 0.0])
+    sim_accel = SwarmSimulation([d_accel], control_mode="centralized_hold_accel", latency_mean=0.0, gps_noise_std=0.0)
+    sim_accel.set_formation(FormationType.LINE, centroid=np.array([5.0, 0.0]))
+    sim_accel.centroid_velocity = np.array([1.0, 0.0])
+
+    for _ in range(5):
+        sim_accel.centroid_target += sim_accel.centroid_velocity * sim_accel.dt
+        sim_accel.step()
+
+    sim_accel.set_coordinator_link(False)
+
+    for _ in range(120):
+        sim_accel.centroid_target += sim_accel.centroid_velocity * sim_accel.dt
+        sim_accel.step()
+
+    # Hold-accel drone runs away open-loop (velocity saturated at max_speed)
+    assert np.linalg.norm(sim_accel.drones[0].velocity) > 2.0, "Hold-accel did not maintain high runaway velocity"
+
+
 if __name__ == "__main__":
     test_centralized_simulation()
     test_decentralized_simulation()
@@ -188,5 +381,9 @@ if __name__ == "__main__":
     test_outage_and_feedforward_simulation()
     test_wireless_channel_gilbert_elliott_statistics()
     test_wireless_channel_targeted_outage_partition()
-    print("Simulation tests passed successfully!")
+    test_wireless_channel_5_drone_per_recipient_bursts()
+    test_locked_slot_assignment_preserves_mapping_during_transit()
+    test_neighbor_memory_extrapolation_and_age_out()
+    test_centralized_hold_target_vs_hold_accel()
+    print("All simulation tests passed successfully!")
 

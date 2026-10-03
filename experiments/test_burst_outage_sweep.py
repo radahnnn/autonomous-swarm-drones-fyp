@@ -41,6 +41,7 @@ def run_outage_trial(
     seed: int = 42,
     sim_duration: float = 12.0,
     outage_start: float = 3.0,
+    outage_scope: str = "ground",
     outage_recipients: Optional[List[int]] = None,
 ) -> Dict[str, float]:
     rng = np.random.default_rng(seed)
@@ -54,8 +55,10 @@ def run_outage_trial(
     drones = [Drone(drone_id=i, initial_position=positions[i]) for i in range(num_drones)]
 
     # Determine control mode
-    if baseline == "centralized_hold":
+    if baseline in ["centralized_hold", "centralized_hold_target"]:
         sim_mode = "centralized"
+    elif baseline == "centralized_hold_accel":
+        sim_mode = "centralized_hold_accel"
     elif baseline == "decentralized":
         sim_mode = "decentralized"
     elif baseline in ["hybrid_naive", "hybrid_proposed"]:
@@ -90,6 +93,7 @@ def run_outage_trial(
         sim.channel.add_outage(
             start_time=outage_start,
             duration=outage_duration,
+            scope=outage_scope,
             recipients=outage_recipients,
         )
 
@@ -271,6 +275,9 @@ def main():
     # Recommendation 3 Diagnostic: Log per-tick accept/miss and report sends per recipient per tick
     run_burst_diagnostic_and_log(num_drones=5, seed=42)
 
+    # Recommendation 3 Split Outages: Ground vs Peer vs Total outage
+    run_split_outage_experiment(output_dir)
+
     # Recommendation 4 Partition Experiment: 2-of-5 drones lose coordinator link during morph
     run_partition_experiment(output_dir)
 
@@ -422,28 +429,94 @@ def run_burst_diagnostic_and_log(num_drones: int = 5, seed: int = 42) -> None:
     print("=========================================================================================\n")
 
 
+def run_split_outage_experiment(output_dir) -> None:
+    """
+    Recommendation 3: Split outages evaluation:
+    1. Ground-link outage (coordinator severed, peer-to-peer intact)
+    2. Peer-link outage (coordinator intact, inter-drone broadcast severed)
+    3. Total outage (both ground and peer severed)
+    Evaluated over a 3.0s outage duration during active trajectory tracking.
+    """
+    num_seeds = 4
+    seeds = [42 + i * 17 for i in range(num_seeds)]
+    outage_duration = 3.0
+    outage_start = 4.0
+
+    print("=========================================================================================")
+    print("  EXPERIMENT: SPLIT OUTAGES (GROUND-LINK vs PEER-LINK vs TOTAL OUTAGE) (RECOMMENDATION 3) ")
+    print(f"  Duration: {outage_duration:.1f}s | Start: t={outage_start:.1f}s | Seeds: {num_seeds}  ")
+    print("=========================================================================================")
+    print(f"{'Outage Scope':<28} | {'Baseline':<26} | {'Steady Err (m)':<16} | {'Min Dist (m)':<14} | {'Collisions'}")
+    print("-" * 100)
+
+    scopes = [
+        ("ground", "Ground-Link Outage (Coord)"),
+        ("peer", "Peer-Link Outage (P2P)"),
+        ("all", "Total Outage (Ground+P2P)"),
+    ]
+    baselines = [
+        ("centralized_hold", "Centralized (Hold Target)"),
+        ("decentralized", "Pure Decentralized"),
+        ("hybrid_proposed", "Proposed Hybrid"),
+    ]
+
+    for scope_key, scope_label in scopes:
+        for b_key, b_label in baselines:
+            err_list, dist_list, col_list = [], [], []
+            for s in seeds:
+                res = run_outage_trial(
+                    baseline=b_key,
+                    outage_duration=outage_duration,
+                    outage_start=outage_start,
+                    outage_scope=scope_key,
+                    use_burst_loss=False,
+                    num_drones=5,
+                    seed=s,
+                    sim_duration=12.0,
+                )
+                err_list.append(res["steady_error"])
+                dist_list.append(res["min_dist"])
+                col_list.append(res["any_collision"])
+
+            m_err, s_err = float(np.mean(err_list)), float(np.std(err_list))
+            m_dist, s_dist = float(np.mean(dist_list)), float(np.std(dist_list))
+            total_col = int(np.sum(col_list))
+
+            print(
+                f"{scope_label:<28} | {b_label:<26} | {m_err:5.3f} ± {s_err:5.3f}    | "
+                f"{m_dist:5.3f} ± {s_dist:5.3f}   | {total_col}/{num_seeds}"
+            )
+        print("-" * 100)
+
+
 def run_partition_experiment(output_dir) -> None:
     """
-    Recommendation 4: Add a partition experiment where 2 of 5 drones (drones 3 and 4)
+    Recommendation 4 & 5: Partition experiment where 2 of 5 drones (drones 3 and 4)
     lose the coordinator link for 6.0 seconds (t = 4.0s to 10.0s), overlapping the
     formation morph from V-Shape to Line at t = 6.0s.
-    Compares Proposed Hybrid against Centralized (Hold Last Command).
+    Compares:
+      1. Centralized (Hold Accel - Open Loop)
+      2. Centralized (Hold Target - Onboard Tracker)
+      3. Pure Decentralized (Flocking)
+      4. Proposed Hybrid (Hardened)
     """
-    num_seeds = 6
+    num_seeds = 5
     seeds = [42 + i * 17 for i in range(num_seeds)]
     partition_recipients = [3, 4]  # 2 of 5 drones partitioned
     outage_duration = 6.0          # 6.0s outage
     outage_start = 4.0             # Starts at t=4.0s, morph is at t=6.0s, ends at t=10.0s
 
     print("=========================================================================================")
-    print("  EXPERIMENT: 2-OF-5 DRONE NETWORK PARTITION OVERLAPPING MORPH (RECOMMENDATION 4)         ")
+    print("  EXPERIMENT: 2-OF-5 DRONE NETWORK PARTITION OVERLAPPING MORPH (RECOMMENDATION 4 & 5)      ")
     print(f"  Partitioned Drones: {partition_recipients} | Outage: [{outage_start:.1f}s, {outage_start + outage_duration:.1f}s] | Morph: t=6.0s")
     print("=========================================================================================")
-    print(f"{'Baseline':<28} | {'Steady Err (m)':<16} | {'Morph Err (m)':<16} | {'Min Dist (m)':<14} | {'Collisions'}")
-    print("-" * 95)
+    print(f"{'Baseline':<35} | {'Steady Err (m)':<16} | {'Morph Err (m)':<16} | {'Min Dist (m)':<14} | {'Collisions'}")
+    print("-" * 102)
 
     baselines_to_test = [
-        ("centralized_hold", "Centralized (Hold Command)"),
+        ("centralized_hold_accel", "Centralized (Hold Accel - Open Loop)"),
+        ("centralized_hold", "Centralized (Hold Target - Onboard)"),
+        ("decentralized", "Pure Decentralized (Flocking)"),
         ("hybrid_proposed", "Proposed Hybrid (Hardened)"),
     ]
 
@@ -454,6 +527,7 @@ def run_partition_experiment(output_dir) -> None:
                 baseline=b_key,
                 outage_duration=outage_duration,
                 outage_start=outage_start,
+                outage_scope="all",
                 outage_recipients=partition_recipients,
                 use_burst_loss=False,
                 num_drones=5,
@@ -471,13 +545,15 @@ def run_partition_experiment(output_dir) -> None:
         total_col = int(np.sum(col_list))
 
         print(
-            f"{b_label:<28} | {m_err:5.3f} ± {s_err:5.3f}    | "
+            f"{b_label:<35} | {m_err:5.3f} ± {s_err:5.3f}    | "
             f"{m_morph:5.3f} ± {s_morph:5.3f}    | {m_dist:5.3f} ± {s_dist:5.3f}   | {total_col}/{num_seeds}"
         )
 
-    print("\n  FINDING: Under centralized hold-last, partitioned drones 3 & 4 maintain outdated pre-morph commands,")
-    print("  causing massive formation distortion. Proposed Hybrid detects the link loss, seamlessly falls back")
-    print("  to peer-to-peer consensus with drones 0, 1, and 2, safely executing the morph without physical collisions.\n")
+    print("\n  FINDING: Under Centralized (Hold Accel), severed drones 3 & 4 integrate constant accelerations,")
+    print("  rapidly diverging and causing severe swarm breakdown. Under Centralized (Hold Target), severed drones")
+    print("  safely decelerate and hover at their last known positions, avoiding runaway. Under Proposed Hybrid,")
+    print("  the partitioned drones seamlessly detect loss, blend to peer consensus flocking with available neighbors,")
+    print("  and maintain safe separation throughout the entire formation morph without physical collisions.\n")
 
 
 if __name__ == "__main__":

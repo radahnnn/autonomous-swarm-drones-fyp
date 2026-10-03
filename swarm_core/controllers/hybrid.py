@@ -14,7 +14,7 @@ Features:
 """
 
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from swarm_core.controllers.centralized import CentralizedController
@@ -68,6 +68,8 @@ class HybridController:
         self.time_in_fallback: Dict[int, float] = {}
         self.recovery_times: Dict[int, List[float]] = {}
         self.last_known_target: Dict[int, np.ndarray] = {}
+        self.last_known_offsets: Dict[int, Dict[int, np.ndarray]] = {}
+        self.last_known_formation: Dict[int, Any] = {}
         
         # Ramping weight alpha(t) per drone (1.0 = Centralized, 0.0 = Decentralized)
         self.alpha: Dict[int, float] = {}
@@ -115,12 +117,15 @@ class HybridController:
         send_timestamp: float,
         sequence_num: int,
         target_pos: np.ndarray,
+        desired_offsets: Optional[Dict[int, np.ndarray]] = None,
+        formation_type: Optional[Any] = None,
     ) -> bool:
         """
         Validates an incoming coordinator heartbeat packet:
         1. Checks sequence number monotonicity (rejects out-of-order or duplicate packets).
         2. Checks message age (rejects stale commands).
         3. Updates sliding delivery window and consecutive reception counter.
+        4. Caches target position, formation type, and relative neighbor offsets.
         Returns True if accepted, False if rejected.
         """
         self._init_drone_if_needed(drone_id, current_time)
@@ -143,6 +148,12 @@ class HybridController:
         self.last_sequence_num[drone_id] = sequence_num
         self.last_valid_timestamp[drone_id] = current_time
         self.last_known_target[drone_id] = np.array(target_pos, dtype=np.float64)
+        if desired_offsets is not None:
+            self.last_known_offsets[drone_id] = {
+                int(k): np.array(v, dtype=np.float64) for k, v in desired_offsets.items()
+            }
+        if formation_type is not None:
+            self.last_known_formation[drone_id] = formation_type
         self.consecutive_good_hb[drone_id] += 1
         self.record_heartbeat_attempt(drone_id, True)
         return True
@@ -243,10 +254,11 @@ class HybridController:
         u_central = self.central_controller.kp * p_err + self.central_controller.kd * v_err + u_ff
 
         # 2. Decentralized flocking & consensus component
+        offsets = desired_neighbor_offsets if desired_neighbor_offsets is not None else self.last_known_offsets.get(drone.id, None)
         u_decentral = self.decentral_controller.compute_drone_control(
             drone=drone,
             neighbor_states=neighbor_states,
-            desired_offsets=desired_neighbor_offsets,
+            desired_offsets=offsets,
             goal_pos=None,
             measured_position=pos,
             measured_velocity=vel,

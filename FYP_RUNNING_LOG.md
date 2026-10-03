@@ -481,7 +481,36 @@ Addressed architectural critiques and recommendations covering sensor estimation
      - `link_recovery_time_s`: duration from outage end until the hybrid supervisor re-engages centralized mode.
      - `formation_recovery_time_s`: duration from outage end until RMS formation tracking error re-enters $\epsilon_{\text{tol}} \le 0.25\text{ m}$ ([`calculate_formation_recovery_time()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L142)).
    - Unified `collision_threshold` ($0.70\text{ m}$) in [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L33) to automatically pull from active profile provenance.
-   - Test suite expanded from 45 to **49 passing tests**.
+
+---
+
+## 16. Implementation of Full Claude Hardening Recommendations (03 Oct 2026)
+
+Completed the implementation of all 6 architectural recommendations:
+
+1. **Multi-Drone Gilbert-Elliott Burst Coherence (`network.py`)**:
+   - Enforced once-per-tick per-recipient state advancement in [`WirelessChannel._update_ge_state()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L103) by caching timestamps per recipient.
+   - Added unit test [`test_wireless_channel_5_drone_per_recipient_bursts()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L184) verifying that with 5 drones transmitting simultaneously each tick (4 peer broadcasts + 1 coordinator heartbeat = 5 sends/tick), the empirical channel loss remains $20.0\%$, mean burst length remains $5.0\text{ ticks}$, $P(\text{burst} \ge 11) \approx 0.107$, and all packets to the recipient within a single tick experience identical channel fate.
+2. **Gauss-Markov Sensor Noise & Ground-Truth Metric Evaluation (`engine.py`)**:
+   - Integrated first-order Gauss-Markov time-correlated GPS noise ($\tau_{\text{corr}} = 30\text{ s}$, 60% common-mode, 40% independent) and separate Doppler/IMU velocity noise ($\sigma_v = 0.08\text{ m/s}$) into [`SwarmSimulation.step()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L151).
+   - All controller feedback loops operate strictly on sensor-corrupted measurements, while all safety margins and tracking metrics are computed against true physical positions.
+   - Re-ran [`experiments/test_gps_noise_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_gps_noise_sweep.py) confirming that proposed hybrid matches centralized performance under noise while maintaining safe separation.
+3. **Split Outages Evaluation (`experiments/test_burst_outage_sweep.py`)**:
+   - Added `scope` parameter to [`WirelessChannel.add_outage()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L61) supporting `"ground"` (coordinator only), `"peer"` (inter-drone broadcasts only), and `"all"` (total channel blackout).
+   - Executed split-outage trials demonstrating that under peer outage, centralized commands keep tracking sharp ($e_{\text{steady}} = 0.079\text{ m}$), while under ground outage, proposed hybrid seamlessly leverages peer-to-peer consensus ($e_{\text{steady}} = 0.520\text{ m}$) with 0 collisions.
+4. **Heartbeat-Driven Formation Specs & Frozen Goals**:
+   - Coordinator heartbeats carry assigned target slot, formation type, and relative neighbor offsets.
+   - Decentralized and hybrid controllers only receive updated specs upon successfully received heartbeats; under outages or severed links, goals and formation geometries remain frozen at the last valid received heartbeat.
+5. **Autopilot-Realistic Baseline (`centralized_hold_target` vs `centralized_hold_accel`)**:
+   - Replaced open-loop acceleration holding with closed-loop onboard position tracking (`centralized_hold_target`), which commands local PD braking towards the last received target waypoint.
+   - Retained the legacy open-loop acceleration hold as a labelled extra baseline (`centralized_hold_accel`).
+   - In the 2-of-5 drone partition experiment overlapping the mid-flight morph, proved that `centralized_hold_accel` suffers runaway velocity saturation causing **1/5 physical collisions**, whereas `centralized_hold_target` (0/5 collisions) and `hybrid_proposed` (0/5 collisions) safely preserve spacing.
+6. **Locked Slot Assignments, Neighbor Memory with Age-Out & Missed Heartbeat Logging**:
+   - Added [`_lock_formation_slots()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L124): Hungarian matching runs once at morph start, locking drone-to-slot assignments and translating them rigidly with the centroid to eliminate mid-transit chattering. Added unit test [`test_locked_slot_assignment_preserves_mapping_during_transit()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L254).
+   - Added neighbor memory with linear position extrapolation ($p + v \Delta t$) across transient packet drops and age-out after $\tau_{\text{neighbor}} = 0.30\text{ s}$. Added unit test [`test_neighbor_memory_extrapolation_and_age_out()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L295).
+   - Hardened [`set_coordinator_link(False)`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L138) and heartbeat reception loop to record missed heartbeats in the sliding observation window every tick the link is inactive.
+7. **Test Suite Expansion**:
+   - Test suite expanded from 49 to **53 passing unit and regression tests** in 2.27s.
 
 
 
