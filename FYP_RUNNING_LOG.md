@@ -385,6 +385,68 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
 Full detailed research report archived in [`TASK_E_RESEARCH_REPORT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/TASK_E_RESEARCH_REPORT.md).  
 Master briefing file for external AI review created at [`CODEX_REVIEW_BRIEF.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/CODEX_REVIEW_BRIEF.md).
 
+---
+
+## 12. Phase 0: Baseline Repository Audit (02–03 Oct 2026)
+
+Conducted comprehensive repository audit and inspection prior to any architectural refactoring, establishing a verified baseline:
+
+1. **Repository Structure & Blocker Identification**:
+   - Identified root-level `pytest` collection failure caused by top-level executable code and hardcoded pymavlink imports in `sitl/mavlink_swarm_adapter.py`.
+   - Discovered missing standard packaging configuration (`pyproject.toml`, `setup.py`), requiring manual `PYTHONPATH=.` hacks to discover `swarm_core`.
+   - Identified tracked `.pyc` and cache artifacts in git tree.
+   - Identified parameter divergence between `swarm_core/drone.py` defaults and `swarm_core/config.py` SITL-fitted values.
+2. **Safe Test Discovery & Import Guarding**:
+   - Added conditional `try ... except ImportError` guards around `pymavlink` imports to ensure core tests execute without SITL binaries or external hardware.
+   - Guarded executable blocks with `if __name__ == "__main__":` to prevent background thread spawning during test collection.
+3. **Audit Deliverable**:
+   - Full baseline audit report archived at [`docs/BASELINE_AUDIT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/BASELINE_AUDIT.md).
+
+---
+
+## 13. Phase 1: Foundations, Packaging, Configuration Profiles & CI Matrix (03 Oct 2026)
+
+Implemented standard Python packaging, configuration profile provenance, safety distance hierarchies, and continuous integration:
+
+1. **Packaging & Clean Installation**:
+   - Authored [`pyproject.toml`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/pyproject.toml) declaring dependencies (`numpy`, `scipy`, `matplotlib`) and optional extras (`[dev]` with `pytest`, `pytest-cov`; `[sitl]` with `pymavlink`).
+   - Configured [`pytest.ini`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/pytest.ini) setting `testpaths = ["tests"]` and `pythonpath = ["."]`.
+   - Verified clean installation in a fresh virtual environment: `pip install -e ".[dev]"`.
+2. **Typed Configuration Profile System (`swarm_core/config.py`)**:
+   - Implemented immutable `ParameterProvenance` tracking value, unit, meaning, provenance tag ("assumed", "fitted from SITL", "measured on hardware"), and literature reference.
+   - Created `SwarmConfigProfile` with named profiles:
+     - `assumed_baseline`: Literature multirotor attitude dynamics ($\tau = 0.18\text{ s}$, $c_d = 0.20\text{ s}^{-1}$) and ideal sensors ($\sigma_{\text{gps}} = 0.04\text{ m}$).
+     - `sitl_fitted`: ArduPilot SITL step-response calibrated dynamics ($\tau = 0.992\text{ s}$, $c_d = 0.637\text{ s}^{-1}$) and plain GPS noise ($\sigma_{\text{gps}} = 1.50\text{ m}$, $r_{\text{safe}} = 1.50\text{ m}$).
+   - Added profile propagation into `Drone`, `SwarmSimulation`, and `MAVLinkSwarmAdapter`.
+   - Fixed hybrid feedforward active profile drag coefficient propagation (`drag_coeff=float(self.profile.get("drag_coeff"))`).
+   - Fixed formation spacing preservation when `spacing=None` is passed.
+3. **Automated Continuous Integration Matrix**:
+   - Created [`.github/workflows/ci.yml`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/.github/workflows/ci.yml) testing Python 3.10, 3.11, and 3.12 across clean GitHub Actions runners.
+   - Configured headless demo execution saving smoke test artifacts to runner temporary directories.
+   - Added version and dependency metadata recording to [`demo_summary.json`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/demo_summary.json).
+
+---
+
+## 14. Phase 4: Three-Drone Simulation/SITL Pipeline Parity (03 Oct 2026)
+
+Audited, aligned, and documented the exact architectural relationship between the lightweight numerical simulator and the 3-drone ArduPilot SITL integration adapter:
+
+1. **Shared Formation & Assignment Logic**:
+   - Created [`compute_formation_slots()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/formations.py#L173) in `swarm_core/formations.py`, combining offset generation, world coordinate translation, and Hungarian optimal matching (`assign_optimal_slots`) across both simulator and SITL paths.
+   - Created [`compute_desired_neighbor_offsets()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/formations.py#L206) for decentralized displacement consensus.
+   - Created [`build_controllers_from_profile()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L341) factory provisioning identical controller gains and thresholds for both paths.
+2. **Guidance-to-Actuation Translation Semantics**:
+   - Documented the conversion chain: guidance acceleration $u \in \mathbb{R}^2$ $\rightarrow$ position setpoint $P_{\text{sp}} = P_{\text{curr}} + u \Delta t \gamma$ (via [`acceleration_to_position_setpoint()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L32)) $\rightarrow$ MAVLink `SET_POSITION_TARGET_LOCAL_NED` $\rightarrow$ ArduPilot onboard Guided-mode PID loop (`POS_XYZ_P` $\rightarrow$ `VEL_XYZ_PID` $\rightarrow$ `ACC_XYZ_PID`).
+   - Verified lead filter factor $\gamma = 2.0$ ($200\text{ ms}$ lead) compensating for ArduPilot position loop lag ($\tau = 0.992\text{ s}$).
+3. **Academic Parity Documentation & Phrasing Cleanup**:
+   - Authored [`docs/SIMULATION_SITL_PARITY.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/SIMULATION_SITL_PARITY.md) documenting purpose, shared components, isolated components, known differences, and scientific impact.
+   - Removed all inaccurate "exact same" wording; replaced with approved academic parity disclaimer.
+4. **Three-Drone Deterministic Parity Test Suite**:
+   - Created [`tests/test_simulation_sitl_parity.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation_sitl_parity.py) testing all 9 three-drone parity criteria (offsets, Hungarian matching, ID consistency, profile parameters, single target per drone, correct SYSID dispatch, coordinate frame determinism, fixed scenario reproducibility, and explicit conversion differences).
+   - Test suite expanded from 15 to **45 unit and regression tests** passing in ~1.5 seconds.
+   - All tests passing across Python 3.10, 3.11, and 3.12 on GitHub Actions CI.
+
+
 
 
 
