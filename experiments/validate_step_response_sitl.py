@@ -38,9 +38,19 @@ except ImportError:
     mavutil = None
 
 from swarm_core.drone import Drone
+from sitl.scenarios import (
+    dump_vehicle_parameters,
+    verify_and_set_param,
+    apply_scenario_via_mavlink,
+    get_available_scenarios,
+)
 
 
-def run_sitl_step_test(sim_time_limit: float = 8.0, step_distance: float = 5.0) -> pd.DataFrame:
+def run_sitl_step_test(
+    sim_time_limit: float = 8.0,
+    step_distance: float = 5.0,
+    scenario: str = "calm",
+) -> pd.DataFrame:
     """Executes a position step response test on ArduPilot SITL."""
     if mavutil is None:
         print("[ERROR] pymavlink is required for SITL validation. Install with: pip install pymavlink")
@@ -92,12 +102,11 @@ def run_sitl_step_test(sim_time_limit: float = 8.0, step_distance: float = 5.0) 
         if not conn:
             raise RuntimeError("Failed to connect to SITL MAVLink.")
 
-        # Set parameter ARMING_CHECK to 0 strictly in SITL simulation
-        conn.mav.param_set_send(
-            conn.target_system, conn.target_component,
-            b"ARMING_CHECK", 0, mavutil.mavlink.MAV_PARAM_TYPE_REAL32
-        )
-        time.sleep(0.5)
+        # Verify and set parameters with read-back verification (Item 23)
+        verify_and_set_param(conn, "ARMING_CHECK", 0.0)
+        verify_and_set_param(conn, "GUID_TIMEOUT", 3.0)
+        apply_scenario_via_mavlink(conn, scenario_name=scenario, verify=True)
+        time.sleep(0.3)
 
         conn.mav.request_data_stream_send(
             conn.target_system, conn.target_component,
@@ -342,6 +351,22 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     csv_path = f"{output_dir}/sitl_step_response.csv"
 
+    # Parse named environmental scenario (Item 23)
+    scenario = "calm"
+    for arg in sys.argv[1:]:
+        if arg.startswith("--scenario="):
+            scenario = arg.split("=")[1]
+        elif arg.replace("--", "") in get_available_scenarios():
+            scenario = arg.replace("--", "")
+
+    # Dump full vehicle parameter set at the start of every run (Item 23)
+    dumped_path = dump_vehicle_parameters(
+        output_dir=output_dir,
+        scenario_name=scenario,
+        profile_name="sitl_default_quad",
+    )
+    print(f"Dumped vehicle parameters (single source of truth) to: {dumped_path}")
+
     # 1. Run SITL step test or load existing CSV
     if "--refit-only" in sys.argv and os.path.exists(csv_path):
         print(f"Loading existing SITL telemetry CSV from: {csv_path}")
@@ -352,7 +377,7 @@ def main():
             print(f"[NOTE] SITL binary not found; fitting on existing benchmark SITL dataset at: {csv_path}")
             sitl_df = pd.read_csv(csv_path)
         else:
-            sitl_df = run_sitl_step_test(sim_time_limit=8.0, step_distance=5.0)
+            sitl_df = run_sitl_step_test(sim_time_limit=8.0, step_distance=5.0, scenario=scenario)
             if len(sitl_df) == 0:
                 print("Error: No data recorded from SITL.")
                 sys.exit(1)

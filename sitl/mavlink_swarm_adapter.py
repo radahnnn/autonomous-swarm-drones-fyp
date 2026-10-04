@@ -49,6 +49,13 @@ from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.network import WirelessChannel
 from sitl.common_frame import CommonCoordinateFrame
+from sitl.scenarios import (
+    dump_vehicle_parameters,
+    apply_scenario_via_mavlink,
+    get_available_scenarios,
+    get_scenario_parameters,
+    verify_and_set_param,
+)
 
 logger = logging.getLogger("MAVLinkSwarmAdapter")
 
@@ -543,6 +550,7 @@ class MAVLinkSwarmAdapter:
         packet_loss: float = 0.0,
         use_velocity_setpoints: bool = True,
         is_sitl: bool = True,
+        profile_name: str = "sitl_default_quad",
     ):
         self.frame = CommonCoordinateFrame()
         self.interfaces = [
@@ -550,14 +558,15 @@ class MAVLinkSwarmAdapter:
             for s in DRONE_SPECS
         ]
 
-        self.profile = get_profile("sitl_fitted")
+        self.profile = get_profile(profile_name)
+        self.profile_name = profile_name
         self.control_mode = control_mode
         self.use_velocity_setpoints = bool(use_velocity_setpoints)
         self.is_sitl = bool(is_sitl)
 
         # swarm_core Drones (2D mathematical state representations)
         self.core_drones = [
-            Drone(drone_id=i, initial_position=np.zeros(2), profile="sitl_fitted")
+            Drone(drone_id=i, initial_position=np.zeros(2), profile=profile_name)
             for i in range(len(self.interfaces))
         ]
 
@@ -601,7 +610,22 @@ class MAVLinkSwarmAdapter:
         self.lock = threading.Lock()
         self.seq_num = 0
 
-    def connect(self) -> bool:
+    def connect(
+        self,
+        dump_params: bool = True,
+        output_dir: str = "experiments/results",
+        scenario_name: str = "calm",
+    ) -> bool:
+        if dump_params:
+            try:
+                dump_vehicle_parameters(
+                    output_dir=output_dir,
+                    scenario_name=scenario_name,
+                    profile_name=self.profile_name,
+                )
+            except Exception as e:
+                logger.warning("Failed to dump vehicle parameters at adapter startup: %s", e)
+
         print("Connecting MAVLink Swarm Adapter to all SITL instances...")
         for iface in self.interfaces:
             if not iface.connect():
@@ -629,6 +653,20 @@ class MAVLinkSwarmAdapter:
             )
             print(f"  {iface.label}: Global N={iface.global_ned[0]:.2f}m, E={iface.global_ned[1]:.2f}m | {origin_str}")
         return True
+
+    def set_scenario(self, scenario_name: str, verify: bool = True) -> Dict[str, Dict[str, Optional[float]]]:
+        """
+        Applies named environmental scenario parameters across all connected swarm drones (Item 23).
+        """
+        results = {}
+        for iface in self.interfaces:
+            if iface.conn:
+                results[iface.label] = apply_scenario_via_mavlink(
+                    iface.conn, scenario_name=scenario_name, verify=verify
+                )
+            else:
+                results[iface.label] = {}
+        return results
 
     def arm_and_takeoff_all(self, target_alt: float = 5.0) -> bool:
         """Sequential guided arm and climb sequence for the swarm."""

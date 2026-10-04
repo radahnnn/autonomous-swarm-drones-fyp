@@ -47,6 +47,7 @@ def test_package_imports():
 def test_configuration_profile_lookup():
     """Verify available profiles, getters, and error handling for unknown profiles."""
     assert "assumed_baseline" in PROFILES
+    assert "sitl_default_quad" in PROFILES
     assert "sitl_fitted" in PROFILES
 
     baseline = get_profile("assumed_baseline")
@@ -55,10 +56,16 @@ def test_configuration_profile_lookup():
     assert baseline.get("attitude_tau") == 0.18
     assert baseline.get("drag_coeff") == 0.20
 
-    sitl = get_profile("sitl_fitted")
-    assert sitl.name == "sitl_fitted"
+    sitl = get_profile("sitl_default_quad")
+    assert sitl.name == "sitl_default_quad"
     assert sitl.get("attitude_tau") == 0.992
     assert sitl.get("drag_coeff") == 0.637
+
+    # Verify backward-compatible alias
+    sitl_alias = get_profile("sitl_fitted")
+    assert sitl_alias.name == "sitl_fitted"
+    assert sitl_alias.get("attitude_tau") == 0.992
+    assert sitl_alias.get("drag_coeff") == 0.637
 
     # Verify provenance metadata
     prov = sitl.get_provenance("attitude_tau")

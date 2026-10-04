@@ -43,6 +43,12 @@ from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
 from swarm_core.controllers.centralized import CentralizedController
 from sitl.common_frame import CommonCoordinateFrame
+from sitl.scenarios import (
+    dump_vehicle_parameters,
+    verify_and_set_param,
+    apply_scenario_via_mavlink,
+    get_available_scenarios,
+)
 
 
 def get_unified_v_geometry(spacing: float = 3.0) -> np.ndarray:
@@ -62,7 +68,7 @@ def simulate_swarm_core_3drone(
     Logs simulation state BEFORE drone.step() to align timestamps with SITL t=0.
     """
     v_offsets = get_unified_v_geometry(spacing=spacing)
-    profile = get_profile("sitl_fitted")
+    profile = get_profile("sitl_default_quad")
 
     drones = [
         Drone(
@@ -132,15 +138,18 @@ def run_sitl_3drone_scenario(
     dt: float = 0.1,
     spacing: float = 3.0,
     use_velocity_feedforward: bool = True,
+    scenario: str = "calm",
 ) -> Tuple[pd.DataFrame, Dict[str, int]]:
     """
     Runs the 3-drone scenario in ArduPilot SITL using CommonCoordinateFrame.
     Sends position + velocity setpoints (type mask 0x0DC0) with velocity = centroid_vel.
     Replaces missing telemetry frames with NaN and reports counts.
+    Applies the specified environmental scenario with read-back verification (Item 23).
     """
     print("\n=================================================================")
     print("  TASK C.2: ARDUPILOT SITL 3-DRONE SCENARIO EXECUTION            ")
     print(f"  Setpoint Type Mask: {'0x0DC0 (Pos+Vel Feedforward)' if use_velocity_feedforward else '0x0DF8 (Pos Only)'}")
+    print(f"  Environmental Scenario: {scenario}")
     print("=================================================================")
 
     # Ensure any previous SITL processes are killed
@@ -203,12 +212,11 @@ def run_sitl_3drone_scenario(
                 raise RuntimeError(f"Failed to connect to {cfg['label']}")
             connections.append(conn)
 
-        # Set parameter ARMING_CHECK to 0 strictly in SITL simulation
-        for conn in connections:
-            conn.mav.param_set_send(
-                conn.target_system, conn.target_component,
-                b"ARMING_CHECK", 0, mavutil.mavlink.MAV_PARAM_TYPE_REAL32
-            )
+        # Configure vehicle runtime parameters and apply scenario settings with read-back verification (Item 23)
+        for i, conn in enumerate(connections):
+            verify_and_set_param(conn, "ARMING_CHECK", 0.0)
+            verify_and_set_param(conn, "GUID_TIMEOUT", 3.0)
+            apply_scenario_via_mavlink(conn, scenario_name=scenario, verify=True)
             conn.mav.request_data_stream_send(
                 conn.target_system, conn.target_component,
                 mavutil.mavlink.MAV_DATA_STREAM_ALL, 20, 1
@@ -499,6 +507,21 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     merged_csv_path = os.path.join(output_dir, "swarm_core_vs_sitl_3drones.csv")
 
+    # Parse scenario argument (Item 23)
+    scenario = "calm"
+    for i, arg in enumerate(sys.argv):
+        if arg.startswith("--scenario="):
+            scenario = arg.split("=")[1]
+        elif arg == "--scenario" and i + 1 < len(sys.argv):
+            scenario = sys.argv[i + 1]
+
+    # Dump the full parameter configuration at the start of every run (Item 23)
+    dump_vehicle_parameters(
+        output_dir=output_dir,
+        scenario_name=scenario,
+        profile_name="sitl_default_quad",
+    )
+
     # 1. Simulate in pure swarm_core using CentralizedController directly
     print("Simulating 3-drone scenario in swarm_core with fitted parameters & unified geometry...")
     sim_df = simulate_swarm_core_3drone(duration=10.0, dt=0.1, tau=0.992, drag=0.637, spacing=3.0)
@@ -523,6 +546,7 @@ def main():
                 dt=0.1,
                 spacing=3.0,
                 use_velocity_feedforward=True,
+                scenario=scenario,
             )
             merged_df = pd.merge(sim_df, sitl_df, on=["time", "drone_id"])
 

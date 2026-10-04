@@ -7,6 +7,7 @@ Tests:
 """
 
 from unittest.mock import MagicMock
+from pathlib import Path
 import time
 import numpy as np
 import pytest
@@ -16,6 +17,14 @@ from sitl.mavlink_swarm_adapter import (
     MAVLinkSwarmAdapter,
     MAVLinkDroneInterface,
     IntegratedPlant,
+)
+from sitl.scenarios import (
+    SITL_SCENARIOS,
+    get_available_scenarios,
+    get_scenario_parameters,
+    verify_and_set_param,
+    apply_scenario_via_mavlink,
+    dump_vehicle_parameters,
 )
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
@@ -367,4 +376,106 @@ def test_adapter_flight_safety_features():
     iface.arm_and_takeoff(target_alt=5.0, timeout=0.01, arm_timeout=0.01, is_sitl=True)
     param_calls = [call[0] for call in mock_conn.mav.param_set_send.call_args_list]
     assert any(b"ARMING_CHECK" in c for c in param_calls)
+
+
+def test_sitl_scenarios_and_parameter_dump(tmp_path):
+    """
+    Verifies Item 23 scenario management and parameter dumping:
+    1. Named environmental scenarios availability.
+    2. Scenario retrieval and validation.
+    3. Parameter dumping to .parm file with valid metadata and parameters.
+    """
+    scenarios = get_available_scenarios()
+    assert "calm" in scenarios
+    assert "moderate_wind" in scenarios
+    assert "high_wind" in scenarios
+    assert "gps_noisy" in scenarios
+    assert "harsh_environment" in scenarios
+
+    # Check scenario parameters
+    calm_params = get_scenario_parameters("calm")
+    assert calm_params["SIM_WIND_SPD"] == 0.0
+    assert calm_params["SIM_GPS1_NOISE"] == 0.0
+
+    wind_params = get_scenario_parameters("moderate_wind")
+    assert wind_params["SIM_WIND_SPD"] == 4.0
+
+    gps_params = get_scenario_parameters("gps_noisy")
+    assert gps_params["SIM_GPS1_NOISE"] == 1.50
+
+    with pytest.raises(ValueError):
+        get_scenario_parameters("nonexistent_scenario")
+
+    # Verify parameter dumping
+    dump_file = dump_vehicle_parameters(
+        output_dir=str(tmp_path),
+        scenario_name="moderate_wind",
+        profile_name="sitl_default_quad",
+    )
+    assert Path(dump_file).exists()
+    content = Path(dump_file).read_text()
+    assert "Active Vehicle Configuration Parameter Dump (Item 23)" in content
+    assert "Configuration    : sitl_default_quad" in content
+    assert "Active Scenario  : moderate_wind" in content
+    assert "PSC_NE_VEL_P" in content
+    assert "GUID_TIMEOUT" in content
+    assert "FS_GCS_ENABLE" in content
+    assert "SIM_WIND_SPD" in content
+
+
+def test_verify_and_set_param_with_mock():
+    """
+    Verifies MAVLink parameter read-back verification (Item 23):
+    1. Successful verification when firmware acknowledges with matching PARAM_VALUE.
+    2. Timeout handling when firmware fails to respond.
+    """
+    mock_conn = MagicMock()
+    mock_conn.target_system = 1
+    mock_conn.target_component = 1
+
+    # Case 1: Successful response
+    mock_msg = MagicMock()
+    mock_msg.get_type.return_value = "PARAM_VALUE"
+    mock_msg.param_id = "GUID_TIMEOUT"
+    mock_msg.param_value = 3.0
+    mock_conn.recv_match.return_value = mock_msg
+
+    ok, val = verify_and_set_param(mock_conn, "GUID_TIMEOUT", 3.0, timeout=0.1)
+    assert ok is True
+    assert val == 3.0
+    assert mock_conn.mav.param_set_send.called
+
+    # Case 2: Timeout / no response
+    mock_conn.reset_mock()
+    mock_conn.recv_match.return_value = None
+
+    ok, val = verify_and_set_param(mock_conn, "UNKNOWN_PARAM", 1.0, timeout=0.05)
+    assert ok is False
+    assert val is None
+
+
+def test_adapter_scenario_and_profile_switching():
+    """
+    Verifies that MAVLinkSwarmAdapter initializes with sitl_default_quad profile
+    and can apply environmental scenarios across all interfaces (Item 23).
+    """
+    adapter = MAVLinkSwarmAdapter(profile_name="sitl_default_quad")
+    assert adapter.profile_name == "sitl_default_quad"
+    assert adapter.profile.name == "sitl_default_quad"
+    assert adapter.profile.get("attitude_tau") == 0.992
+    assert adapter.profile.get("drag_coeff") == 0.637
+
+    # Mock connections on interfaces
+    for iface in adapter.interfaces:
+        conn = MagicMock()
+        conn.target_system = iface.sysid
+        conn.target_component = 1
+        conn.recv_match.return_value = None
+        iface.conn = conn
+
+    results = adapter.set_scenario("gps_noisy", verify=False)
+    assert len(results) == 3
+    for label, res in results.items():
+        assert res["SIM_GPS1_NOISE"] == 1.50
+
 

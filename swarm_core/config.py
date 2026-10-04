@@ -7,7 +7,7 @@ Defines explicit configuration profiles with complete parameter provenance:
 
 Profiles:
 1. "assumed_baseline": Fast multirotor attitude model (tau=0.18s, cd=0.20/s) with ideal sensors.
-2. "sitl_fitted": Calibrated against ArduPilot GUIDED mode step response (tau=0.992s, cd=0.637/s).
+2. "sitl_default_quad": Calibrated against ArduPilot default quad GUIDED mode step response (tau=0.992s, cd=0.637/s). (Alias: "sitl_fitted")
 """
 
 from dataclasses import dataclass, field
@@ -272,28 +272,28 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
     )
 
 
-def _build_sitl_fitted_profile() -> SwarmConfigProfile:
+def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmConfigProfile:
     # Start from baseline profile and update SITL-calibrated values
     profile = _build_assumed_baseline_profile()
     params = dict(profile.parameters)
 
-    # 1. Closed-loop dynamics identified from ArduPilot SITL GUIDED mode step response
+    # 1. Closed-loop dynamics identified from ArduPilot SITL GUIDED mode step response on default quad
     params["attitude_tau"] = ParameterProvenance(
         name="attitude_tau",
         value=0.992,
         unit="s",
-        meaning="SITL-calibrated closed-loop position/translation time-constant lag",
+        meaning="SITL-calibrated closed-loop position/translation time-constant lag for default quad",
         provenance="fitted from SITL",
-        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response (RMSE = 0.1536m vs SITL telemetry). Captures combined outer position loop, inner rate PID, and vehicle inertia.",
+        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Captures combined outer position loop, inner rate PID, and vehicle inertia.",
         reference="experiments/validate_step_response_sitl.py",
     )
     params["drag_coeff"] = ParameterProvenance(
         name="drag_coeff",
         value=0.637,
         unit="1/s",
-        meaning="SITL-calibrated translational drag/braking deceleration coefficient",
+        meaning="SITL-calibrated translational drag/braking deceleration coefficient for default quad",
         provenance="fitted from SITL",
-        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response (RMSE = 0.1536m vs SITL telemetry). Reflects rotor drag and autopilot position controller braking in SITL.",
+        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Reflects rotor drag and autopilot position controller braking in SITL.",
         reference="experiments/validate_step_response_sitl.py",
     )
 
@@ -319,8 +319,8 @@ def _build_sitl_fitted_profile() -> SwarmConfigProfile:
     )
 
     return SwarmConfigProfile(
-        name="sitl_fitted",
-        description="SITL-calibrated closed-loop translation model (tau=0.992s, cd=0.637/s) and plain GPS noise (1.5m).",
+        name=name,
+        description="SITL-calibrated closed-loop translation model for ArduPilot default quad (tau=0.992s, cd=0.637/s) and plain GPS noise (1.5m).",
         parameters=params,
     )
 
@@ -328,7 +328,8 @@ def _build_sitl_fitted_profile() -> SwarmConfigProfile:
 # Registry of available configuration profiles
 PROFILES: Dict[str, SwarmConfigProfile] = {
     "assumed_baseline": _build_assumed_baseline_profile(),
-    "sitl_fitted": _build_sitl_fitted_profile(),
+    "sitl_default_quad": _build_sitl_default_quad_profile("sitl_default_quad"),
+    "sitl_fitted": _build_sitl_default_quad_profile("sitl_fitted"),  # Backward-compatible alias
 }
 
 # Active profile global state

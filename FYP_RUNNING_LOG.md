@@ -614,3 +614,50 @@ Systematically implemented and verified all recommendations 14 through 20 across
 8. **Test Suite Expansion**:
    - Test suite expanded from 58 to **62 passing unit and regression tests** in 2.30s.
 
+---
+
+## 19. Single Source of Truth Configuration, Scenario Management & Profile Renaming (Item 23) (04 Oct 2026)
+
+Addressed all requirements of Item 23 establishing a rigorous, reproducible configuration architecture for ArduPilot SITL simulation and physical hardware alignment:
+
+1. **`sitl/swarm_params.parm` as Single Source of Vehicle Configuration**:
+   - Consolidated all runtime parameters into [`sitl/swarm_params.parm`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_params.parm).
+   - Fully specified ArduPilot flight controller parameters:
+     * **Position Controller (PSC)**: Horizontal planar gains (`PSC_NE_POS_P = 1.0`, `PSC_NE_VEL_P = 2.0`, `PSC_NE_VEL_I = 1.0`, `PSC_NE_VEL_D = 0.5`, `PSC_NE_JERK = 5.0`) and legacy Copter aliases (`PSC_POSXY_P`, `PSC_VELXY_P`), acceleration clamp `PSC_ACC_XY_MAX = 2.5 m/s²` matching `swarm_core` operational limits; Vertical descent/climb gains (`PSC_D_POS_P = 1.0`, `PSC_D_VEL_P = 5.0`, `PSC_D_ACC_P = 0.05`, `PSC_D_ACC_I = 0.10`).
+     * **Waypoint Navigation (WP / WPNAV)**: Bounded horizontal speed `WP_SPD = 3.0 m/s` (`WPNAV_SPEED = 300.0 cm/s`), acceleration `WP_ACC = 2.5 m/s²` (`WPNAV_ACCEL = 250.0 cm/s²`), acceptance radius `WP_RADIUS_M = 2.0 m`.
+     * **Guided Mode**: Setpoint loss timeout `GUID_TIMEOUT = 3.0 s`.
+     * **Hardware-Mirroring Failsafes**: GCS heartbeat failsafe (`FS_GCS_ENABLE = 1`, `FS_GCS_TIMEOUT = 5.0 s`), EKF loss action (`FS_EKF_ACTION = 1` -> Land), throttle/RC loss (`FS_THR_ENABLE = 1`), crash detection (`FS_CRASH_CHECK = 1`), battery failsafes (`BATT_FS_LOW_ACT = 2` -> RTL, `BATT_FS_CRT_ACT = 1` -> Land).
+     * **Baseline Environment (Calm)**: `SIM_WIND_SPD = 0.0 m/s`, `SIM_GPS1_NOISE = 0.0 m`.
+
+2. **Parameter Name Verification against Active ArduPilot Firmware**:
+   - Cross-referenced parameter names against live ArduCopter firmware dump (`mav.parm`) to guarantee firmware compatibility.
+   - Implemented [`verify_and_set_param()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L74) in [`sitl/scenarios.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py): transmits `PARAM_SET` and synchronously awaits acknowledged `PARAM_VALUE` from the running autopilot.
+
+3. **Named, Switchable SITL Environmental Scenarios**:
+   - Added [`SITL_SCENARIOS`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L18) in `sitl/scenarios.py` supporting 5 switchable environmental conditions:
+     * `calm`: Zero wind, zero GPS noise (clean baseline).
+     * `moderate_wind`: 4.0 m/s wind from East (90°), 0.15 turbulence.
+     * `high_wind`: 8.0 m/s wind from North-East (45°), 0.35 turbulence.
+     * `gps_noisy`: 1.50 m standard deviation horizontal GPS noise matching standard u-blox M10Q GNSS receiver.
+     * `harsh_environment`: 6.0 m/s crosswind + 0.25 turbulence + 1.50 m GPS noise.
+   - Implemented [`apply_scenario_via_mavlink()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L133) and added CLI flag `--scenario=<name>` to validation scripts.
+   - Integrated scenario switching into [`MAVLinkSwarmAdapter.set_scenario()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L636).
+
+4. **Automatic Parameter Dump at Run Startup**:
+   - Implemented [`dump_vehicle_parameters()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L183).
+   - Generates [`experiments/results/sitl_vehicle_params_dump.parm`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/sitl_vehicle_params_dump.parm) at the start of every validation script and adapter connection.
+   - Header records UTC timestamp, profile name, active scenario, and full 51+ active parameters for complete auditability.
+
+5. **Profile Renaming: `sitl_default_quad` (with `sitl_fitted` Backward Compatibility)**:
+   - Updated [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L275) to name the SITL-fitted profile `sitl_default_quad`, explicitly clarifying that identified parameters ($\tau = 0.992\text{ s}$, $c_d = 0.637\text{ s}^{-1}$, $\sigma_{\text{gps}} = 1.50\text{ m}$) characterize the ArduPilot SITL default quadcopter plant.
+   - Preserved `sitl_fitted` as a backward-compatible alias in `PROFILES`.
+
+6. **Unit Tests & Verification**:
+   - Added unit tests in [`tests/test_config_and_safety.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_config_and_safety.py#L50) verifying `sitl_default_quad` and `sitl_fitted` profile resolution.
+   - Added 3 new unit tests in [`tests/test_sitl_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L380):
+     * `test_sitl_scenarios_and_parameter_dump`: scenario lookup, validation, and parameter dumping.
+     * `test_verify_and_set_param_with_mock`: MAVLink parameter read-back verification and timeout handling.
+     * `test_adapter_scenario_and_profile_switching`: adapter profile initialization and scenario dispatch.
+   - Test suite milestone: **65 passed in 2.48s** (all unit and regression tests passing).
+
+
