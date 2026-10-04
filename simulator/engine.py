@@ -81,8 +81,17 @@ class SwarmSimulation:
         self.gps_vel_noise_std = float(self.profile.get("gps_vel_noise_std", 0.08)) if self.gps_noise_std > 0 else 0.0
 
         dim = self.drones[0].dim if self.drones else 2
-        self.gps_noise_common = np.zeros(dim, dtype=np.float64)
-        self.gps_noise_indep = {d.id: np.zeros(d.dim, dtype=np.float64) for d in self.drones}
+        # Initialize Gauss-Markov noise from stationary distribution N(0, sigma^2) (Item 28)
+        if self.gps_noise_std > 0:
+            sigma_common = np.sqrt(self.gps_common_mode_fraction) * self.gps_noise_std
+            sigma_indep = np.sqrt(max(0.0, 1.0 - self.gps_common_mode_fraction)) * self.gps_noise_std
+            self.gps_noise_common = self.rng.normal(0, sigma_common, size=dim)
+            self.gps_noise_indep = {
+                d.id: self.rng.normal(0, sigma_indep, size=d.dim) for d in self.drones
+            }
+        else:
+            self.gps_noise_common = np.zeros(dim, dtype=np.float64)
+            self.gps_noise_indep = {d.id: np.zeros(d.dim, dtype=np.float64) for d in self.drones}
 
         # Subsystems
         self.graph = SwarmGraph(comm_radius=self.comm_range)
@@ -116,6 +125,9 @@ class SwarmSimulation:
         self._lock_formation_slots()
 
         # Onboard drone state received from coordinator (frozen under link loss)
+        self.drone_last_heartbeat_time: Dict[int, float] = {
+            d.id: 0.0 for d in self.drones
+        }
         self.drone_last_received_target: Dict[int, np.ndarray] = {
             d.id: self.target_slots[i].copy() for i, d in enumerate(self.drones)
         }
@@ -209,11 +221,20 @@ class SwarmSimulation:
         self._lock_formation_slots()
 
     def set_coordinator_link(self, active: bool) -> None:
-        """Simulate ground station link cut or reconnection."""
-        self.coordinator_link_active = active
-        if not active:
-            for d in self.drones:
-                self.hybrid_ctrl.record_heartbeat_attempt(d.id, False)
+        """
+        Simulate coordinator transmitter enabling or disabling.
+        Drones independently detect loss based on elapsed time since last valid heartbeat (Item 27).
+        """
+        self.coordinator_link_active = bool(active)
+
+    def is_coordinator_link_healthy(self, drone_id: int) -> bool:
+        """
+        Determines whether the coordinator link is healthy from the drone's onboard perspective:
+        True if the elapsed time since its own last valid coordinator heartbeat <= degrade_timeout.
+        Does not query external ground truth (Item 27).
+        """
+        last_t = self.drone_last_heartbeat_time.get(drone_id, 0.0)
+        return (self.current_time - last_t) <= self.hybrid_ctrl.degrade_timeout
 
     def step(self) -> None:
         """Advance simulation by one timestep dt."""
@@ -329,6 +350,7 @@ class SwarmSimulation:
             for pkt in pkts:
                 if pkt.sender_id == -1:
                     coord_pkt_received = True
+                    self.drone_last_heartbeat_time[d.id] = self.current_time
                     if "cmd_accel" in pkt.payload:
                         self.last_central_accel[d.id] = np.array(pkt.payload["cmd_accel"], dtype=np.float64)
                     self.drone_last_received_target[d.id] = np.array(pkt.payload["target_pos"], dtype=np.float64)
@@ -380,14 +402,15 @@ class SwarmSimulation:
 
         # 5. Compute Control Inputs based on selected mode
         if self.control_mode in ["centralized", "centralized_hold_target"]:
-            # Centralized with onboard target tracking under loss (Recommendation 5)
+            # Centralized with onboard target tracking under loss (Recommendation 5 & Item 27)
             for d in self.drones:
+                link_healthy = self.is_coordinator_link_healthy(d.id)
                 target_i = self.drone_last_received_target[d.id]
                 p_err = target_i - measured_positions[d.id]
-                v_target = (self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and self.coordinator_link_active) else np.zeros(2))
+                v_target = (self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and link_healthy) else np.zeros(2))
                 v_err = v_target - measured_velocities[d.id]
                 u_cmd = self.central_ctrl.kp * p_err + self.central_ctrl.kd * v_err
-                if self.use_velocity_feedforward and self.coordinator_link_active:
+                if self.use_velocity_feedforward and link_healthy:
                     u_cmd += float(self.profile.get("drag_coeff")) * v_target
 
                 # Artificial Potential Field collision avoidance against perceived neighbors (degree-normalised)
@@ -406,9 +429,10 @@ class SwarmSimulation:
                 d.set_control_input(self.last_central_accel[d.id])
 
         elif self.control_mode == "decentralized":
-            # Pure local consensus & flocking towards last received target via channel
-            goal_v = self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and self.coordinator_link_active) else None
+            # Pure local consensus & flocking towards last received target via channel (Items 26 & 27)
             for d in self.drones:
+                link_healthy = self.is_coordinator_link_healthy(d.id)
+                goal_v = self.drone_last_received_velocity[d.id] if (self.use_velocity_feedforward and link_healthy) else None
                 target_i = self.drone_last_received_target[d.id]
                 desired_offsets = self.drone_last_received_offsets[d.id]
 
@@ -426,8 +450,10 @@ class SwarmSimulation:
                 d.set_control_input(accel_i)
 
         elif self.control_mode == "hybrid":
-            target_v = self.drone_last_received_velocity[d.id] if self.coordinator_link_active else None
+            # Hybrid mode: target_v evaluated per-drone inside loop (Items 26 & 27)
             for d in self.drones:
+                link_healthy = self.is_coordinator_link_healthy(d.id)
+                target_v = self.drone_last_received_velocity[d.id] if link_healthy else None
                 desired_offsets = self.drone_last_received_offsets[d.id]
 
                 accel_i = self.hybrid_ctrl.compute_hybrid_control(

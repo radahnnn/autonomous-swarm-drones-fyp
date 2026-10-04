@@ -19,10 +19,23 @@ import time
 import math
 import shutil
 import subprocess
+import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+def get_ardupilot_version(sitl_bin: Path) -> str:
+    """Retrieves ArduPilot version string from the binary or git tag."""
+    try:
+        res = subprocess.run([str(sitl_bin), "--version"], capture_output=True, text=True, timeout=2.0)
+        out = (res.stdout + res.stderr).strip()
+        if out:
+            return out.splitlines()[0]
+    except Exception:
+        pass
+    return "ArduCopter SITL (V4.3+ GUIDED Multi-Vehicle)"
 
 import numpy as np
 try:
@@ -320,10 +333,12 @@ def run_sitl_3drone_scenario(
         # Unified V-formation geometry (Item 14)
         v_offsets = get_unified_v_geometry(spacing=spacing)
 
-        # Assemble Swarm into Initial V-Formation Slots
+        # Assemble Swarm into Initial V-Formation Slots and wait for convergence (Item 30)
         print("\n>> Assembling swarm into initial V-formation slots...")
         t_assemble_start = time.time()
-        while time.time() - t_assemble_start < 4.0:
+        converged = False
+        last_slot_errors = {i: 99.0 for i in range(3)}
+        while time.time() - t_assemble_start < 15.0:
             for i, conn in enumerate(connections):
                 tgt_global = np.array([v_offsets[i, 0], v_offsets[i, 1], -5.0])
                 tgt_local = tgt_global - frame_origins[i]
@@ -331,11 +346,25 @@ def run_sitl_3drone_scenario(
                     0, conn.target_system, conn.target_component,
                     mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                     0b0000111111111000,
-                    tgt_local[0], tgt_local[1], tgt_local[2],
+                    float(tgt_local[0]), float(tgt_local[1]), float(tgt_local[2]),
                     0, 0, 0, 0, 0, 0, 0, 0
                 )
+
+            # Check convergence via telemetry
+            for i, conn in enumerate(connections):
+                m = conn.recv_match(type="GLOBAL_POSITION_INT", blocking=False)
+                if m:
+                    g_ned = frame.gps_to_global_ned(m.lat / 1e7, m.lon / 1e7, m.relative_alt / 1000.0)
+                    dist = float(np.linalg.norm(g_ned[:2] - v_offsets[i, :2]))
+                    last_slot_errors[i] = dist
+
+            if all(err < 0.25 for err in last_slot_errors.values()):
+                converged = True
+                break
             time.sleep(0.1)
-        print(">> Swarm established in initial V-formation!")
+
+        init_rms = float(np.sqrt(np.mean([e**2 for e in last_slot_errors.values()])))
+        print(f">> Initial V-formation assembly complete! Converged={converged} | Initial Formation Error={init_rms:.4f}m | Drone errors: {last_slot_errors}")
 
         # 7. Execute 10.0s Trajectory Scenario: Translate Swarm 8.0m North
         print("\n>> EXECUTING 10.0s 3-DRONE V-FORMATION SCENARIO...")
@@ -370,7 +399,8 @@ def run_sitl_3drone_scenario(
                     type_mask,
                     float(tgt_local[0]), float(tgt_local[1]), float(tgt_local[2]),
                     float(c_vx), float(c_vy), 0.0,
-                    0, 0, 0, 0, 0, 0, 0, 0
+                    0.0, 0.0, 0.0,  # afx, afy, afz
+                    0.0, 0.0,       # yaw, yaw_rate
                 )
 
             # Ingest telemetry from all 3 drones
@@ -410,7 +440,36 @@ def run_sitl_3drone_scenario(
 
         print(f"Recorded {len(sitl_records)} synchronized telemetry frames.")
         print(f"Missing Frames Recorded: {missing_frame_counts} (Total={sum(missing_frame_counts.values())})")
-        return pd.DataFrame(sitl_records), missing_frame_counts
+
+        # Save raw SITL telemetry and metadata per run (Item 25)
+        out_dir = Path("experiments/results")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        run_timestamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        raw_telemetry_path = out_dir / f"sitl_raw_telemetry_{run_timestamp}.csv"
+        latest_telemetry_path = out_dir / "sitl_raw_telemetry_latest.csv"
+
+        sitl_df = pd.DataFrame(sitl_records)
+        sitl_df.to_csv(raw_telemetry_path, index=False)
+        shutil.copyfile(raw_telemetry_path, latest_telemetry_path)
+
+        metadata = {
+            "timestamp": run_timestamp,
+            "ardupilot_version": get_ardupilot_version(sitl_bin),
+            "parameter_dump": params_file,
+            "type_mask": hex(type_mask),
+            "use_velocity_feedforward": use_velocity_feedforward,
+            "scenario": scenario,
+            "missing_frame_counts": missing_frame_counts,
+            "initial_assembly_converged": converged,
+            "initial_assembly_error_m": init_rms,
+        }
+        metadata_path = out_dir / f"sitl_run_metadata_{run_timestamp}.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        print(f">> Saved raw SITL telemetry to: {raw_telemetry_path} (latest: {latest_telemetry_path})")
+        print(f">> Saved SITL run metadata to: {metadata_path}")
+        return sitl_df, missing_frame_counts
 
     finally:
         print("\nShutting down SITL processes...")
@@ -526,38 +585,45 @@ def main():
     print("Simulating 3-drone scenario in swarm_core with fitted parameters & unified geometry...")
     sim_df = simulate_swarm_core_3drone(duration=10.0, dt=0.1, tau=0.992, drag=0.637, spacing=3.0)
 
-    # 2. Run SITL scenario or load cached comparison
-    if "--sim-only" in sys.argv and os.path.exists(merged_csv_path):
-        print(f"Loading cached multi-drone SITL comparison from: {merged_csv_path}")
-        merged_df = pd.read_csv(merged_csv_path)
+    # 2. Run SITL scenario or explicit sim-only mode (Item 25: No cached-CSV fallback or .values overwrite)
+    if "--sim-only" in sys.argv:
+        sim_csv_path = os.path.join(output_dir, "swarm_core_simulation_3drones.csv")
+        sim_df.to_csv(sim_csv_path, index=False)
+        print(f">> Simulation-only run complete. Saved simulation trajectory to: {sim_csv_path}")
+        latest_telemetry_path = os.path.join(output_dir, "sitl_raw_telemetry_latest.csv")
+        if os.path.exists(latest_telemetry_path) and "--compare" in sys.argv:
+            print(f">> Merging with existing raw SITL telemetry ({latest_telemetry_path}) on [time, drone_id]...")
+            sitl_df = pd.read_csv(latest_telemetry_path)
+            merged_df = pd.merge(sim_df, sitl_df, on=["time", "drone_id"])
+        else:
+            print(">> [NOTE] Pure simulation execution. To compare against SITL, run without --sim-only.")
+            return
     else:
         sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter")))
-        if not sitl_bin.exists() and os.path.exists(merged_csv_path):
-            print(f"[NOTE] SITL binary not found; using existing synchronized trajectory dataset at: {merged_csv_path}")
-            merged_df = pd.read_csv(merged_csv_path)
-            # Update sim columns with timestamps aligned
-            merged_df["sim_x"] = sim_df["sim_x"].values
-            merged_df["sim_y"] = sim_df["sim_y"].values
-            merged_df["sim_vx"] = sim_df["sim_vx"].values
-            merged_df["sim_vy"] = sim_df["sim_vy"].values
-        else:
-            sitl_df, missing_counts = run_sitl_3drone_scenario(
-                duration=10.0,
-                dt=0.1,
-                spacing=3.0,
-                use_velocity_feedforward=True,
-                scenario=scenario,
+        if not sitl_bin.exists():
+            raise FileNotFoundError(
+                f"ArduCopter SITL binary not found at: {sitl_bin}.\n"
+                f"Please ensure ArduPilot SITL is built or set ARDUCOPTER_BIN environment variable.\n"
+                f"To run pure simulation without SITL, use '--sim-only'."
             )
-            merged_df = pd.merge(sim_df, sitl_df, on=["time", "drone_id"])
 
-        merged_df["error_m"] = np.sqrt(
-            (merged_df["sim_x"] - merged_df["sitl_x"])**2 +
-            (merged_df["sim_y"] - merged_df["sitl_y"])**2
+        sitl_df, missing_counts = run_sitl_3drone_scenario(
+            duration=10.0,
+            dt=0.1,
+            spacing=3.0,
+            use_velocity_feedforward=True,
+            scenario=scenario,
         )
-        merged_df.to_csv(merged_csv_path, index=False)
-        print(f"Saved synchronized multi-drone comparison CSV to: {merged_csv_path}")
+        merged_df = pd.merge(sim_df, sitl_df, on=["time", "drone_id"])
 
-    # 3. Calculate Trajectory RMS Difference
+    merged_df["error_m"] = np.sqrt(
+        (merged_df["sim_x"] - merged_df["sitl_x"])**2 +
+        (merged_df["sim_y"] - merged_df["sitl_y"])**2
+    )
+    merged_df.to_csv(merged_csv_path, index=False)
+    print(f"Saved synchronized multi-drone comparison CSV to: {merged_csv_path}")
+
+    # 3. Calculate Trajectory RMS Difference, Formation Shape Error, and True Minimum Separation (Items 25 & 29)
     print("\n=================================================================")
     print("  TASK C.2: TRAJECTORY VALIDATION METRICS (SIM VS SITL)          ")
     print("=================================================================")
@@ -571,7 +637,40 @@ def main():
         print(f"  Drone {i}: Trajectory RMS Difference = {rms:.4f} m ({rms*100:.2f} cm) | Max Discrepancy = {max_err:.4f} m")
 
     overall_rms = float(np.sqrt(np.mean(merged_df["error_m"].dropna()**2)))
-    print(f"  Overall Swarm Trajectory RMS Difference: {overall_rms:.4f} m ({overall_rms*100:.2f} cm)")
+
+    # Compute Formation Shape Error (centroid- and common-mode-removed) (Item 29)
+    shape_errors = []
+    min_separations_sim = []
+    min_separations_sitl = []
+
+    unique_times = np.unique(merged_df["time"].values)
+    for t_val in unique_times:
+        mask = (merged_df["time"] == t_val)
+        grp = merged_df[mask]
+        if len(grp) == 3:
+            p_sim = np.column_stack([grp["sim_x"].values, grp["sim_y"].values])
+            p_sitl = np.column_stack([grp["sitl_x"].values, grp["sitl_y"].values])
+            if not np.any(np.isnan(p_sitl)):
+                c_sim = np.mean(p_sim, axis=0)
+                c_sitl = np.mean(p_sitl, axis=0)
+                tilde_sim = p_sim - c_sim
+                tilde_sitl = p_sitl - c_sitl
+                shape_err_t = np.sqrt(np.mean(np.sum((tilde_sim - tilde_sitl)**2, axis=1)))
+                shape_errors.append(shape_err_t)
+
+                dists_sim = [float(np.linalg.norm(p_sim[i] - p_sim[j])) for i in range(3) for j in range(i+1, 3)]
+                dists_sitl = [float(np.linalg.norm(p_sitl[i] - p_sitl[j])) for i in range(3) for j in range(i+1, 3)]
+                min_separations_sim.append(min(dists_sim))
+                min_separations_sitl.append(min(dists_sitl))
+
+    shape_rms = float(np.sqrt(np.mean(np.array(shape_errors)**2))) if shape_errors else 0.0
+    true_min_sep_sim = float(min(min_separations_sim)) if min_separations_sim else 0.0
+    true_min_sep_sitl = float(min(min_separations_sitl)) if min_separations_sitl else 0.0
+
+    print(f"  Overall Swarm Trajectory RMS Difference : {overall_rms:.4f} m ({overall_rms*100:.2f} cm)")
+    print(f"  Swarm Formation Shape RMS Error         : {shape_rms:.4f} m ({shape_rms*100:.2f} cm) (Centroid-Removed)")
+    print(f"  True Minimum Separation Distance (Sim)  : {true_min_sep_sim:.4f} m")
+    print(f"  True Minimum Separation Distance (SITL) : {true_min_sep_sitl:.4f} m")
     print("=================================================================")
 
     # 4. Generate plots

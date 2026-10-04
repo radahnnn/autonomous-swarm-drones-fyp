@@ -479,3 +479,80 @@ def test_adapter_scenario_and_profile_switching():
         assert res["SIM_GPS1_NOISE"] == 1.50
 
 
+def test_set_position_target_local_ned_send_argument_tuple():
+    """
+    Item 24: Verifies the argument count and exact tuple structure of
+    set_position_target_local_ned_send (MAVLink message #84).
+    Must strictly have 16 positional arguments:
+    (time_boot_ms, target_system, target_component, coordinate_frame, type_mask,
+     x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate)
+    """
+    frame = CommonCoordinateFrame(datum_lat=-35.3632621, datum_lon=149.1652374, datum_alt=584.0)
+    iface = MAVLinkDroneInterface(sysid=2, port=14562, label="Drone 2", frame=frame)
+    mock_conn = MagicMock()
+    mock_conn.target_system = 2
+    mock_conn.target_component = 1
+    iface.conn = mock_conn
+    iface.connected = True
+    iface.mode = "GUIDED"
+    iface.global_ned = np.array([10.0, 5.0, -5.0])
+    iface.frame_origin_global = np.array([10.0, 0.0, 0.0])
+
+    # 1. Test send_target_global with position + velocity feedforward (type mask 0x0DC0)
+    target_global = np.array([12.0, 6.0, -5.0])
+    target_vel = np.array([1.5, 0.5])
+    ok = iface.send_target_global(target_global, target_vel_2d=target_vel)
+    assert ok is True
+    assert mock_conn.mav.set_position_target_local_ned_send.called
+
+    call_args = mock_conn.mav.set_position_target_local_ned_send.call_args[0]
+    assert len(call_args) == 16, f"Expected exactly 16 arguments, got {len(call_args)}: {call_args}"
+
+    time_boot_ms, target_sys, target_comp, coord_frame, type_mask, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate = call_args
+
+    assert time_boot_ms == 0
+    assert target_sys == 2
+    assert target_comp == 1
+    assert coord_frame == 1  # MAV_FRAME_LOCAL_NED
+    assert type_mask == 0x0DC0
+    assert np.isclose(x, 2.0)   # 12.0 - 10.0
+    assert np.isclose(y, 6.0)   # 6.0 - 0.0
+    assert np.isclose(z, -5.0)
+    assert np.isclose(vx, 1.5)
+    assert np.isclose(vy, 0.5)
+    assert np.isclose(vz, 0.0)
+    assert np.isclose(afx, 0.0)
+    assert np.isclose(afy, 0.0)
+    assert np.isclose(afz, 0.0)
+    assert np.isclose(yaw, 0.0)
+    assert np.isclose(yaw_rate, 0.0)
+
+    # 2. Test send_velocity_target (type mask 0x0DC7)
+    mock_conn.reset_mock()
+    cmd_vel = np.array([2.0, -1.0])
+    ok_vel = iface.send_velocity_target(cmd_vel, cruise_alt=5.0)
+    assert ok_vel is True
+    assert mock_conn.mav.set_position_target_local_ned_send.called
+
+    call_args_vel = mock_conn.mav.set_position_target_local_ned_send.call_args[0]
+    assert len(call_args_vel) == 16, f"Expected exactly 16 arguments, got {len(call_args_vel)}: {call_args_vel}"
+
+    t_ms, t_sys, t_comp, c_frame, t_mask, vx_pos, vy_pos, vz_pos, v_x, v_y, v_z, ax, ay, az, y_sp, yr_sp = call_args_vel
+    assert t_ms == 0
+    assert t_sys == 2
+    assert t_comp == 1
+    assert c_frame == 1
+    assert t_mask == 0x0DC7
+    assert np.isclose(vx_pos, 0.0)
+    assert np.isclose(vy_pos, 0.0)
+    assert np.isclose(vz_pos, 0.0)
+    assert np.isclose(v_x, 2.0)
+    assert np.isclose(v_y, -1.0)
+    assert np.isclose(ax, 0.0)
+    assert np.isclose(ay, 0.0)
+    assert np.isclose(az, 0.0)
+    assert np.isclose(y_sp, 0.0)
+    assert np.isclose(yr_sp, 0.0)
+
+
+

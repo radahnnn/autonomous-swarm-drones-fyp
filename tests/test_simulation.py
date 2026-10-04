@@ -423,6 +423,84 @@ def test_all_four_fallback_strategies_in_simulation():
     )
 
 
+def test_per_drone_velocity_in_control_loop():
+    """
+    Item 26: Verifies that goal_v and target_v are evaluated per-drone inside
+    the drone loop, ensuring each drone uses its own last received velocity.
+    """
+    from unittest.mock import MagicMock
+    drones = [Drone(0, [0.0, 0.0]), Drone(1, [2.0, 0.0]), Drone(2, [4.0, 0.0])]
+    sim = SwarmSimulation(drones, control_mode="decentralized", latency_mean=0.0, gps_noise_std=0.0)
+
+    # Set distinct velocities per drone and disable coordinator broadcast so mock values are preserved
+    sim.set_coordinator_link(False)
+    sim.drone_last_received_velocity[0] = np.array([1.0, 0.0])
+    sim.drone_last_received_velocity[1] = np.array([0.0, 2.0])
+    sim.drone_last_received_velocity[2] = np.array([-1.0, -1.0])
+    sim.drone_last_heartbeat_time = {0: sim.current_time, 1: sim.current_time, 2: sim.current_time}
+
+    passed_velocities = {}
+    orig_compute = sim.decentral_ctrl.compute_drone_control
+
+    def mock_compute_drone_control(drone, *args, **kwargs):
+        passed_velocities[drone.id] = kwargs.get("goal_vel")
+        return orig_compute(drone, *args, **kwargs)
+
+    sim.decentral_ctrl.compute_drone_control = mock_compute_drone_control
+    sim.step()
+
+    assert np.allclose(passed_velocities[0], [1.0, 0.0])
+    assert np.allclose(passed_velocities[1], [0.0, 2.0])
+    assert np.allclose(passed_velocities[2], [-1.0, -1.0])
+
+
+def test_set_coordinator_link_and_outage_equivalence():
+    """
+    Item 27: Verifies that calling set_coordinator_link(False) and scheduling
+    a ground-link outage on the channel produce identical behavior.
+    Onboard drone controllers decide solely from time since last valid heartbeat.
+    """
+    def run_sim_case(use_set_link: bool):
+        drones = [Drone(0, [0.0, 0.0]), Drone(1, [2.0, 0.0])]
+        sim = SwarmSimulation(
+            drones=drones,
+            control_mode="hybrid",
+            latency_mean=0.0,
+            gps_noise_std=0.0,
+            seed=42,
+        )
+        sim.set_formation(FormationType.LINE, centroid=np.array([1.0, 0.0]))
+        sim.centroid_velocity = np.array([1.0, 0.0])
+
+        if not use_set_link:
+            # Channel outage from t=0.2s to t=0.8s
+            sim.channel.add_outage(start_time=0.2, duration=0.6, scope="ground")
+
+        trajectory = []
+        modes = []
+        for step_i in range(30):  # 1.5 seconds
+            t = step_i * sim.dt
+            if use_set_link:
+                if 0.2 <= t < 0.8:
+                    sim.set_coordinator_link(False)
+                else:
+                    sim.set_coordinator_link(True)
+
+            sim.centroid_target += sim.centroid_velocity * sim.dt
+            sim.step()
+            trajectory.append(sim.drones[0].position.copy())
+            modes.append(sim.hybrid_ctrl.get_drone_mode(0))
+
+        return np.array(trajectory), modes
+
+    traj_link, modes_link = run_sim_case(use_set_link=True)
+    traj_outage, modes_outage = run_sim_case(use_set_link=False)
+
+    # Trajectories and state machine transitions must be identical
+    assert np.allclose(traj_link, traj_outage, atol=1e-10)
+    assert modes_link == modes_outage
+
+
 if __name__ == "__main__":
     test_centralized_simulation()
     test_decentralized_simulation()
@@ -435,5 +513,8 @@ if __name__ == "__main__":
     test_neighbor_memory_extrapolation_and_age_out()
     test_centralized_hold_target_vs_hold_accel()
     test_all_four_fallback_strategies_in_simulation()
+    test_per_drone_velocity_in_control_loop()
+    test_set_coordinator_link_and_outage_equivalence()
     print("All simulation tests passed successfully!")
+
 

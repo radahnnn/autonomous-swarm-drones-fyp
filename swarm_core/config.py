@@ -207,6 +207,14 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             provenance="assumed",
             notes="Pulls drones toward their nominal formation offsets relative to neighbors.",
         ),
+        "k_goal": ParameterProvenance(
+            name="k_goal",
+            value=1.0,
+            unit="1/s^2",
+            meaning="Decentralized goal-seeking attraction gain toward target waypoint",
+            provenance="assumed",
+            notes="Governs convergence rate towards virtual target slot under decentralized navigation (Item 31).",
+        ),
         # Network & Hybrid Switching
         "packet_loss_rate": ParameterProvenance(
             name="packet_loss_rate",
@@ -224,6 +232,14 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             provenance="assumed",
             notes="20 ms typical latency over UDP Wi-Fi links.",
         ),
+        "neighbor_timeout": ParameterProvenance(
+            name="neighbor_timeout",
+            value=0.30,
+            unit="s",
+            meaning="Maximum age before unrefreshed peer telemetry is purged from neighbor memory",
+            provenance="assumed",
+            notes="Permits smooth extrapolation across single-packet drops while pruning lost peers (Item 31).",
+        ),
         "hybrid_degrade_timeout": ParameterProvenance(
             name="hybrid_degrade_timeout",
             value=0.50,
@@ -232,6 +248,14 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             provenance="assumed",
             notes="Ensures rapid fallback after ~5 dropped heartbeats at 10 Hz.",
         ),
+        "hybrid_recovery_window_s": ParameterProvenance(
+            name="hybrid_recovery_window_s",
+            value=2.00,
+            unit="s",
+            meaning="Sliding observation window duration in seconds for coordinator heartbeat reception ratio",
+            provenance="assumed",
+            notes="Evaluates delivery ratio over a 2.0-second sliding time window (Item 31).",
+        ),
         "hybrid_recovery_window": ParameterProvenance(
             name="hybrid_recovery_window",
             value=20,
@@ -239,6 +263,14 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             meaning="Sliding observation window size for coordinator heartbeat reception ratio",
             provenance="assumed",
             notes="Evaluates delivery ratio over the last 20 potential heartbeat slots (2.0s at 10 Hz).",
+        ),
+        "recovery_consecutive_hb": ParameterProvenance(
+            name="recovery_consecutive_hb",
+            value=5,
+            unit="packets",
+            meaning="Consecutive valid coordinator heartbeats required to trigger hysteresis recovery",
+            provenance="assumed",
+            notes="Requires 5 consecutive fresh coordinator packets alongside dwell time to recover (Item 31).",
         ),
         "hybrid_recovery_ratio": ParameterProvenance(
             name="hybrid_recovery_ratio",
@@ -278,13 +310,23 @@ def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmCo
     params = dict(profile.parameters)
 
     # 1. Closed-loop dynamics identified from ArduPilot SITL GUIDED mode step response on default quad
+    params["translation_tau"] = ParameterProvenance(
+        name="translation_tau",
+        value=0.992,
+        unit="s",
+        meaning="SITL-calibrated lumped closed-loop translation time-constant lag for default quad",
+        provenance="fitted from SITL",
+        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Captures lumped outer position loop, inner rate PID, and vehicle inertia (Item 31).",
+        reference="experiments/validate_step_response_sitl.py",
+    )
+    # Alias attitude_tau for backward compatibility
     params["attitude_tau"] = ParameterProvenance(
         name="attitude_tau",
         value=0.992,
         unit="s",
-        meaning="SITL-calibrated closed-loop position/translation time-constant lag for default quad",
+        meaning="Lumped translation time-constant lag (alias for translation_tau)",
         provenance="fitted from SITL",
-        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Captures combined outer position loop, inner rate PID, and vehicle inertia.",
+        notes="Alias for translation_tau for backwards compatibility across simulation and adapter.",
         reference="experiments/validate_step_response_sitl.py",
     )
     params["drag_coeff"] = ParameterProvenance(
@@ -390,12 +432,17 @@ def build_controllers_from_profile(
         k_form=float(profile.get("decentralized_k_form")),
         safe_radius=apf_dist,
     )
+    recovery_hb = int(profile.get("recovery_consecutive_hb", 5))
+    window_s = float(profile.get("hybrid_recovery_window_s", 2.0))
+    window_size = int(profile.get("hybrid_recovery_window", int(window_s * 10)))
+
     hybrid_ctrl = HybridController(
         degrade_timeout=float(profile.get("hybrid_degrade_timeout")),
+        recovery_consecutive_hb=recovery_hb,
         recovery_ratio_threshold=float(profile.get("hybrid_recovery_ratio")),
         min_dwell_time=float(profile.get("hybrid_dwell_time")),
         ramp_duration=float(profile.get("hybrid_ramp_duration")),
-        window_size=int(profile.get("hybrid_recovery_window")),
+        window_size=window_size,
         central_controller=central_ctrl,
         decentral_controller=decentral_ctrl,
     )

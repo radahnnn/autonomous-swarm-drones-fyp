@@ -660,4 +660,62 @@ Addressed all requirements of Item 23 establishing a rigorous, reproducible conf
      * `test_adapter_scenario_and_profile_switching`: adapter profile initialization and scenario dispatch.
    - Test suite milestone: **65 passed in 2.48s** (all unit and regression tests passing).
 
+---
+
+## 20. Protocol Hardening, Loop Scoping, Sensor Noise Stationary Equilibrium & Multi-Metric Parity (Items 24–32) (04 Oct 2026)
+
+Comprehensively addressed and verified all nine directives across the numerical simulator, SITL adapter, configuration system, metrics engine, and parity documentation:
+
+1. **Fixed `set_position_target_local_ned_send` Argument Count (Item 24)**:
+   - Identified and eliminated extraneous argument padding in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L370). Line previously passed 19 parameters due to redundant trailing zeros. Fixed to strictly 16 positional arguments conforming to MAVLink message #84 specification:
+     `(time_boot_ms, target_system, target_component, coordinate_frame, type_mask, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate)`.
+   - Added unit test [`test_set_position_target_local_ned_send_argument_tuple()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L482) using mocked connections, validating exact 16-tuple lengths and element values for both `send_target_global` (mask `0x0DC0`) and `send_velocity_target` (mask `0x0DC7`).
+
+2. **Elimination of Cached-CSV Fallback & Column Overwrites (Item 25)**:
+   - Completely removed the silent `--sim-only` cached-CSV fallback and the `.values` array overwrite in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L588).
+   - When SITL execution is requested without the `arducopter` binary present, raises an explicit `FileNotFoundError` rather than silently splicing mismatched cached data.
+   - In `--sim-only` mode, exports standalone simulation trajectory to `experiments/results/swarm_core_simulation_3drones.csv`.
+   - When SITL runs, archives raw telemetry per run with full metadata to `experiments/results/sitl_raw_telemetry_<timestamp>.csv` and sidecar `sitl_run_metadata_<timestamp>.json` recording ArduPilot firmware version, parameter dump path, type mask, and UTC timestamps.
+
+3. **Per-Drone Velocity Loop Scoping in Engine (Item 26)**:
+   - Resolved variable scoping defect in [`simulator/engine.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L432) where `goal_v` (decentralized) and `target_v` (hybrid) were instantiated outside the `for d in self.drones:` loop, which had inadvertently bound all drones to the target velocity of the last drone in the swarm.
+   - Moved both variables inside the per-drone loop, ensuring each vehicle resolves its own `drone_last_received_velocity[d.id]`.
+   - Added unit test [`test_per_drone_velocity_in_control_loop()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L425) asserting distinct per-drone feedforward velocities are propagated faithfully.
+
+4. **Decoupled Onboard Control from Global Coordinator State (Item 27)**:
+   - Removed `self.coordinator_link_active` queries from onboard control calculations in [`simulator/engine.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L405).
+   - Drones now determine link health autonomously via `self.is_coordinator_link_healthy(d.id)`, evaluating elapsed time since their own last valid coordinator heartbeat against `degrade_timeout` ($0.50\text{ s}$).
+   - Simplified `set_coordinator_link(active: bool)` to purely toggle coordinator transmitter broadcasting without injecting backdoor onboard state changes.
+   - Proved mathematical equivalence between `set_coordinator_link(False)` and scheduled channel ground outages in unit test [`test_set_coordinator_link_and_outage_equivalence()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L457).
+
+5. **Gauss-Markov Stationary Equilibrium Initialization (Item 28)**:
+   - Initialized Gauss-Markov noise in [`SwarmSimulation.__init__()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L84) directly from the stationary distribution $\mathcal{N}(0, \sigma^2)$ ($\sigma_{\text{common}} = \sqrt{f_{\text{common}}} \sigma_{\text{gps}}$, $\sigma_{\text{indep}} = \sqrt{1 - f_{\text{common}}} \sigma_{\text{gps}}$) instead of zero.
+   - Eliminates transient 30-second burn-in variance ramp, ensuring stationary spatial-temporal GPS noise properties from $t = 0$.
+
+6. **Formation Shape Error & True Minimum Separation Metrics (Item 29)**:
+   - Augmented [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L58) and [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L644) with centroid-removed formation shape error:
+     $$\text{shape\_error}(t) = \sqrt{\frac{1}{N} \sum_{i=1}^N \|(\mathbf{p}_i - \bar{\mathbf{p}}) - (\mathbf{p}_i^* - \bar{\mathbf{p}}^*)\|^2}$$
+     isolating internal geometric deformation from rigid translation/tracking lag.
+   - Evaluates true minimum physical inter-drone separation across all vehicle pairs: $d_{\min} = \min_{i < j} \|\mathbf{p}_i - \mathbf{p}_j\|$.
+   - Reports both shape error and true separation prominently alongside absolute tracking error.
+
+7. **Assembly Convergence Verification Prior to Scenario Start (Item 30)**:
+   - Replaced the open-loop 4.0-second assembly timer in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L335) with closed-loop telemetry polling.
+   - Monitors per-drone slot convergence, requiring all drones to enter within $0.25\text{ m}$ of their assigned V-formation slots before initiating the timed 10.0s trajectory. Logs initial assembly convergence status and initial formation RMS error.
+
+8. **Configuration Standardization (Item 31)**:
+   - Expressed observation windows in seconds in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L230): added `hybrid_recovery_window_s = 2.00\text{ s}` (with backward-compatible 20-packet mapping).
+   - Added previously missing profile parameters: `k_goal = 1.0\text{ s}^{-2}` (goal tracking gain), `neighbor_timeout = 0.30\text{ s}` (peer memory age-out), and `recovery_consecutive_hb = 5` (consecutive heartbeats to recover).
+   - Renamed `attitude_tau` for lumped fits in `sitl_default_quad` to `translation_tau = 0.992\text{ s}` to accurately convey that the fitted time constant represents lumped closed-loop translational dynamics (with `attitude_tau` preserved as an alias).
+   - Added verification assertions in [`tests/test_config_and_safety.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_config_and_safety.py#L60).
+
+9. **Task B Parity Regeneration & Superseded Reports (Item 32)**:
+   - Regenerated [`docs/SIMULATION_SITL_PARITY.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/SIMULATION_SITL_PARITY.md) with an explicit notice formally superseding all earlier reports.
+   - Re-executed headline turn-morph outage experiment ([`experiments/test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py)): zero collisions across all 1s–10s outages, minimum separation $d_{\min} \ge 1.13\text{ m} > 0.70\text{ m}$.
+   - Re-executed validation in compare mode: overall RMS = $4.4807\text{ m}$, formation shape error = $3.6828\text{ m}$ (centroid-removed), minimum separation = $3.00\text{ m}$ (sim) / $3.86\text{ m}$ (SITL).
+
+10. **Test Suite Milestone**:
+   - Test suite expanded to **68 passing unit and regression tests** in 2.53s. Zero failures.
+
+
 
