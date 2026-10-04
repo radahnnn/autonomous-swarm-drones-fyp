@@ -4,10 +4,15 @@
 # Communication output on UDP 127.0.0.1:14560
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source ~/venv-ardupilot/bin/activate
-cd ~/ardupilot/ArduCopter
+ARDUPILOT_HOME="${ARDUPILOT_HOME:-$HOME/ardupilot}"
+
+if [ -f "$HOME/venv-ardupilot/bin/activate" ]; then
+    source "$HOME/venv-ardupilot/bin/activate"
+fi
+
+cd "${ARDUPILOT_HOME}/ArduCopter" || exit 1
 echo "Starting Drone 2 (SYSID 2) on UDP port 14560..."
-python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
+python3 "${ARDUPILOT_HOME}/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
     -I 1 \
     -N \

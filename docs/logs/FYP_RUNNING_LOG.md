@@ -385,6 +385,337 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
 Full detailed research report archived in [`TASK_E_RESEARCH_REPORT.md`](../reports/TASK_E_RESEARCH_REPORT.md).  
 Master briefing file for external AI review created at [`CODEX_REVIEW_BRIEF.md`](../CODEX_REVIEW_BRIEF.md).
 
+---
+
+## 12. Phase 0: Baseline Repository Audit (02–03 Oct 2026)
+
+Conducted comprehensive repository audit and inspection prior to any architectural refactoring, establishing a verified baseline:
+
+1. **Repository Structure & Blocker Identification**:
+   - Identified root-level `pytest` collection failure caused by top-level executable code and hardcoded pymavlink imports in `sitl/mavlink_swarm_adapter.py`.
+   - Discovered missing standard packaging configuration (`pyproject.toml`, `setup.py`), requiring manual `PYTHONPATH=.` hacks to discover `swarm_core`.
+   - Identified tracked `.pyc` and cache artifacts in git tree.
+   - Identified parameter divergence between `swarm_core/drone.py` defaults and `swarm_core/config.py` SITL-fitted values.
+2. **Safe Test Discovery & Import Guarding**:
+   - Added conditional `try ... except ImportError` guards around `pymavlink` imports to ensure core tests execute without SITL binaries or external hardware.
+   - Guarded executable blocks with `if __name__ == "__main__":` to prevent background thread spawning during test collection.
+3. **Audit Deliverable**:
+   - Full baseline audit report archived at [`docs/BASELINE_AUDIT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/BASELINE_AUDIT.md).
+
+---
+
+## 13. Phase 1: Foundations, Packaging, Configuration Profiles & CI Matrix (03 Oct 2026)
+
+Implemented standard Python packaging, configuration profile provenance, safety distance hierarchies, and continuous integration:
+
+1. **Packaging & Clean Installation**:
+   - Authored [`pyproject.toml`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/pyproject.toml) declaring dependencies (`numpy`, `scipy`, `matplotlib`) and optional extras (`[dev]` with `pytest`, `pytest-cov`; `[sitl]` with `pymavlink`).
+   - Configured [`pytest.ini`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/pytest.ini) setting `testpaths = ["tests"]` and `pythonpath = ["."]`.
+   - Verified clean installation in a fresh virtual environment: `pip install -e ".[dev]"`.
+2. **Typed Configuration Profile System (`swarm_core/config.py`)**:
+   - Implemented immutable `ParameterProvenance` tracking value, unit, meaning, provenance tag ("assumed", "fitted from SITL", "measured on hardware"), and literature reference.
+   - Created `SwarmConfigProfile` with named profiles:
+     - `assumed_baseline`: Literature multirotor attitude dynamics ($\tau = 0.18\text{ s}$, $c_d = 0.20\text{ s}^{-1}$) and ideal sensors ($\sigma_{\text{gps}} = 0.04\text{ m}$).
+     - `sitl_fitted`: ArduPilot SITL step-response calibrated dynamics ($\tau = 0.992\text{ s}$, $c_d = 0.637\text{ s}^{-1}$) and plain GPS noise ($\sigma_{\text{gps}} = 1.50\text{ m}$, $r_{\text{safe}} = 1.50\text{ m}$).
+   - Added profile propagation into `Drone`, `SwarmSimulation`, and `MAVLinkSwarmAdapter`.
+   - Fixed hybrid feedforward active profile drag coefficient propagation (`drag_coeff=float(self.profile.get("drag_coeff"))`).
+   - Fixed formation spacing preservation when `spacing=None` is passed.
+3. **Automated Continuous Integration Matrix**:
+   - Created [`.github/workflows/ci.yml`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/.github/workflows/ci.yml) testing Python 3.10, 3.11, and 3.12 across clean GitHub Actions runners.
+   - Configured headless demo execution saving smoke test artifacts to runner temporary directories.
+   - Added version and dependency metadata recording to [`demo_summary.json`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/demo_summary.json).
+
+---
+
+## 14. Phase 4: Three-Drone Simulation/SITL Pipeline Parity (03 Oct 2026)
+
+Audited, aligned, and documented the exact architectural relationship between the lightweight numerical simulator and the 3-drone ArduPilot SITL integration adapter:
+
+1. **Shared Formation & Assignment Logic**:
+   - Created [`compute_formation_slots()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/formations.py#L173) in `swarm_core/formations.py`, combining offset generation, world coordinate translation, and Hungarian optimal matching (`assign_optimal_slots`) across both simulator and SITL paths.
+   - Created [`compute_desired_neighbor_offsets()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/formations.py#L206) for decentralized displacement consensus.
+   - Created [`build_controllers_from_profile()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L341) factory provisioning identical controller gains and thresholds for both paths.
+2. **Guidance-to-Actuation Translation Semantics**:
+   - Documented the conversion chain: guidance acceleration $u \in \mathbb{R}^2$ $\rightarrow$ position setpoint $P_{\text{sp}} = P_{\text{curr}} + u \Delta t \gamma$ (via [`acceleration_to_position_setpoint()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L32)) $\rightarrow$ MAVLink `SET_POSITION_TARGET_LOCAL_NED` $\rightarrow$ ArduPilot onboard Guided-mode PID loop (`POS_XYZ_P` $\rightarrow$ `VEL_XYZ_PID` $\rightarrow$ `ACC_XYZ_PID`).
+   - Verified lead filter factor $\gamma = 2.0$ ($200\text{ ms}$ lead) compensating for ArduPilot position loop lag ($\tau = 0.992\text{ s}$).
+3. **Academic Parity Documentation & Phrasing Cleanup**:
+   - Authored [`docs/SIMULATION_SITL_PARITY.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/SIMULATION_SITL_PARITY.md) documenting purpose, shared components, isolated components, known differences, and scientific impact.
+   - Removed all inaccurate "exact same" wording; replaced with approved academic parity disclaimer.
+4. **Three-Drone Deterministic Parity Test Suite**:
+   - Created [`tests/test_simulation_sitl_parity.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation_sitl_parity.py) testing all 9 three-drone parity criteria (offsets, Hungarian matching, ID consistency, profile parameters, single target per drone, correct SYSID dispatch, coordinate frame determinism, fixed scenario reproducibility, and explicit conversion differences).
+   - Test suite expanded from 15 to **45 unit and regression tests** passing in ~1.5 seconds.
+   - All tests passing across Python 3.10, 3.11, and 3.12 on GitHub Actions CI.
+
+---
+
+## 15. Phase 5: Hybrid Specification Hardening, Sensor Realism & Channel Parity (03 Oct 2026)
+
+Addressed architectural critiques and recommendations covering sensor estimation realism, network Markov chain validation, sub-swarm network partitions, failsafe hover damping, and metric disambiguation:
+
+1. **Sensor Measurement Realism & Gauss-Markov GPS Drift (Recommendation 1)**:
+   - Updated [`HybridController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L207) and [`CentralizedController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/centralized.py#L27) to accept `measured_position` and `measured_velocity` rather than reading ground-truth `drone.position` / `drone.velocity`. Centralized and APF feedback loops now operate realistically on sensor-corrupted states.
+   - Replaced white Gaussian GPS noise with a **first-order Gauss-Markov (Ornstein-Uhlenbeck) process**:
+     $$e_{\text{gps}}[k+1] = e^{-\Delta t / \tau_{\text{corr}}} e_{\text{gps}}[k] + \sigma_{\text{gps}} \sqrt{1 - e^{-2\Delta t / \tau_{\text{corr}}}} \, w[k]$$
+     with time correlation constant $\tau_{\text{corr}} = 30.0\text{ s}$ capturing low-frequency atmospheric/ephemeris drift rather than unphysical 20 Hz white noise.
+   - Modeled velocity estimation error separately ($\sigma_v = 0.08\text{ m/s}$ in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L159)) reflecting Doppler/IMU EKF fusion performance.
+   - Reran [`experiments/test_gps_noise_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_gps_noise_sweep.py) with true-position physical separation evaluation. Steady-state error now rigorously tracks the sensor noise floor ($\sim 0.087\text{ m}$ at $\sigma=0.04\text{ m} \to 2.67\text{ m}$ at $\sigma=2.50\text{ m}$).
+2. **Analytic Validation of Gilbert-Elliott WirelessChannel (Recommendation 2)**:
+   - Added standalone Monte Carlo test [`test_wireless_channel_gilbert_elliott_statistics()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L94) running 40,000 ticks at 20 Hz ($p_{G \to B} = 0.05, p_{B \to G} = 0.20$).
+   - Analytically and empirically proved:
+     - Stationary BAD loss rate: $\pi_{\text{BAD}} = \frac{p}{p + q} = \frac{0.05}{0.25} = 20.0\%$ (empirical: $20.0\%$).
+     - Expected burst length: $\mathbb{E}[L] = \frac{1}{q} = 5.0\text{ ticks}$ (empirical: $5.04\text{ ticks}$).
+     - Burst tail probability: $P(L \ge 11) = (1 - q)^{10} = (0.80)^{10} = 0.1074$ (empirical: $0.108$).
+3. **Per-Tick Channel Coherence vs. Per-Send Transitions (Recommendation 3)**:
+   - Discovered that previously, the Gilbert-Elliott Markov chain was transitioning on every `send()` call. In an $n=5$ swarm, each recipient receives $(n-1) = 4$ peer broadcasts $+ 1$ coordinator heartbeat $= 5$ sends/tick, which caused the Markov chain to advance 5 times within a single 50 ms tick.
+   - Fixed [`WirelessChannel._update_ge_state()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L81) to enforce per-tick temporal coherence, advancing state at most once per tick timestamp.
+   - Added diagnostic logging in [`experiments/test_burst_outage_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_burst_outage_sweep.py) reporting sends per recipient per tick and per-tick accept/miss state sequences.
+4. **Targeted Outages & 2-of-5 Drone Partition Experiment (Recommendation 4)**:
+   - Enhanced [`WirelessChannel.add_outage()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L59) with optional `recipients` parameter to simulate localized sub-swarm partitions.
+   - Built a 2-of-5 drone partition experiment in `test_burst_outage_sweep.py`: drones 3 and 4 lose coordinator connectivity for 6.0 s during a mid-flight morph from V-Shape to Line at $t = 6.0\text{ s}$.
+   - Demonstrated that under pure centralized hold-last, partitioned drones execute frozen commands and drift out of formation, whereas Proposed Hybrid degrades them to peer-to-peer consensus, maintaining safe relative clearance ($> 1.37\text{ m}$) with zero collisions.
+5. **Bounded Deceleration-to-Hover on Isolated Fallback (Recommendation 5)**:
+   - Hardened [`DecentralizedController.compute_drone_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L57) so that when a drone has no neighbors and `goal_pos=None`, it actively commands velocity damping $a = -k_{\text{align}} v$ rather than returning zero acceleration and drifting.
+   - Added unit test [`test_isolated_fallback_bounded_hover_deceleration()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L181).
+6. **Metric Disambiguation & Constant Unification (Recommendation 6)**:
+   - Formalized distinct recovery metrics:
+     - `link_recovery_time_s`: duration from outage end until the hybrid supervisor re-engages centralized mode.
+     - `formation_recovery_time_s`: duration from outage end until RMS formation tracking error re-enters $\epsilon_{\text{tol}} \le 0.25\text{ m}$ ([`calculate_formation_recovery_time()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L142)).
+   - Unified `collision_threshold` ($0.70\text{ m}$) in [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L33) to automatically pull from active profile provenance.
+
+---
+
+## 16. Implementation of Full Claude Hardening Recommendations (03 Oct 2026)
+
+Completed the implementation of all 6 architectural recommendations:
+
+1. **Multi-Drone Gilbert-Elliott Burst Coherence (`network.py`)**:
+   - Enforced once-per-tick per-recipient state advancement in [`WirelessChannel._update_ge_state()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L103) by caching timestamps per recipient.
+   - Added unit test [`test_wireless_channel_5_drone_per_recipient_bursts()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L184) verifying that with 5 drones transmitting simultaneously each tick (4 peer broadcasts + 1 coordinator heartbeat = 5 sends/tick), the empirical channel loss remains $20.0\%$, mean burst length remains $5.0\text{ ticks}$, $P(\text{burst} \ge 11) \approx 0.107$, and all packets to the recipient within a single tick experience identical channel fate.
+2. **Gauss-Markov Sensor Noise & Ground-Truth Metric Evaluation (`engine.py`)**:
+   - Integrated first-order Gauss-Markov time-correlated GPS noise ($\tau_{\text{corr}} = 30\text{ s}$, 60% common-mode, 40% independent) and separate Doppler/IMU velocity noise ($\sigma_v = 0.08\text{ m/s}$) into [`SwarmSimulation.step()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L151).
+   - All controller feedback loops operate strictly on sensor-corrupted measurements, while all safety margins and tracking metrics are computed against true physical positions.
+   - Re-ran [`experiments/test_gps_noise_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_gps_noise_sweep.py) confirming that proposed hybrid matches centralized performance under noise while maintaining safe separation.
+3. **Split Outages Evaluation (`experiments/test_burst_outage_sweep.py`)**:
+   - Added `scope` parameter to [`WirelessChannel.add_outage()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L61) supporting `"ground"` (coordinator only), `"peer"` (inter-drone broadcasts only), and `"all"` (total channel blackout).
+   - Executed split-outage trials demonstrating that under peer outage, centralized commands keep tracking sharp ($e_{\text{steady}} = 0.079\text{ m}$), while under ground outage, proposed hybrid seamlessly leverages peer-to-peer consensus ($e_{\text{steady}} = 0.520\text{ m}$) with 0 collisions.
+4. **Heartbeat-Driven Formation Specs & Frozen Goals**:
+   - Coordinator heartbeats carry assigned target slot, formation type, and relative neighbor offsets.
+   - Decentralized and hybrid controllers only receive updated specs upon successfully received heartbeats; under outages or severed links, goals and formation geometries remain frozen at the last valid received heartbeat.
+5. **Autopilot-Realistic Baseline (`centralized_hold_target` vs `centralized_hold_accel`)**:
+   - Replaced open-loop acceleration holding with closed-loop onboard position tracking (`centralized_hold_target`), which commands local PD braking towards the last received target waypoint.
+   - Retained the legacy open-loop acceleration hold as a labelled extra baseline (`centralized_hold_accel`).
+   - In the 2-of-5 drone partition experiment overlapping the mid-flight morph, proved that `centralized_hold_accel` suffers runaway velocity saturation causing **1/5 physical collisions**, whereas `centralized_hold_target` (0/5 collisions) and `hybrid_proposed` (0/5 collisions) safely preserve spacing.
+6. **Locked Slot Assignments, Neighbor Memory with Age-Out & Missed Heartbeat Logging**:
+   - Added [`_lock_formation_slots()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L124): Hungarian matching runs once at morph start, locking drone-to-slot assignments and translating them rigidly with the centroid to eliminate mid-transit chattering. Added unit test [`test_locked_slot_assignment_preserves_mapping_during_transit()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L254).
+   - Added neighbor memory with linear position extrapolation ($p + v \Delta t$) across transient packet drops and age-out after $\tau_{\text{neighbor}} = 0.30\text{ s}$. Added unit test [`test_neighbor_memory_extrapolation_and_age_out()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L295).
+   - Hardened [`set_coordinator_link(False)`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L138) and heartbeat reception loop to record missed heartbeats in the sliding observation window every tick the link is inactive.
+7. **Test Suite Expansion**:
+   - Test suite expanded from 49 to **53 passing unit and regression tests** in 2.27s.
+
+---
+
+## 17. Advanced Control Parity, Degree Normalisation & Headline Outage Sweep (03 Oct 2026)
+
+Fully resolved recommendations 7 through 13, eliminating control discrepancies, formalizing degree normalisation across all swarm sizes, implementing bounded fallback strategies, and executing the headline mid-flight turn/morph ground-link outage experiment:
+
+1. **State Estimation Separation & Ground-Truth Metric Rigor (Item 7)**:
+   - Passed `measured_position` and `measured_velocity` into every controller execution path in [`SwarmSimulation.step()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L378) (`centralized`, `decentralized`, and `hybrid`).
+   - Ground-truth coordinates are strictly reserved for physical integration and collision metric evaluation in [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L44).
+2. **Coordinator Heartbeat Payload & Link Freezing (Item 8)**:
+   - Added `target_velocity` and `next_waypoint` to the coordinator heartbeat broadcast payload.
+   - When coordinator packets arrive, drones update their internal tracking targets and cache them.
+   - During outages or link dropouts, drone targets, commanded velocities, and formation neighbor offsets remain strictly frozen at the last successfully received heartbeat; the simulator does not leak moving centroid trajectories across severed links.
+   - Added regression test [`test_coordinator_heartbeat_payload_and_freezing()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L365).
+3. **Dead-Reckoning & Four Bounded Fallback Options (Item 9)**:
+   - Implemented four distinct, configurable fallback strategies in [`HybridController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L265):
+     1. `hover`: Immediately commands velocity damping to hover at the position where communication was severed.
+     2. `hold_target`: Regulates position to the last received target waypoint with zero velocity.
+     3. `dead_reckon`: Extrapolates along the last known velocity for bounded duration $T$ (`dead_reckon_duration`, default 1.5–2.0 s), then transitions to active braking/hovering.
+     4. `consensus` (Proposed Hybrid): Cohesive Reynolds/Olfati-Saber flocking with gentle deceleration to hover while preserving neighbor formation offsets.
+   - Added unit test [`test_dead_reckoning_fallback_strategy()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L291) and simulation integration test [`test_all_four_fallback_strategies_in_simulation()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L377).
+4. **Fair Decentralized Comparison (Item 11)**:
+   - Renamed "Pure Decentralized" in all evaluation scripts and plots to **"Decentralized (Consensus + Drag FF)"**.
+   - Made decentralized goal positions and velocities arrive strictly via coordinator broadcast packets over the wireless channel (freezing when severed).
+   - Added rotor drag feedforward ($c_d \cdot \mathbf{v}_{\text{goal}}$) to [`DecentralizedController.compute_drone_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L115) to eliminate artificial steady-state tracking penalties.
+5. **Elimination of Double APF & Degree Normalisation (Item 12)**:
+   - **Double APF Elimination**: Blended control in [`HybridController.compute_hybrid_control()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/hybrid.py#L330) now scales the separate safety barrier by $\alpha$:
+     $$\mathbf{u}(t) = \alpha(t) \mathbf{u}_{\text{central}} + (1 - \alpha(t)) \mathbf{u}_{\text{decentral}} + \alpha(t) \mathbf{u}_{\text{safe\_apf}}$$
+     Because $\mathbf{u}_{\text{decentral}}$ already embeds $(1 - \alpha) \mathbf{f}_{\text{sep}}$, the total separation repulsion across all $\alpha \in [0, 1]$ is identically $(1 - \alpha) \mathbf{f}_{\text{sep}} + \alpha \mathbf{f}_{\text{sep}} = 1.0 \times \mathbf{f}_{\text{sep}}$, completely eliminating the former 200% repulsion spike in fallback. Verified in [`test_double_apf_elimination_in_fallback()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L389).
+   - **Degree Normalisation**: Scaled interaction forces in [`DecentralizedController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/decentralized.py#L104) and centralized APF by $\text{deg} = \max(1, |\mathcal{N}_i|)$. Verified invariant scaling across $n = 3, 5, 10$ in [`test_degree_normalisation_at_various_swarm_sizes()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_hybrid_features.py#L245).
+6. **Active Safety Parameter Provenance Reporting (Item 13)**:
+   - Updated all experiment scripts ([`test_burst_outage_sweep.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_burst_outage_sweep.py#L190), [`test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py#L190)) to query and print active configuration provenance (`safe_radius`, `collision_dist`, `collision_threshold`) in every console summary and plot title.
+7. **Headline Experiment: Ground-Link Outage Overlapping Turn & Morph (Item 10)**:
+   - Script: [`experiments/test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py).
+   - Swept outages from 1.0s to 10.0s across 6 strategies with $n = 5$ drones, overlapping a 60-degree trajectory turn at $t = 5.0\text{ s}$ and a V-Shape to Line morph at $t = 6.0\text{ s}$.
+   - **Results**:
+     - **0 collisions** across all 6 strategies and all durations; minimum separation distance was $\ge 1.17\text{ m}$ (safety threshold $0.70\text{ m}$).
+     - **Dead-Reckon-then-Brake ($T=2\text{ s}$)** minimized peak tracking error during short/moderate outages ($3.60\text{ m}$ at 4s, $4.85\text{ m}$ at 6s) by projecting the last valid velocity heading.
+     - **Hover-on-Loss** showed the largest trajectory deviation ($3.99\text{ m}$ at 4s, $5.45\text{ m}$ at 6s) because it stopped immediately while the mission path turned.
+     - **Proposed Consensus Flocking** maintained formation cohesion ($d_{\min} \approx 1.36\text{ m}$) with rapid recovery ($4.11\text{ s}$ at 4s outage, $4.73\text{ s}$ at 6s outage).
+   - Generated publication-quality 4-panel visual artifact: [`experiments/results/headline_turn_morph_outage.png`](file:///home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/headline_turn_morph_outage.png).
+8. **Test Suite Milestone**:
+   - Total test suite expanded to **58 passing unit and regression tests** in 2.27s.
+
+---
+
+## 18. Sim-to-SITL Parity Hardening, Safety Guardrails & Parameter Fitting (Items 14–20) (04 Oct 2026)
+
+Systematically implemented and verified all recommendations 14 through 20 across the SITL adapter, simulation pipeline, step-response identification, and multi-drone scenario validation:
+
+1. **Velocity Feedforward & Timestamp Alignment in Scenario Validation (Item 14)**:
+   - Upgraded [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py) to dispatch position + velocity setpoints using MAVLink type mask `0x0DC0` (position and velocity enabled, acceleration and yaw ignored), supplying centroid velocity feedforward $\mathbf{v}_{\text{cmd}} = [1.0, 0.0]\text{ m/s}$.
+   - Unified V-formation geometry from [`FormationGenerator.generate_v_shape(3, spacing=3.0)`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/formations.py#L48) applied consistently across both simulator and SITL layers.
+   - Replaced missing telemetry frames with `NaN` rather than artificially forward-filling target coordinates; accurately reports dropout statistics (0 missing frames in benchmark SITL run).
+   - Aligned simulation and SITL timestamps by logging simulator state before `drone.step(dt)`, ensuring synchronized $t=0$ initial states.
+   - Generated publication 4-panel figure ([`experiments/results/swarm_core_vs_sitl_overlay.png`](file:///home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/swarm_core_vs_sitl_overlay.png)) showing 2D trajectories, signed North and East errors vs time, and Euclidean distance errors.
+   - Results: Overall swarm trajectory RMS difference = $0.7250\text{ m}$ ($72.50\text{ cm}$), peak error $< 0.99\text{ m}$ across the full 8m translation.
+
+2. **Direct Swarm Core Controller Execution (Item 15)**:
+   - Replaced hand-coded PD logic in the validation script with direct execution of [`CentralizedController`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/controllers/centralized.py) from `swarm_core`.
+   - Both simulator and SITL adapter run the identical controller object with parameters populated from the active profile (`centralized_kp`, `centralized_kd`, `drag_coeff`).
+
+3. **Plant-Integrated Velocity Setpoints & Closed-Loop Equivalence (Item 16)**:
+   - Implemented [`IntegratedPlant`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L56) in `sitl/mavlink_swarm_adapter.py` modeling first-order attitude lag ($\tau$) and aerodynamic rotor drag ($c_d$), integrating lateral guidance acceleration $\mathbf{a}_{\text{cmd}}$ into commanded velocity setpoints.
+   - Dispatches pure velocity setpoints via MAVLink `SET_POSITION_TARGET_LOCAL_NED` using type mask `0x0DC7` (3527), allowing ArduPilot's inner velocity PID loop to track guidance commands directly.
+   - Proved closed-loop mathematical equivalence between `IntegratedPlant` and [`Drone.step()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/drone.py#L91) in unit test [`test_integrated_plant_closed_loop_equivalence_with_engine_drone()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L219) with numerical discrepancy $< 10^{-12}$.
+
+4. **Dynamic Frame Origin Robust to Pre-Connection Drift (Item 17)**:
+   - Eliminated the fragile assumption that drones connect at $(0, 0, 0)$ local coordinates.
+   - Computes vehicle EKF frame origin dynamically from simultaneous `GLOBAL_POSITION_INT` and `LOCAL_POSITION_NED` messages:
+     $$\text{origin}_{\text{global}} = \mathbf{p}_{\text{global\_ned}} - \mathbf{p}_{\text{local\_ned}}$$
+   - Added unit test [`test_frame_origin_computation_with_drifted_drone()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L163), demonstrating that even after a drone drifts meters away from its spawn point prior to adapter initialization, global targets map into exact local setpoints with zero offset error.
+
+5. **Channel-Routed Peer Telemetry & Jitter Margin (Item 18)**:
+   - Integrated [`WirelessChannel`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/network.py#L17) into `MAVLinkSwarmAdapter`: all inter-drone neighbor state messages and coordinator heartbeats are routed through the network emulator with latency and packet loss.
+   - Advance simulation time before invoking `channel.receive()` to ensure proper temporal ordering.
+   - Coordinator heartbeats carry `target_velocity` alongside positions; centralized controller tracks last received target with drag feedforward during link degradation.
+   - Added unit test [`test_stale_age_margin_at_10hz_with_jitter()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L257): verifies that under 10 Hz telemetry with jitter, neighbor states extrapolate accurately within the 300ms timeout window and age out cleanly once an outage exceeds 300ms.
+
+6. **Step-Response Fit with Delay & Cross-Validation (Item 19)**:
+   - Upgraded [`experiments/validate_step_response_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_step_response_sitl.py):
+     * Added pure transport delay parameter $t_{\text{delay}}$ to the simulation model.
+     * Formulated multi-objective loss function minimizing combined position and velocity RMSE: $L = \text{RMSE}_x + 0.5 \cdot \text{RMSE}_{vx}$.
+     * Fitted parameters: First-order attitude lag $\tau = 0.830\text{ s}$, aerodynamic rotor drag $c_d = 0.525\text{ s}^{-1}$, transport delay $t_{\text{delay}} = 0.100\text{ s}$.
+     * Tracking accuracy: Position RMSE = $0.1482\text{ m}$ ($14.82\text{ cm}$), Velocity RMSE = $0.3560\text{ m/s}$.
+     * Documented active ArduPilot Position Controller (PSC) parameters (`PSC_POSXY_P = 1.0`, `PSC_VELXY_P = 2.0`, `PSC_VELXY_I = 1.0`, `PSC_VELXY_D = 0.5`, `PSC_ACC_XY_MAX = 2.5`, `WPNAV_SPEED = 3.0`).
+     * Cross-validated across 2m, 5m, and 8m step responses; generated 4-panel plot ([`experiments/results/sitl_step_response_fit.png`](file:///home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/sitl_step_response_fit.png)).
+
+7. **Production Flight Safety Guardrails (Item 20)**:
+   - Implemented a complete safety suite in [`MAVLinkDroneInterface`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L114):
+     * **GUIDED-Mode Check**: Verifies autopilot is actively in GUIDED mode before dispatching setpoints; suppresses commands if switched to manual/failsafe modes (e.g. LOITER, RTL, LAND).
+     * **Automated Arm/Takeoff Sequence**: Configurable timeouts for motor arming and altitude climb.
+     * **Setpoint Distance Clamp**: Limits maximum command displacement to $5.0\text{ m}$ from current drone position to prevent setpoint runaway.
+     * **Telemetry Watchdog**: Requires telemetry within $1.5\text{ s}$; immediately suppresses setpoint dispatch upon link expiration.
+     * **3D Geofence**: Enforces 60m horizontal radius and $[0.5, 25.0]\text{ m}$ vertical boundaries; rejects breach setpoints.
+     * **Emergency Stop**: Instantly switches vehicles to BRAKE (mode 17) or LAND (mode 9).
+     * **Hardware Safety**: Strictly restricted `ARMING_CHECK=0` to SITL testing (`is_sitl=True`); hardware-facing operations never disable flight safety checks.
+   - Added comprehensive unit test [`test_adapter_flight_safety_features()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L305) verifying all 6 safety features.
+
+8. **Test Suite Expansion**:
+   - Test suite expanded from 58 to **62 passing unit and regression tests** in 2.30s.
+
+---
+
+## 19. Single Source of Truth Configuration, Scenario Management & Profile Renaming (Item 23) (04 Oct 2026)
+
+Addressed all requirements of Item 23 establishing a rigorous, reproducible configuration architecture for ArduPilot SITL simulation and physical hardware alignment:
+
+1. **`sitl/swarm_params.parm` as Single Source of Vehicle Configuration**:
+   - Consolidated all runtime parameters into [`sitl/swarm_params.parm`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_params.parm).
+   - Fully specified ArduPilot flight controller parameters:
+     * **Position Controller (PSC)**: Horizontal planar gains (`PSC_NE_POS_P = 1.0`, `PSC_NE_VEL_P = 2.0`, `PSC_NE_VEL_I = 1.0`, `PSC_NE_VEL_D = 0.5`, `PSC_NE_JERK = 5.0`) and legacy Copter aliases (`PSC_POSXY_P`, `PSC_VELXY_P`), acceleration clamp `PSC_ACC_XY_MAX = 2.5 m/s²` matching `swarm_core` operational limits; Vertical descent/climb gains (`PSC_D_POS_P = 1.0`, `PSC_D_VEL_P = 5.0`, `PSC_D_ACC_P = 0.05`, `PSC_D_ACC_I = 0.10`).
+     * **Waypoint Navigation (WP / WPNAV)**: Bounded horizontal speed `WP_SPD = 3.0 m/s` (`WPNAV_SPEED = 300.0 cm/s`), acceleration `WP_ACC = 2.5 m/s²` (`WPNAV_ACCEL = 250.0 cm/s²`), acceptance radius `WP_RADIUS_M = 2.0 m`.
+     * **Guided Mode**: Setpoint loss timeout `GUID_TIMEOUT = 3.0 s`.
+     * **Hardware-Mirroring Failsafes**: GCS heartbeat failsafe (`FS_GCS_ENABLE = 1`, `FS_GCS_TIMEOUT = 5.0 s`), EKF loss action (`FS_EKF_ACTION = 1` -> Land), throttle/RC loss (`FS_THR_ENABLE = 1`), crash detection (`FS_CRASH_CHECK = 1`), battery failsafes (`BATT_FS_LOW_ACT = 2` -> RTL, `BATT_FS_CRT_ACT = 1` -> Land).
+     * **Baseline Environment (Calm)**: `SIM_WIND_SPD = 0.0 m/s`, `SIM_GPS1_NOISE = 0.0 m`.
+
+2. **Parameter Name Verification against Active ArduPilot Firmware**:
+   - Cross-referenced parameter names against live ArduCopter firmware dump (`mav.parm`) to guarantee firmware compatibility.
+   - Implemented [`verify_and_set_param()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L74) in [`sitl/scenarios.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py): transmits `PARAM_SET` and synchronously awaits acknowledged `PARAM_VALUE` from the running autopilot.
+
+3. **Named, Switchable SITL Environmental Scenarios**:
+   - Added [`SITL_SCENARIOS`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L18) in `sitl/scenarios.py` supporting 5 switchable environmental conditions:
+     * `calm`: Zero wind, zero GPS noise (clean baseline).
+     * `moderate_wind`: 4.0 m/s wind from East (90°), 0.15 turbulence.
+     * `high_wind`: 8.0 m/s wind from North-East (45°), 0.35 turbulence.
+     * `gps_noisy`: 1.50 m standard deviation horizontal GPS noise matching standard u-blox M10Q GNSS receiver.
+     * `harsh_environment`: 6.0 m/s crosswind + 0.25 turbulence + 1.50 m GPS noise.
+   - Implemented [`apply_scenario_via_mavlink()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L133) and added CLI flag `--scenario=<name>` to validation scripts.
+   - Integrated scenario switching into [`MAVLinkSwarmAdapter.set_scenario()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py#L636).
+
+4. **Automatic Parameter Dump at Run Startup**:
+   - Implemented [`dump_vehicle_parameters()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/scenarios.py#L183).
+   - Generates [`experiments/results/sitl_vehicle_params_dump.parm`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/sitl_vehicle_params_dump.parm) at the start of every validation script and adapter connection.
+   - Header records UTC timestamp, profile name, active scenario, and full 51+ active parameters for complete auditability.
+
+5. **Profile Renaming: `sitl_default_quad` (with `sitl_fitted` Backward Compatibility)**:
+   - Updated [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L275) to name the SITL-fitted profile `sitl_default_quad`, explicitly clarifying that identified parameters ($\tau = 0.992\text{ s}$, $c_d = 0.637\text{ s}^{-1}$, $\sigma_{\text{gps}} = 1.50\text{ m}$) characterize the ArduPilot SITL default quadcopter plant.
+   - Preserved `sitl_fitted` as a backward-compatible alias in `PROFILES`.
+
+6. **Unit Tests & Verification**:
+   - Added unit tests in [`tests/test_config_and_safety.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_config_and_safety.py#L50) verifying `sitl_default_quad` and `sitl_fitted` profile resolution.
+   - Added 3 new unit tests in [`tests/test_sitl_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L380):
+     * `test_sitl_scenarios_and_parameter_dump`: scenario lookup, validation, and parameter dumping.
+     * `test_verify_and_set_param_with_mock`: MAVLink parameter read-back verification and timeout handling.
+     * `test_adapter_scenario_and_profile_switching`: adapter profile initialization and scenario dispatch.
+   - Test suite milestone: **65 passed in 2.48s** (all unit and regression tests passing).
+
+---
+
+## 20. Protocol Hardening, Loop Scoping, Sensor Noise Stationary Equilibrium & Multi-Metric Parity (Items 24–32) (04 Oct 2026)
+
+Comprehensively addressed and verified all nine directives across the numerical simulator, SITL adapter, configuration system, metrics engine, and parity documentation:
+
+1. **Fixed `set_position_target_local_ned_send` Argument Count (Item 24)**:
+   - Identified and eliminated extraneous argument padding in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L370). Line previously passed 19 parameters due to redundant trailing zeros. Fixed to strictly 16 positional arguments conforming to MAVLink message #84 specification:
+     `(time_boot_ms, target_system, target_component, coordinate_frame, type_mask, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate)`.
+   - Added unit test [`test_set_position_target_local_ned_send_argument_tuple()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py#L482) using mocked connections, validating exact 16-tuple lengths and element values for both `send_target_global` (mask `0x0DC0`) and `send_velocity_target` (mask `0x0DC7`).
+
+2. **Elimination of Cached-CSV Fallback & Column Overwrites (Item 25)**:
+   - Completely removed the silent `--sim-only` cached-CSV fallback and the `.values` array overwrite in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L588).
+   - When SITL execution is requested without the `arducopter` binary present, raises an explicit `FileNotFoundError` rather than silently splicing mismatched cached data.
+   - In `--sim-only` mode, exports standalone simulation trajectory to `experiments/results/swarm_core_simulation_3drones.csv`.
+   - When SITL runs, archives raw telemetry per run with full metadata to `experiments/results/sitl_raw_telemetry_<timestamp>.csv` and sidecar `sitl_run_metadata_<timestamp>.json` recording ArduPilot firmware version, parameter dump path, type mask, and UTC timestamps.
+
+3. **Per-Drone Velocity Loop Scoping in Engine (Item 26)**:
+   - Resolved variable scoping defect in [`simulator/engine.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L432) where `goal_v` (decentralized) and `target_v` (hybrid) were instantiated outside the `for d in self.drones:` loop, which had inadvertently bound all drones to the target velocity of the last drone in the swarm.
+   - Moved both variables inside the per-drone loop, ensuring each vehicle resolves its own `drone_last_received_velocity[d.id]`.
+   - Added unit test [`test_per_drone_velocity_in_control_loop()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L425) asserting distinct per-drone feedforward velocities are propagated faithfully.
+
+4. **Decoupled Onboard Control from Global Coordinator State (Item 27)**:
+   - Removed `self.coordinator_link_active` queries from onboard control calculations in [`simulator/engine.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L405).
+   - Drones now determine link health autonomously via `self.is_coordinator_link_healthy(d.id)`, evaluating elapsed time since their own last valid coordinator heartbeat against `degrade_timeout` ($0.50\text{ s}$).
+   - Simplified `set_coordinator_link(active: bool)` to purely toggle coordinator transmitter broadcasting without injecting backdoor onboard state changes.
+   - Proved mathematical equivalence between `set_coordinator_link(False)` and scheduled channel ground outages in unit test [`test_set_coordinator_link_and_outage_equivalence()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_simulation.py#L457).
+
+5. **Gauss-Markov Stationary Equilibrium Initialization (Item 28)**:
+   - Initialized Gauss-Markov noise in [`SwarmSimulation.__init__()`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/simulator/engine.py#L84) directly from the stationary distribution $\mathcal{N}(0, \sigma^2)$ ($\sigma_{\text{common}} = \sqrt{f_{\text{common}}} \sigma_{\text{gps}}$, $\sigma_{\text{indep}} = \sqrt{1 - f_{\text{common}}} \sigma_{\text{gps}}$) instead of zero.
+   - Eliminates transient 30-second burn-in variance ramp, ensuring stationary spatial-temporal GPS noise properties from $t = 0$.
+
+6. **Formation Shape Error & True Minimum Separation Metrics (Item 29)**:
+   - Augmented [`SwarmMetricsTracker`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/metrics.py#L58) and [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L644) with centroid-removed formation shape error:
+     $$\text{shape\_error}(t) = \sqrt{\frac{1}{N} \sum_{i=1}^N \|(\mathbf{p}_i - \bar{\mathbf{p}}) - (\mathbf{p}_i^* - \bar{\mathbf{p}}^*)\|^2}$$
+     isolating internal geometric deformation from rigid translation/tracking lag.
+   - Evaluates true minimum physical inter-drone separation across all vehicle pairs: $d_{\min} = \min_{i < j} \|\mathbf{p}_i - \mathbf{p}_j\|$.
+   - Reports both shape error and true separation prominently alongside absolute tracking error.
+
+7. **Assembly Convergence Verification Prior to Scenario Start (Item 30)**:
+   - Replaced the open-loop 4.0-second assembly timer in [`experiments/validate_3drone_scenario_sitl.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/validate_3drone_scenario_sitl.py#L335) with closed-loop telemetry polling.
+   - Monitors per-drone slot convergence, requiring all drones to enter within $0.25\text{ m}$ of their assigned V-formation slots before initiating the timed 10.0s trajectory. Logs initial assembly convergence status and initial formation RMS error.
+
+8. **Configuration Standardization (Item 31)**:
+   - Expressed observation windows in seconds in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py#L230): added `hybrid_recovery_window_s = 2.00\text{ s}` (with backward-compatible 20-packet mapping).
+   - Added previously missing profile parameters: `k_goal = 1.0\text{ s}^{-2}` (goal tracking gain), `neighbor_timeout = 0.30\text{ s}` (peer memory age-out), and `recovery_consecutive_hb = 5` (consecutive heartbeats to recover).
+   - Renamed `attitude_tau` for lumped fits in `sitl_default_quad` to `translation_tau = 0.992\text{ s}` to accurately convey that the fitted time constant represents lumped closed-loop translational dynamics (with `attitude_tau` preserved as an alias).
+   - Added verification assertions in [`tests/test_config_and_safety.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_config_and_safety.py#L60).
+
+9. **Task B Parity Regeneration & Superseded Reports (Item 32)**:
+   - Regenerated [`docs/SIMULATION_SITL_PARITY.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/docs/SIMULATION_SITL_PARITY.md) with an explicit notice formally superseding all earlier reports.
+   - Re-executed headline turn-morph outage experiment ([`experiments/test_headline_turn_morph_outage.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/test_headline_turn_morph_outage.py)): zero collisions across all 1s–10s outages, minimum separation $d_{\min} \ge 1.13\text{ m} > 0.70\text{ m}$.
+   - Re-executed validation in compare mode: overall RMS = $4.4807\text{ m}$, formation shape error = $3.6828\text{ m}$ (centroid-removed), minimum separation = $3.00\text{ m}$ (sim) / $3.86\text{ m}$ (SITL).
+
+10. **Test Suite Milestone**:
+   - Test suite expanded to **68 passing unit and regression tests** in 2.53s. Zero failures.
 
 
 

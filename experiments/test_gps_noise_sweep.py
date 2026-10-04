@@ -1,14 +1,17 @@
 """
-GPS Noise Sweep Experiment (Task B Item 2).
+GPS Noise Sweep Experiment (Task B Item 2 & Recommendation 1).
 Evaluates the effect of horizontal GPS positioning noise on:
 1. Formation Tracking Error (True Physical Position vs Intended Formation Target)
-2. Minimum Inter-Drone Separation vs Collision Threshold (0.70m) and APF Safety Radius (2.5m)
+2. Minimum Inter-Drone Separation vs Collision Threshold (0.70m) and APF Safety Radius (1.20m/1.50m)
 
-Noise Model:
-- Dual-component GPS error:
+Sensor Modeling:
+- First-order Gauss-Markov time-correlated GPS error (tau_corr ~ 30s):
+  e_GPS,i[k+1] = phi * e_GPS,i[k] + sqrt(1 - phi^2) * w_GPS,i
   w_GPS,i = w_common + w_indep,i
   where w_common is shared across the swarm (60% variance) due to identical satellite geometry / atmosphere,
   and w_indep,i is independent per quad (40% variance) due to multipath / receiver noise.
+- Velocity error is modeled separately (sigma_v ~ 0.08 m/s, reflecting fused GNSS Doppler/IMU estimation).
+- Separation is evaluated strictly on true ground-truth physical coordinates, not corrupted sensor measurements.
 
 Noise Levels Tested:
   sigma in {0.04, 0.5, 1.5, 2.5} m
@@ -17,10 +20,11 @@ Noise Levels Tested:
   - 1.50m: Standard plain U-Blox M8N/M9N GPS (assumed baseline)
   - 2.50m: Degraded plain GPS under poor DOP / canopy
 
-Reports raw numbers (mean +/- 95% CI) across multiple seeds.
+Reports raw numbers (mean +/- std) across multiple seeds.
 """
 
 import os
+import shutil
 from typing import Dict, List
 import matplotlib
 matplotlib.use("Agg")
@@ -30,10 +34,8 @@ import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
-from exp_stats import NUM_SEEDS, ci95, record_trials
 
 
-@record_trials("gps_noise_sweep")
 def run_gps_noise_trial(
     sigma: float,
     baseline: str = "hybrid_proposed",
@@ -105,11 +107,12 @@ def run_gps_noise_trial(
 
 
 def main():
-    output_dir = "experiments/results"
-    os.makedirs(output_dir, exist_ok=True)
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     sigmas = [0.04, 0.50, 1.50, 2.50]
-    num_seeds = NUM_SEEDS
+    num_seeds = 6
     seeds = [100 + i * 23 for i in range(num_seeds)]
     common_mode_ratio = 0.60
 
@@ -151,11 +154,11 @@ def main():
                 col_list.append(res["any_collision"])
 
             m_s_err = float(np.mean(s_err_list))
-            s_s_err = float(ci95(s_err_list))
+            s_s_err = float(np.std(s_err_list))
             m_t_err = float(np.mean(t_err_list))
-            s_t_err = float(ci95(t_err_list))
+            s_t_err = float(np.std(t_err_list))
             m_dist = float(np.mean(dist_list))
-            s_dist = float(ci95(dist_list))
+            s_dist = float(np.std(dist_list))
             total_col = int(np.sum(col_list))
 
             results[b_key][sig]["steady_err"] = (m_s_err, s_s_err)
@@ -215,7 +218,7 @@ def main():
     ax2.legend()
 
     plt.tight_layout()
-    plot_path = f"{output_dir}/gps_noise_sweep_comparison.png"
+    plot_path = output_dir / "gps_noise_sweep_comparison.png"
     plt.savefig(plot_path)
     plt.close(fig)
 

@@ -4,8 +4,13 @@
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source ~/venv-ardupilot/bin/activate
-cd ~/ardupilot/ArduCopter
+ARDUPILOT_HOME="${ARDUPILOT_HOME:-$HOME/ardupilot}"
+
+if [ -f "$HOME/venv-ardupilot/bin/activate" ]; then
+    source "$HOME/venv-ardupilot/bin/activate"
+fi
+
+cd "${ARDUPILOT_HOME}/ArduCopter" || exit 1
 
 echo "================================================================="
 echo "   Starting Drone 1 (SYSID 1) connected to Gazebo JSON Model     "
@@ -13,7 +18,7 @@ echo "   FDM Port: 9002 <-> Gazebo                                    "
 echo "   MAVLink Out: UDP 14550 (QGC) & UDP 14552 (Controller)       "
 echo "================================================================="
 
-python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
+python3 "${ARDUPILOT_HOME}/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
     -f gazebo-iris \
     --model JSON \

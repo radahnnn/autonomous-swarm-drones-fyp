@@ -42,8 +42,9 @@ class WirelessChannel:
         self.p_b_to_g = float(p_b_to_g)
         self.loss_rate_bad = float(loss_rate_bad)
         self.channel_state: Dict[int, str] = {}  # Per-recipient state: "GOOD" or "BAD"
+        self.last_channel_update: Dict[int, float] = {}  # Tracks last simulation timestamp when GE state updated
         
-        # Scheduled full outage intervals: List of (start_time, duration)
+        # Scheduled full or targeted outage intervals: List of (start_time, duration, optional_recipients_set)
         self.outages: List[tuple] = []
         
         self.rng = np.random.default_rng(seed)
@@ -57,28 +58,66 @@ class WirelessChannel:
         self.total_dropped_burst = 0
         self.total_delivered = 0
 
-    def add_outage(self, start_time: float, duration: float) -> None:
-        """Schedule a deterministic complete RF outage window [start_time, start_time + duration]."""
-        self.outages.append((float(start_time), float(duration)))
+    def add_outage(
+        self,
+        start_time: float,
+        duration: float,
+        scope: str = "all",
+        recipients: Optional[List[int]] = None,
+    ) -> None:
+        """
+        Schedule an RF outage window [start_time, start_time + duration].
+        
+        Parameters:
+            start_time: Window start in simulation seconds.
+            duration: Window duration in seconds.
+            scope:
+              - "all": Drop all transmissions matching recipients (default).
+              - "ground": Drop only coordinator telemetry (sender_id == -1).
+              - "peer": Drop only inter-drone peer-to-peer broadcasts (sender_id >= 0).
+            recipients: Optional list of recipient drone IDs to isolate (partition mode).
+                        If None, applies across all recipients in the channel.
+        """
+        recip_set = set(recipients) if recipients is not None else None
+        self.outages.append((float(start_time), float(duration), str(scope).lower(), recip_set))
 
-    def is_in_outage(self, current_time: float) -> bool:
-        """Check if channel is currently experiencing a scheduled full outage."""
-        for start, dur in self.outages:
+    def is_in_outage(
+        self,
+        current_time: float,
+        sender_id: Optional[int] = None,
+        recipient_id: Optional[int] = None,
+    ) -> bool:
+        """Check if a transmission is currently blocked by a scheduled outage window."""
+        for start, dur, scope, recip_set in self.outages:
             if start <= current_time <= start + dur:
-                return True
+                if recip_set is not None and (recipient_id is None or recipient_id not in recip_set):
+                    continue
+                if scope == "all":
+                    return True
+                elif scope == "ground" and sender_id == -1:
+                    return True
+                elif scope == "peer" and (sender_id is not None and sender_id >= 0):
+                    return True
         return False
 
-    def _update_ge_state(self, recipient_id: int) -> str:
-        """Advance Gilbert-Elliott Markov chain state for the given recipient link."""
-        cur = self.channel_state.get(recipient_id, "GOOD")
-        if cur == "GOOD":
-            if self.rng.random() < self.p_g_to_b:
-                cur = "BAD"
-        else:
-            if self.rng.random() < self.p_b_to_g:
-                cur = "GOOD"
-        self.channel_state[recipient_id] = cur
-        return cur
+    def _update_ge_state(self, recipient_id: int, current_time: float) -> str:
+        """
+        Advance Gilbert-Elliott Markov chain state for the given recipient link.
+        Transitions at most once per distinct time tick to ensure physical coherence
+        across multiple packets dispatched within the same tick.
+        """
+        last_t = self.last_channel_update.get(recipient_id, -1.0)
+        if current_time > last_t + 1e-6:
+            cur = self.channel_state.get(recipient_id, "GOOD")
+            if cur == "GOOD":
+                if self.rng.random() < self.p_g_to_b:
+                    cur = "BAD"
+            else:
+                if self.rng.random() < self.p_b_to_g:
+                    cur = "GOOD"
+            self.channel_state[recipient_id] = cur
+            self.last_channel_update[recipient_id] = current_time
+        return self.channel_state.get(recipient_id, "GOOD")
 
     def send(
         self,
@@ -91,8 +130,8 @@ class WirelessChannel:
         """Attempt to transmit a packet across the wireless channel."""
         self.total_transmitted += 1
 
-        # 1. Check scheduled complete outage (100% loss during outage window)
-        if self.is_in_outage(current_time):
+        # 1. Check scheduled outage (filtered by scope and recipient)
+        if self.is_in_outage(current_time, sender_id=sender_id, recipient_id=recipient_id):
             self.total_dropped_outage += 1
             self.total_dropped_loss += 1
             return False
@@ -104,7 +143,7 @@ class WirelessChannel:
 
         # 3. Check Gilbert-Elliott burst loss (if enabled)
         if self.use_gilbert_elliott:
-            state = self._update_ge_state(recipient_id)
+            state = self._update_ge_state(recipient_id, current_time)
             if state == "BAD" and self.rng.random() < self.loss_rate_bad:
                 self.total_dropped_burst += 1
                 self.total_dropped_loss += 1
@@ -115,8 +154,11 @@ class WirelessChannel:
             self.total_dropped_loss += 1
             return False
 
-        # 5. Sample latency (Gaussian truncated at 0.001s)
-        delay = max(0.001, self.rng.normal(self.latency_mean, self.latency_std))
+        # 5. Sample latency (Gaussian truncated at 0.001s, or 0.0s when latency is disabled)
+        if self.latency_mean <= 0.0:
+            delay = 0.0
+        else:
+            delay = max(0.001, self.rng.normal(self.latency_mean, self.latency_std))
         delivery_time = current_time + delay
 
         packet = Packet(
@@ -154,3 +196,4 @@ class WirelessChannel:
         self.total_delivered = 0
         self.in_flight_packets.clear()
         self.channel_state.clear()
+        self.last_channel_update.clear()

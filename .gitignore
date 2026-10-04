@@ -1,25 +1,38 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-.pytest_cache/
-eeprom.bin
-*.bin
-*.log
-*.tlog
-*.raw
-mav.parm
-logs/
-terrain/
-sitl/takeoff.scr
-sitl/test_takeoff_diag.py
+*.py[cod]
+*$py.class
 
-# Python / packaging
-*.egg-info/
-build/
-dist/
-.venv/
-venv/
+# Pytest & Coverage
+.pytest_cache/
 .coverage
 htmlcov/
 
-# Local backups and scratch
+# Environments & Virtualenvs
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging & Build Distribution
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ArduPilot / SITL Runtime Artifacts & Logs
+logs/
+terrain/
+eeprom.bin
+mav.parm
+mav.tlog
+mav.tlog.raw
+*.bin
+*.log
+*.raw
+
+# Local Archives & Backups
 *.tar.gz
+
+# Diagnostic Run Scripts
+sitl/takeoff.scr

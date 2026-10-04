@@ -2,6 +2,8 @@
 
 Branch: `phase2-config-validation` (baseline: `master` @ `93addaa`, tag `v0-baseline` = pre-cleanup).
 
+> **Provenance note.** These results were produced with the standalone Phase 2 implementation (branch `phase2-config-validation`, commit `5e0408f`: `SwarmConfig`, `fitted_sitl` / `assumed` profiles, 20 seeds with 95% CIs). That branch was later merged with the team's `phase-1-foundations-packaging` branch, whose profile system (`assumed_baseline`, `sitl_default_quad`) replaced it; the physical parameters are identical (tau = 0.992 s, cd = 0.637 /s for the fitted profile). The experiment scripts on `master` use the team's version, which does not include the 20-seed CI/raw-CSV layer (`exp_stats.py`, `run_all.py`, still available in commit `5e0408f`). Raw per-seed CSVs are in `phase2_outputs/raw/`. Note the merged default profile is `assumed_baseline`, not the fitted one.
+
 ## 1. What changed
 
 | Item | Before | After |

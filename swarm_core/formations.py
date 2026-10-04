@@ -4,7 +4,7 @@ Supports: Line, V-Formation, Circle, and Grid formations, plus Hungarian matchin
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
@@ -153,3 +153,89 @@ def assign_optimal_slots(current_positions: np.ndarray, target_slots: np.ndarray
         assigned_targets[r] = target_slots[c]
         
     return assigned_targets
+
+
+def create_world_slots(local_offsets: np.ndarray, centroid: np.ndarray) -> np.ndarray:
+    """
+    Translates local relative formation offsets to world coordinates given centroid.
+    Works for both 2D (Nx2) and 3D (Nx3) offset arrays.
+    """
+    local = np.asarray(local_offsets, dtype=np.float64)
+    cent = np.asarray(centroid, dtype=np.float64)
+    dim = min(local.shape[1], cent.shape[0])
+    world = np.zeros_like(local)
+    world[:, :dim] = local[:, :dim] + cent[:dim]
+    if local.shape[1] > dim:
+        world[:, dim:] = local[:, dim:]
+    return world
+
+
+def compute_formation_slots(
+    formation_type: FormationType,
+    num_drones: int,
+    centroid: np.ndarray,
+    spacing: float = 2.5,
+    current_positions: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Unified pipeline for formation slot geometry calculation:
+    1. Computes local relative offsets centered at (0, 0).
+    2. Translates offsets to world coordinates anchored at centroid.
+    3. If current_positions is supplied, computes Hungarian optimal matching
+       minimizing total sum of squared travel distances to mitigate path crossings.
+       Otherwise, assigned_slots defaults to world_slots in index order.
+
+    Returns:
+        (local_offsets, world_slots, assigned_slots)
+    """
+    local_offsets = FormationGenerator.get_formation_offsets(
+        formation_type, num_drones, spacing=spacing
+    )
+    centroid_arr = np.asarray(centroid, dtype=np.float64)
+    world_slots = create_world_slots(local_offsets, centroid_arr[:2])
+
+    if current_positions is not None:
+        pos_2d = np.asarray(current_positions, dtype=np.float64)[:, :2]
+        assigned_slots = assign_optimal_slots(pos_2d, world_slots)
+    else:
+        assigned_slots = world_slots.copy()
+
+    return local_offsets, world_slots, assigned_slots
+
+
+def compute_desired_neighbor_offsets(
+    drone_id: int,
+    assigned_targets: np.ndarray,
+    neighbor_ids: List[int],
+    drone_ids: Optional[List[int]] = None,
+) -> Dict[int, np.ndarray]:
+    """
+    Computes desired relative separation vector (p_target_i - p_target_j)
+    for each perceived neighbor j. Used by decentralized consensus flocking.
+    
+    Parameters:
+        drone_id: ID of the evaluating drone.
+        assigned_targets: (N, 2) array of assigned target coordinates.
+        neighbor_ids: List of neighbor drone IDs.
+        drone_ids: Ordered list of all drone IDs matching rows of assigned_targets.
+                   Defaults to [0, 1, ..., N-1] if None.
+    """
+    if drone_ids is None:
+        id_to_idx = {i: i for i in range(len(assigned_targets))}
+    else:
+        id_to_idx = {did: idx for idx, did in enumerate(drone_ids)}
+
+    if drone_id not in id_to_idx:
+        return {}
+
+    my_idx = id_to_idx[drone_id]
+    my_target = assigned_targets[my_idx]
+
+    desired_offsets = {}
+    for nid in neighbor_ids:
+        if nid in id_to_idx:
+            n_idx = id_to_idx[nid]
+            desired_offsets[nid] = my_target - assigned_targets[n_idx]
+
+    return desired_offsets
+

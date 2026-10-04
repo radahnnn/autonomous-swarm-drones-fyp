@@ -1,0 +1,61 @@
+# ==============================================================================
+# Autonomous Swarm Drones - Active Vehicle Configuration Parameter Dump (Item 23)
+# ==============================================================================
+# Timestamp        : 2026-10-04 10:46:58 UTC
+# Configuration    : sitl_default_quad
+# Active Scenario  : calm
+# Source File      : /home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_params.parm
+# Total Parameters : 51
+# ==============================================================================
+
+AHRS_EKF_TYPE        3
+AHRS_GPS_USE         1
+ARMING_CHECK         0
+ARMING_OPTIONS       0
+ARMING_SKIPCHK       0
+BATT_CAPACITY        500000
+BATT_CRT_MAH         0
+BATT_FS_CRT_ACT      1
+BATT_FS_LOW_ACT      2
+BATT_LOW_MAH         0
+DISARM_DELAY         0
+EK3_ENABLE           1
+FRAME_CLASS          1
+FRAME_TYPE           1
+FS_CRASH_CHECK       1
+FS_EKF_ACTION        1
+FS_GCS_ENABLE        1
+FS_GCS_TIMEOUT       5
+FS_THR_ENABLE        1
+GUID_OPTIONS         0
+GUID_TIMEOUT         3
+PSC_ACC_XY_MAX       2.500000
+PSC_D_ACC_I          0.100000
+PSC_D_ACC_P          0.050000
+PSC_D_JERK           5
+PSC_D_POS_P          1
+PSC_D_VEL_P          5
+PSC_NE_JERK          5
+PSC_NE_POS_P         1
+PSC_NE_VEL_D         0.500000
+PSC_NE_VEL_I         1
+PSC_NE_VEL_P         2
+PSC_POSXY_P          1
+PSC_VELXY_D          0.500000
+PSC_VELXY_I          1
+PSC_VELXY_P          2
+SIM_GPS1_ACC         0.300000
+SIM_GPS1_LAG_MS      100
+SIM_GPS1_NOISE       0
+SIM_WIND_DIR         180
+SIM_WIND_SPD         0
+SIM_WIND_TURB        0
+WPNAV_ACCEL          250
+WPNAV_SPEED          300
+WP_ACC               2.500000
+WP_JERK              1
+WP_RADIUS_M          2
+WP_SPD               3
+WP_SPD_DN            1.500000
+WP_SPD_UP            2.500000
+WP_YAW_BEHAVIOR      2

@@ -8,86 +8,97 @@
 
 ## 1. Project Overview
 
-This repository provides an autonomous swarm control framework enabling groups of 5–10 multirotors to perform dynamic formation flying, smooth topology reconfiguration, and decentralized collision avoidance under lossy, delayed wireless communication constraints.
+This repository provides an autonomous swarm control framework enabling groups of multirotors to perform dynamic formation flying, smooth topology reconfiguration, and decentralized collision avoidance under lossy, delayed wireless communication constraints.
 
-### Key Capabilities
+### Current Implementation & Validation Status
+* **Numerical Simulation Engine**: Validated for arbitrary swarm sizes ($N \ge 3$, tested up to 6 drones) in 2D/3D continuous time.
+* **ArduPilot SITL Software-in-the-Loop**: High-fidelity integration verified for 3 drones (`sitl/mavlink_swarm_adapter.py`). Fleet scaling to 5+ SITL instances is scheduled for Phase 2.
+* **Trajectory Discrepancy**: A 72.5 cm trajectory discrepancy was measured between the lightweight simulation model and ArduPilot SITL GUIDED mode tracking (simulation-to-SITL discrepancy; physical hardware flight validation remains future work).
+* **Test Suite**: 23/23 unit tests passing via `pytest` (verifying imports, profile propagation, graph Laplacians, Hungarian assignment, hybrid state machines, and MAVLink adapter mocks). Passing test count reflects regression coverage, not 100% statement or branch coverage.
+
+### Key Framework Capabilities
 * **Four Formation Geometries**: Line, V-Formation (Chevron), Circle, and Grid with dynamic reconfiguration.
-* **Hungarian Algorithm Slot Assignment**: Solves the Linear Sum Assignment Problem to minimize total swarm displacement during formation transitions, preventing trajectory crossing and collisions.
+* **Hungarian Algorithm Slot Assignment**: Solves the Linear Sum Assignment Problem to minimize total swarm displacement during formation transitions, reducing trajectory crossing risk (note: does not provide a formal collision-free guarantee; proximity risk is empirically mitigated by APF separation control).
 * **Three Control Regimes**:
-  1. **Centralized**: Global mission coordinator assigning optimal trajectory slots and monitoring swarm centroid.
-  2. **Decentralized**: Distributed consensus ($\dot{v}_i = -L v$) and Reynolds/Olfati-Saber flocking relying strictly on 1-hop neighbor broadcasts.
-  3. **Hybrid (Proposed Framework)**: Hierarchical architecture where centralized guidance directs formation geometry while onboard decentralized safety barriers prevent collisions, with automatic fallback to local flocking if coordinator heartbeats drop.
-* **Wireless Channel Emulation**: Models realistic RF propagation constraints including packet loss ($0\%\dots 50\%$), transmission latency queues ($10\dots 400\text{ ms}$), and finite communication radii.
-* **Dual-Tier Validation**:
-  - **Tier 1**: High-speed numerical engine for Monte Carlo parameter sweeps and thesis metric generation.
-  - **Tier 2**: Headless ArduPilot SITL multi-vehicle validation via MAVLink (`pymavlink`).
+  1. **Centralized**: Global coordinator computing optimal slot assignments, PD tracking, and moving centroid feedforward.
+  2. **Decentralized**: Distributed Laplacian velocity consensus ($\dot{v}_i = -k_v L v$) and Reynolds/Olfati-Saber flocking relying strictly on 1-hop neighbor broadcasts.
+  3. **Hybrid**: Centralized trajectory guidance blended with an always-on decentralized Artificial Potential Field (APF) safety barrier, featuring asymmetric hysteresis, message age validation, and automatic fallback upon coordinator silence.
+* **Explicit Configuration Profiles**:
+  - `assumed_baseline`: Engineering literature baseline ($\tau=0.18\text{ s}$, $c_d=0.20\text{ s}^{-1}$).
+  - `sitl_fitted`: Closed-loop model calibrated against ArduPilot SITL GUIDED-mode step response ($\tau=0.992\text{ s}$, $c_d=0.637\text{ s}^{-1}$, sensor noise $\sigma=1.5\text{ m}$).
+* **Wireless Channel Emulation**: Realistic packet drop ($0\%\dots 50\%$), latency queues ($10\dots 400\text{ ms}$), Gilbert-Elliott burst outages, and RF communication range cutoffs.
 
 ---
 
-## 2. Repository Layout
+## 2. Directory Structure
 
 ```
-.
-├── swarm_core/              # Pure-Python algorithms (no simulator / MAVLink dependency)
-│   ├── drone.py             # Second-order kinematics, lag, drag, sensor noise
-│   ├── graph.py             # Adjacency, Laplacian, algebraic connectivity
-│   ├── network.py           # Wireless channel emulator (loss, delay, range, bursts)
-│   ├── formations.py        # Line, V, Circle, Grid + Hungarian slot assignment
-│   ├── metrics.py           # Tracking error, separation, convergence, chattering
-│   ├── config.py            # Parameter provenance (fitted vs assumed) -- single source of defaults (profiles: fitted_sitl, assumed)
-│   └── controllers/         # centralized.py, decentralized.py, hybrid.py
-├── simulator/               # Tier 1: numerical engine, Matplotlib visualizer, Gazebo models/world
-├── sitl/                    # Tier 2: ArduPilot SITL / MAVLink adapter, launch scripts, diagnostics
-├── experiments/             # Reproducible sweeps and SITL validation; outputs in experiments/results/
-├── tests/                   # Unit tests (pytest)
-└── docs/                    # Reports, logs, audit and review material
-    ├── BASELINE_AUDIT.md
-    ├── reports/             # TASK_B / TASK_C / TASK_E reports
-    └── logs/                # FYP_RUNNING_LOG.md
+swarm_drones_fyp/
+├── swarm_core/
+│   ├── config.py            # Explicit configuration profiles & parameter provenance
+│   ├── drone.py             # Multirotor kinematics, first-order lag, rotor drag
+│   ├── graph.py             # Graph Laplacian, adjacency, algebraic connectivity
+│   ├── network.py           # Wireless channel emulator (loss, delay, burst outage)
+│   ├── formations.py        # Line, V, Circle, Grid geometries & Hungarian assignment
+│   ├── metrics.py           # Tracking error, convergence time, safety distance
+│   └── controllers/
+│       ├── centralized.py   # Global Hungarian + PD tracking + APF safety
+│       ├── decentralized.py # Laplacian velocity consensus + Reynolds flocking
+│       └── hybrid.py        # Asymmetric hysteresis & continuous alpha(t) blending
+├── simulator/
+│   ├── engine.py            # Physics integration, wireless channel, and control step
+│   └── visualizer.py        # Telemetry renderer and static figure generation
+├── sitl/
+│   ├── common_frame.py      # WGS84 GPS to local/global NED datum frame conversion
+│   ├── mavlink_swarm_adapter.py # MAVLink adapter translating setpoints to ArduPilot
+│   └── launch_drone*.sh     # Headless SITL drone launcher scripts
+├── experiments/
+│   ├── run_demo.py          # 4-formation transition mission demo with JSON export
+│   ├── test_network_sweep.py# Monte Carlo packet loss sweep
+│   └── results/             # Generated figures, plots, and JSON metadata
+├── tests/
+│   ├── test_config_and_safety.py # Profile, provenance, and safety hierarchy tests
+│   ├── test_formations.py        # Geometry & Hungarian assignment tests
+│   ├── test_graph.py             # Graph Laplacian & connectivity tests
+│   ├── test_hybrid_features.py   # Hysteresis, blending, and burst loss tests
+│   ├── test_simulation.py        # Multi-regime simulation tests
+│   └── test_sitl_adapter.py      # Frame round-trip & mocked MAVLink tests
+├── docs/                    # Audit, parity report, reviews, project log and experiment reports
+│   ├── BASELINE_AUDIT.md, SIMULATION_SITL_PARITY.md
+│   ├── logs/FYP_RUNNING_LOG.md
+│   └── reports/             # TASK_B / TASK_C / TASK_E and PHASE2_CONFIG_VALIDATION reports
+├── pyproject.toml           # Standard PEP 517/621 packaging configuration
+├── requirements.txt         # Pinned runtime dependencies
+└── pytest.ini               # Test discovery configuration
 ```
 
 ---
 
-## 3. Quick Start
+## 3. Quick Start & Installation
 
-Requires Python 3.10+.
-
+### Standard Installation
+Install the package and optional development dependencies in editable mode:
 ```bash
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scriptsctivate
-pip install -e ".[dev]"          # core + test tools
-pip install -e ".[sitl,dev]"     # additionally pymavlink/pandas for SITL scripts
+# Clone the repository
+git clone https://github.com/radahnnn/autonomous-swarm-drones-fyp.git
+cd autonomous-swarm-drones-fyp
+
+# Install in editable mode with development dependencies
+pip install -e ".[dev]"
+
+# Optional: install SITL dependencies (pymavlink) if running live SITL simulations
+pip install -e ".[sitl]"
 ```
 
-### Run the tests
+### Running Unit Tests
+No `PYTHONPATH` workaround is needed. Run pytest directly from the repository root:
 ```bash
-pytest
-```
-`pytest` is configured to collect only `tests/`. None of the unit tests need ArduPilot.
-
-### Run the experiments
-Executed from the repo root; figures are written to `experiments/results/`.
-```bash
-python experiments/run_demo.py                    # 6-drone Line -> V -> Circle -> Grid mission
-python experiments/test_network_sweep.py          # packet-loss sweep, 3 controllers
-python experiments/test_burst_outage_sweep.py     # Gilbert-Elliott burst loss + outages
-python experiments/test_gps_noise_sweep.py        # GPS noise sweep
-python experiments/test_feedforward_ablation.py   # feedforward ablation
-```
-The two `experiments/validate_*_sitl.py` scripts need ArduPilot SITL:
-```bash
-export ARDUCOPTER_BIN=$HOME/ardupilot/build/sitl/bin/arducopter   # default shown
-python experiments/validate_step_response_sitl.py
-python experiments/validate_3drone_scenario_sitl.py
+python3 -m pytest -q
 ```
 
-### Gazebo / multi-drone SITL (optional)
-Launch scripts in `sitl/` assume ArduPilot in `~/ardupilot`, a venv at `~/venv-ardupilot`, and the
-`ardupilot_gazebo` plugin built in `~/ardupilot_gazebo` (override with `ARDUPILOT_GAZEBO_DIR`).
-`sitl/stop_all.sh` terminates all related processes.
-
----
-
-## 4. Documentation
-* [`docs/BASELINE_AUDIT.md`](docs/BASELINE_AUDIT.md) -- audit of tests, experiments and claims
-* [`docs/logs/FYP_RUNNING_LOG.md`](docs/logs/FYP_RUNNING_LOG.md) -- chronological project log
-* [`docs/reports/`](docs/reports) -- experimental, validation and hardware research reports
+### Running the 4-Formation Mission Demo
+Executes a 6-drone mission transitioning through Line $\to$ V-Shape $\to$ Circle $\to$ Grid with reproducible fixed seed and profile recording:
+```bash
+python3 experiments/run_demo.py --profile assumed_baseline --seed 123
+```
+Snapshots, telemetry plots, and machine-readable JSON metadata will be written to `experiments/results/demo_summary.json`.

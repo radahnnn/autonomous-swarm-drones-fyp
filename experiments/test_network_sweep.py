@@ -8,19 +8,17 @@ Reports Mean +/- Standard Deviation across multiple random seeds.
 """
 
 import os
+import shutil
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
-from exp_stats import NUM_SEEDS, ci95, record_trials
 
 
-@record_trials("network_sweep")
 def run_single_trial(
     mode: str,
     loss_rate: float,
@@ -86,18 +84,18 @@ def run_single_trial(
 
 
 def main():
-    output_dir = "experiments/results"
-    os.makedirs(output_dir, exist_ok=True)
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     loss_rates = [0.0, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50]
-    num_trials = NUM_SEEDS
+    num_trials = 6
 
     print("=================================================================")
     print("  Swarm Drones FYP: Dynamic Stress-Tested Network Sweep          ")
     print("  - Trajectory: Moving Centroid (0.85 m/s)                       ")
     print("  - Formation Switch: V-Shape -> Line at t = 5.0s                ")
-    print(f"  - Dynamics: lag tau={DEFAULT_CONFIG.attitude_tau:.3f}s, drag cd={DEFAULT_CONFIG.drag_coeff:.3f}/s")
-    print(f"  - Seeds per condition: {NUM_SEEDS}; +/- is the 95% CI of the mean")
+    print("  - Dynamics: 1st-Order Attitude Lag (0.18s) + Rotor Drag        ")
     print("=================================================================")
 
     modes_to_test = [
@@ -133,12 +131,12 @@ def main():
                 switches.append(summary["total_mode_switches"])
 
             m_err = float(np.mean(errors))
-            s_err = float(ci95(errors))
+            s_err = float(np.std(errors))
             m_dist = float(np.mean(dists))
-            s_dist = float(ci95(dists))
+            s_dist = float(np.std(dists))
             m_time = float(np.mean(times))
             m_switch = float(np.mean(switches))
-            s_switch = float(ci95(switches))
+            s_switch = float(np.std(switches))
 
             results[m_key]["mean_err"].append(m_err)
             results[m_key]["std_err"].append(s_err)
@@ -209,7 +207,7 @@ def main():
     ax3.legend(fontsize=9, loc="upper left")
 
     plt.tight_layout()
-    plot_path = f"{output_dir}/network_loss_comparison.png"
+    plot_path = output_dir / "network_loss_comparison.png"
     plt.savefig(plot_path)
     plt.close(fig)
 

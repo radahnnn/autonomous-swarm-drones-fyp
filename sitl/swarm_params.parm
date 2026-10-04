@@ -1,12 +1,88 @@
-# Swarm Drones SITL Configuration Parameters
-# Large battery capacity for prolonged simulation testing
-BATT_CAPACITY 500000
-BATT_LOW_MAH 0
-BATT_CRT_MAH 0
-BATT_FS_LOW_ACT 0
-BATT_FS_CRT_ACT 0
-# Fast EKF initialization
-EK3_ENABLE 1
-# Frame class (1 = Quad) and type (1 = X)
-FRAME_CLASS 1
-FRAME_TYPE 1
+# ==============================================================================
+# Autonomous Swarm Drones - Unified Vehicle Configuration Parameters
+# Single Source of Vehicle Configuration (Item 23)
+# ==============================================================================
+# Target Platform: 5-inch 6S Multirotor / SITL ArduCopter Quad Simulator
+# Reference Firmware: ArduCopter 4.3+ (SITL Default Quad)
+# ==============================================================================
+
+# --- Airframe & Frame Classification ---
+FRAME_CLASS         1       # 1 = Quadrotor
+FRAME_TYPE          1       # 1 = X Configuration
+
+# --- Arming & Pre-Arm Safety Checks ---
+# Note: Set to 0 strictly for headless SITL simulation testing;
+# MUST be set to 1 on physical hardware before flight.
+ARMING_CHECK        0
+ARMING_OPTIONS      0
+ARMING_SKIPCHK      0
+
+# --- Battery & Power System ---
+# High capacity (500,000 mAh) configured for prolonged simulation endurance testing.
+# Failsafe behaviors mirror intended physical hardware: RTL on low, LAND on critical.
+BATT_CAPACITY       500000
+BATT_LOW_MAH        0
+BATT_CRT_MAH        0
+BATT_FS_LOW_ACT     2       # 2 = RTL (Return-to-Launch) on low battery threshold
+BATT_FS_CRT_ACT     1       # 1 = LAND immediately on critical battery threshold
+
+# --- State Estimation & EKF3 Navigation ---
+EK3_ENABLE          1       # Enable EKF3
+AHRS_EKF_TYPE       3       # Use EKF3 for high-precision navigation
+AHRS_GPS_USE        1       # Primary GPS usage in AHRS
+
+# --- Cascaded Position Controller (PSC) ---
+# Direct physical translation parameters matching swarm_core profile calibration.
+# Horizontal (North/East) Position & Velocity Loop:
+PSC_NE_POS_P        1.00    # Horizontal position proportional gain (1/s)
+PSC_NE_VEL_P        2.00    # Horizontal velocity proportional gain (1/s)
+PSC_NE_VEL_I        1.00    # Horizontal velocity integral gain (1/s^2)
+PSC_NE_VEL_D        0.50    # Horizontal velocity derivative gain
+PSC_NE_JERK         5.00    # Horizontal trajectory jerk limit
+# Copter legacy aliases for backward compatibility:
+PSC_POSXY_P         1.00
+PSC_VELXY_P         2.00
+PSC_VELXY_I         1.00
+PSC_VELXY_D         0.50
+PSC_ACC_XY_MAX      2.50    # Max horizontal acceleration clamp (m/s^2, matches swarm_core max_accel = 2.5)
+
+# Vertical (Down) Position & Velocity Loop:
+PSC_D_POS_P         1.00    # Altitude position proportional gain
+PSC_D_VEL_P         5.00    # Vertical climb/descent velocity gain
+PSC_D_ACC_P         0.05    # Vertical acceleration proportional gain
+PSC_D_ACC_I         0.10    # Vertical acceleration integral gain
+PSC_D_JERK          5.00    # Vertical trajectory jerk limit
+
+# --- Waypoint Navigation (WP / WPNAV) ---
+# Bounded to match swarm_core operational flight limits:
+WP_SPD              3.00    # Max horizontal mission speed (m/s, matches max_speed = 3.0)
+WP_ACC              2.50    # Max waypoint acceleration (m/s^2, matches max_accel = 2.5)
+WP_RADIUS_M         2.00    # Acceptance radius around target waypoint (m)
+WP_JERK             1.00
+WP_SPD_UP           2.50    # Max vertical climb speed (m/s)
+WP_SPD_DN           1.50    # Max vertical descent speed (m/s)
+WP_YAW_BEHAVIOR     2       # Face next waypoint heading
+# Copter cm/s legacy aliases:
+WPNAV_SPEED         300.0   # 300 cm/s = 3.0 m/s
+WPNAV_ACCEL         250.0   # 250 cm/s^2 = 2.5 m/s^2
+
+# --- Guided Mode Navigation ---
+GUID_TIMEOUT        3.00    # Timeout (s) after last guided command before failsafe action
+GUID_OPTIONS        0
+
+# --- Failsafe Guardrails (Mirroring Physical Hardware) ---
+FS_GCS_ENABLE       1       # Enable Ground Control Station / coordinator heartbeat failsafe
+FS_GCS_TIMEOUT      5.00    # GCS loss timeout in seconds
+FS_EKF_ACTION       1       # 1 = LAND vehicle if EKF loses navigation fix
+FS_THR_ENABLE       1       # Enable throttle / RC loss failsafe
+FS_CRASH_CHECK      1       # Enable automatic motor cutoff on physical crash
+DISARM_DELAY        0       # Immediate disarm upon landing detection
+
+# --- Environmental & Sensor Simulation Baseline (Calm Scenario) ---
+# Switchable via sitl.scenarios (Item 23)
+SIM_WIND_SPD        0.00    # Wind speed in m/s (Calm baseline)
+SIM_WIND_DIR        180.0   # Wind direction in degrees from North
+SIM_WIND_TURB       0.00    # Wind turbulence factor
+SIM_GPS1_NOISE      0.00    # GPS 1 horizontal noise standard deviation in meters
+SIM_GPS1_LAG_MS     100     # GPS latency simulation in milliseconds
+SIM_GPS1_ACC        0.30    # GPS reported horizontal accuracy in meters

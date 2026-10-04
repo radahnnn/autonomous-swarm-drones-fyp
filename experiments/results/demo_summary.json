@@ -1,0 +1,37 @@
+{
+  "git_commit": "093b4e7bebc3efb6ad93b64b51ebe13972edc2b4",
+  "profile": "assumed_baseline",
+  "seed": 123,
+  "python_version": "3.12.3",
+  "dependencies": {
+    "python": "3.12.3",
+    "numpy": "1.26.4",
+    "scipy": "1.11.4",
+    "matplotlib": "3.6.3"
+  },
+  "dt": 0.05,
+  "swarm_size": 6,
+  "control_mode": "hybrid",
+  "formations": [
+    "line",
+    "v_shape",
+    "circle",
+    "grid"
+  ],
+  "min_recorded_distance_m": 1.7836552979878915,
+  "any_collision": 0,
+  "final_formation_error_m": 0.05366692443554097,
+  "packets_delivered": 16418,
+  "packets_dropped": 828,
+  "metrics_summary": {
+    "initial_formation_error_m": 4.215578484911265,
+    "final_formation_error_m": 0.05366692443554097,
+    "min_recorded_distance_m": 1.7836552979878915,
+    "any_collision": 0.0,
+    "convergence_time_s": 20.00000000000015,
+    "mean_formation_error_m": 0.6991145083767449,
+    "transient_morph_error_m": 1.4863153703272425,
+    "steady_state_error_m": 0.3084678849104255,
+    "total_mode_switches": 0.0
+  }
+}

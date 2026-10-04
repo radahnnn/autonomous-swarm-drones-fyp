@@ -4,7 +4,11 @@ Simulates 6 drones smoothly transitioning through all 4 target formations:
 Line -> V-Shape -> Circle -> Grid with Hungarian optimal assignment and collision avoidance.
 """
 
+import argparse
+import json
 import os
+from pathlib import Path
+import subprocess
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -16,16 +20,43 @@ from simulator.engine import SwarmSimulation
 from simulator.visualizer import SwarmVisualizer
 
 
+def get_git_commit() -> str:
+    """Retrieve current Git commit hash or fallback to unknown."""
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=Path(__file__).resolve().parent,
+        )
+        return res.stdout.strip()
+    except Exception:
+        return "unknown"
+
+
 def main():
-    output_dir = "experiments/results"
-    os.makedirs(output_dir, exist_ok=True)
+    parser = argparse.ArgumentParser(description="Full Swarm Demo Scenario")
+    parser.add_argument("--profile", type=str, default="assumed_baseline", help="Configuration profile name")
+    parser.add_argument("--seed", type=int, default=123, help="Random seed for reproducibility")
+    parser.add_argument("--output-dir", type=str, default=None, help="Relative output directory")
+    args = parser.parse_args()
+
+    repo_root = Path(__file__).resolve().parent.parent
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+        if not output_dir.is_absolute():
+            output_dir = repo_root / output_dir
+    else:
+        output_dir = Path(__file__).resolve().parent / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     print("==================================================")
-    print("  Swarm Drones FYP: 4-Formation Transition Demo   ")
+    print(f"  Swarm Drones FYP: 4-Formation Transition Demo   ")
+    print(f"  Profile: {args.profile} | Seed: {args.seed}     ")
     print("==================================================")
 
     # 1. Initialize 6 drones in scattered initial positions
-    rng = np.random.default_rng(123)
     num_drones = 6
     init_positions = [
         np.array([-5.0, -3.0]),
@@ -35,7 +66,10 @@ def main():
         np.array([4.5, -2.5]),
         np.array([5.0, 3.0]),
     ]
-    drones = [Drone(drone_id=i, initial_position=init_positions[i]) for i in range(num_drones)]
+    drones = [
+        Drone(drone_id=i, initial_position=init_positions[i], profile=args.profile)
+        for i in range(num_drones)
+    ]
 
     # 2. Setup simulation in Hybrid mode (the target framework)
     sim = SwarmSimulation(
@@ -45,6 +79,8 @@ def main():
         packet_loss_rate=0.05,  # Realistic 5% wireless loss
         latency_mean=0.02,
         dt=0.05,
+        seed=args.seed,
+        profile=args.profile,
     )
     visualizer = SwarmVisualizer(sim, xlim=(-8, 8), ylim=(-8, 8))
 
@@ -128,13 +164,43 @@ def main():
     plt.close(fig)
     print(f"   [Saved metrics plot] {metrics_path}")
 
-    # Summary
+    # Summary & JSON metadata export
     summary = sim.metrics.get_summary()
     print("\nMission Summary Statistics:")
     print(f" - Min Recorded Inter-Drone Distance: {summary['min_recorded_distance_m']:.3f} m (Safety: PASSED)")
     print(f" - Collisions Detected: {int(summary['any_collision'])}")
     print(f" - Final Formation Error: {summary['final_formation_error_m']:.3f} m")
     print(f" - Total Wireless Packets Exchanged: {sim.channel.total_delivered} (Delivered), {sim.channel.total_dropped_loss} (Dropped)")
+
+    import sys
+    import scipy
+
+    json_path = output_dir / "demo_summary.json"
+    results_metadata = {
+        "git_commit": get_git_commit(),
+        "profile": args.profile,
+        "seed": args.seed,
+        "python_version": sys.version.split()[0],
+        "dependencies": {
+            "python": sys.version.split()[0],
+            "numpy": str(np.__version__),
+            "scipy": str(scipy.__version__),
+            "matplotlib": str(matplotlib.__version__),
+        },
+        "dt": float(sim.dt),
+        "swarm_size": num_drones,
+        "control_mode": sim.control_mode,
+        "formations": [f.value for _, f, _ in schedule],
+        "min_recorded_distance_m": float(summary["min_recorded_distance_m"]),
+        "any_collision": int(summary["any_collision"]),
+        "final_formation_error_m": float(summary["final_formation_error_m"]),
+        "packets_delivered": int(sim.channel.total_delivered),
+        "packets_dropped": int(sim.channel.total_dropped_loss),
+        "metrics_summary": summary,
+    }
+    with open(json_path, "w") as f:
+        json.dump(results_metadata, f, indent=2)
+    print(f"   [Saved JSON metadata] {json_path}")
     print("\nCompleted successfully! Figures saved to:", output_dir)
 
 
