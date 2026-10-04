@@ -38,10 +38,13 @@ class SwarmStartAndClimb:
         self.datum_alt = 584.0
         self.frame = CommonCoordinateFrame(self.datum_lat, self.datum_lon, self.datum_alt)
 
+        # In Gazebo (JSON) mode the plugin feeds each drone's absolute world position to SITL, which adds it to
+        # --home. All instances must therefore share ONE home (the world origin); staggered homes shift every
+        # drone's real position away from its Gazebo spawn point and break the V-formation.
         self.drone_configs = [
             {"id": 0, "inst": 0, "port": 5760, "home": "-35.363261,149.165230,584,0", "label": "Drone 0 (Apex)"},
-            {"id": 1, "inst": 1, "port": 5770, "home": "-35.363261,149.165285,584,0", "label": "Drone 1 (Left Wing)"},
-            {"id": 2, "inst": 2, "port": 5780, "home": "-35.363261,149.165340,584,0", "label": "Drone 2 (Right Wing)"},
+            {"id": 1, "inst": 1, "port": 5770, "home": "-35.363261,149.165230,584,0", "label": "Drone 1 (Left Wing)"},
+            {"id": 2, "inst": 2, "port": 5780, "home": "-35.363261,149.165230,584,0", "label": "Drone 2 (Right Wing)"},
         ]
 
         self.v_offsets = np.array([

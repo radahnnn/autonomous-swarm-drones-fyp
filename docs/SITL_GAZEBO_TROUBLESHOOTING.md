@@ -20,6 +20,19 @@ Symptom: `sitl/start_and_climb.py` (or the interactive consoles) print "Takeoff 
   `start_and_climb.py`, `interactive_flight_console.py` and `interactive_swarm_flight.py` use them and now
   stop with a clear error instead of pretending to fly. Tests: `tests/test_flight_prep.py`.
 
+## Second bug: one wing drone ends up behind/next to another (V-formation broken)
+Symptom: after takeoff the wings are not at the V slots; e.g. both wings end up on the same side, about 1 m apart.
+
+Cause: the scripts started the three SITL instances with staggered `--home` points (5 m apart in longitude).
+In Gazebo (JSON) mode the plugin sends each drone's *absolute* world position and SITL adds it to `--home`, so
+every drone's real position was shifted west by 5 m per drone index (drone 2: -5 m, drone 3: -10 m) relative
+to where the controller thought it was.
+
+Fix: in Gazebo mode all instances share ONE home (the world origin, `-35.363261,149.165230`).
+`start_and_climb.py` and `interactive_flight_console.py` (Gazebo branch) do this; the standalone
+`--model quad` mode keeps staggered homes, which is correct there. Verified in Gazebo: apex (0, 0),
+wings (-2.9, -3.0) and (+3.1, -3.0) in (East, North). Test: `test_gazebo_mode_uses_one_shared_home`.
+
 ## Expect a wait
 Gazebo with a GUI on this machine runs at about 0.3x real time (`real_time_factor` in
 `gz topic -e -t /world/cinewhoop_3drones/stats -n 1`). With lock-step on, SITL runs at the same speed, so

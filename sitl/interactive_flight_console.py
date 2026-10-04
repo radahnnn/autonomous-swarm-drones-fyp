@@ -35,6 +35,10 @@ class SwarmPilotConsole:
         self.use_gazebo = use_gazebo
         self.force_restart = force_restart
 
+        # Gazebo (JSON) mode: the plugin feeds absolute world positions that SITL adds to --home, so all
+        # instances must share ONE home (the world origin). Staggered homes (used only by the standalone
+        # --model quad mode, to keep drones apart) would shift each drone away from its Gazebo spawn point.
+        self.gazebo_home = "-35.363261,149.165230,584,0"
         self.drone_configs = [
             {"id": 0, "inst": 0, "port": 5760, "home": "-35.363261,149.165230,584,0", "label": "Drone 0 (Apex)"},
             {"id": 1, "inst": 1, "port": 5770, "home": "-35.363261,149.165285,584,0", "label": "Drone 1 (Left Wing)"},
@@ -143,7 +147,7 @@ class SwarmPilotConsole:
                     str(sitl_bin),
                     f"-I{cfg['inst']}",
                     "--model", "JSON",
-                    "--home", cfg["home"],
+                    "--home", self.gazebo_home,  # one shared home in Gazebo mode (see drone_configs note)
                     "--defaults", params_file,
                     "--sim-address", "127.0.0.1",
                     "--speedup", "1",

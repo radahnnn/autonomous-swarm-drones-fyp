@@ -48,3 +48,11 @@ def test_takeoff_confirmed_when_altitude_rises():
 def test_takeoff_reports_failure_when_vehicle_stays_on_ground():
     conn = _conn([_msg("GLOBAL_POSITION_INT", relative_alt=10)])
     assert takeoff_and_verify(conn, "D0", 5.0, timeout=2.0) is False
+
+
+def test_gazebo_mode_uses_one_shared_home():
+    """Staggered SITL homes shift each drone away from its Gazebo spawn point and break the V."""
+    from sitl.start_and_climb import SwarmStartAndClimb
+
+    homes = {cfg["home"] for cfg in SwarmStartAndClimb().drone_configs}
+    assert len(homes) == 1
