@@ -11,3 +11,15 @@ logs/
 terrain/
 sitl/takeoff.scr
 sitl/test_takeoff_diag.py
+
+# Python / packaging
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.coverage
+htmlcov/
+
+# Local backups and scratch
+*.tar.gz
