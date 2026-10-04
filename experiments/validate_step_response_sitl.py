@@ -13,7 +13,6 @@ import sys
 import time
 import math
 import subprocess
-import shutil
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -21,8 +20,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# Ensure pymavlink is accessible
-sys.path.insert(0, "/home/drone/.local/lib/python3.12/site-packages")
 from pymavlink import mavutil
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -38,9 +35,9 @@ def run_sitl_step_test(sim_time_limit: float = 8.0, step_distance: float = 5.0):
     subprocess.run(["pkill", "-9", "-f", "arducopter"], stderr=subprocess.DEVNULL)
     time.sleep(1)
 
-    sitl_bin = "/home/drone/ardupilot/build/sitl/bin/arducopter"
+    sitl_bin = os.environ.get("ARDUCOPTER_BIN", os.path.expanduser("~/ardupilot/build/sitl/bin/arducopter"))
     home_loc = "-35.363261,149.165230,584,0"
-    params_file = os.path.abspath("sitl/swarm_params.parm")
+    params_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sitl", "swarm_params.parm")
 
     # Launch ArduCopter SITL headless with custom parameters
     cmd = [
@@ -382,13 +379,7 @@ def main():
     plt.savefig(plot_path)
     plt.close(fig)
 
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/sitl_step_response_fit.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-
-    print(f"Validation plot saved to: {plot_path} and brain artifact.")
+    print(f"Validation plot saved to: {plot_path}.")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,6 @@ Reports Mean +/- Standard Deviation across multiple random seeds.
 """
 
 import os
-import shutil
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -210,14 +209,7 @@ def main():
     plt.savefig(plot_path)
     plt.close(fig)
 
-    # Mirror to brain artifact directory
-    artifact_img = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/network_loss_comparison.png"
-    try:
-        shutil.copy(plot_path, artifact_img)
-    except Exception:
-        pass
-
-    print(f"\n>>> Stress-tested network sweep complete! Plot saved to: {plot_path} and artifact dir <<<")
+    print(f"\n>>> Stress-tested network sweep complete! Plot saved to: {plot_path} <<<")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,6 @@ Evaluates:
 """
 
 import os
-import shutil
 from typing import Dict, List
 import matplotlib
 matplotlib.use("Agg")
@@ -193,13 +192,7 @@ def main():
     plt.savefig(plot_file)
     plt.close(fig)
 
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/feedforward_ablation_comparison.png"
-    try:
-        shutil.copy(plot_file, artifact_dest)
-    except Exception:
-        pass
-
-    print(f"\nSaved feedforward ablation plots to {plot_file} and brain artifact.")
+    print(f"\nSaved feedforward ablation plots to {plot_file}.")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ import os
 import sys
 import time
 import math
-import shutil
 import subprocess
 import numpy as np
 import pandas as pd
@@ -22,9 +21,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# PyMAVLink import paths
-sys.path.insert(0, "/home/drone/.local/lib/python3.12/site-packages")
-sys.path.insert(0, "/home/drone/venv-ardupilot/lib/python3.12/site-packages")
 from pymavlink import mavutil
 
 # Swarm Core import paths
@@ -121,8 +117,8 @@ def run_sitl_3drone_scenario(duration: float = 10.0, dt: float = 0.1):
     subprocess.run(["pkill", "-9", "-f", "arducopter"], stderr=subprocess.DEVNULL)
     time.sleep(1)
 
-    sitl_bin = "/home/drone/ardupilot/build/sitl/bin/arducopter"
-    params_file = os.path.abspath("sitl/swarm_params.parm")
+    sitl_bin = os.environ.get("ARDUCOPTER_BIN", os.path.expanduser("~/ardupilot/build/sitl/bin/arducopter"))
+    params_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sitl", "swarm_params.parm")
     datum_lat, datum_lon, datum_alt = -35.363261, 149.165230, 584.0
     frame = CommonCoordinateFrame(datum_lat, datum_lon, datum_alt)
 
@@ -455,13 +451,7 @@ def generate_comparison_plots(merged_df: pd.DataFrame, output_dir: str):
     plt.savefig(plot_path)
     plt.close(fig)
 
-    # Copy to brain artifact directory
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/swarm_core_vs_sitl_overlay.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-    print(f"Validation plot saved to: {plot_path} and brain artifact.")
+    print(f"Validation plot saved to: {plot_path}.")
 
 
 def main():

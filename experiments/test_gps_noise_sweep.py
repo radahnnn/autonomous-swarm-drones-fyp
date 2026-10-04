@@ -21,7 +21,6 @@ Reports raw numbers (mean +/- std) across multiple seeds.
 """
 
 import os
-import shutil
 from typing import Dict, List
 import matplotlib
 matplotlib.use("Agg")
@@ -218,13 +217,7 @@ def main():
     plt.savefig(plot_path)
     plt.close(fig)
 
-    artifact_dest = "/home/drone/.gemini/antigravity/brain/28220ca6-e68a-487a-8a59-6e79ee58f6f6/gps_noise_sweep_comparison.png"
-    try:
-        shutil.copy(plot_path, artifact_dest)
-    except Exception:
-        pass
-
-    print(f"\nSaved GPS noise sweep plot to {plot_path} and brain artifact.")
+    print(f"\nSaved GPS noise sweep plot to {plot_path}.")
 
 
 if __name__ == "__main__":

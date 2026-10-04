@@ -3,6 +3,7 @@
 # Launch ArduCopter SITL Instance 1 (Drone 2 / Follower 1) for Gazebo 3D
 # ==============================================================================
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ~/venv-ardupilot/bin/activate
 cd ~/ardupilot/ArduCopter
 
@@ -21,5 +22,5 @@ python3 ~/ardupilot/Tools/autotest/sim_vehicle.py \
     --auto-sysid \
     --out=udp:127.0.0.1:14550 \
     --out=udp:127.0.0.1:14562 \
-    --add-param-file=/home/drone/swarm_drones_fyp/sitl/swarm_params.parm \
+    --add-param-file="${SCRIPT_DIR}/swarm_params.parm" \
     --map
