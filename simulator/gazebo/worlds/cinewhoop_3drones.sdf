@@ -126,14 +126,14 @@
     <include>
       <name>cinewhoop_2</name>
       <uri>model://cinewhoop_2</uri>
-      <pose degrees="true">-4.0 3.5 0.05 0 0 90</pose>
+      <pose degrees="true">-3.0 -3.0 0.05 0 0 90</pose>
     </include>
 
     <!-- Drone 3: Follower 2 (Right Wing, Port 9022) -->
     <include>
       <name>cinewhoop_3</name>
       <uri>model://cinewhoop_3</uri>
-      <pose degrees="true">-4.0 -3.5 0.05 0 0 90</pose>
+      <pose degrees="true">3.0 -3.0 0.05 0 0 90</pose>
     </include>
 
   </world>

@@ -51,7 +51,7 @@ swarm_drones_fyp/
 
 ## 3. Critical Debugging Breakthroughs (Oct 2026)
 
-Three major bugs previously prevented the drones from flying in 3D Gazebo. Both were diagnosed and fixed:
+Three major bugs previously prevented the drones from flying in 3D Gazebo. All three were diagnosed and fixed (a fourth change, aligning the spawn layout with the V slots and commanding one common heading, is described in `docs/SITL_GAZEBO_TROUBLESHOOTING.md`):
 
 ### 1. Clock Drift & EKF Failure (`<lock_step>1</lock_step>`)
 - **Problem:** When `<lock_step>0</lock_step>` was set, ArduPilot SITL ran at 1.0x real-time while Gazebo GUI ran at ~0.3x Real-Time Factor (RTF) on this machine. Because clocks desynchronized, ArduPilot rejected simulated GPS and IMU sensor data (`Arm: Need Position Estimate`).

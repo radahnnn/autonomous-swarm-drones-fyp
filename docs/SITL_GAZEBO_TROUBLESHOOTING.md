@@ -33,6 +33,15 @@ Fix: in Gazebo mode all instances share ONE home (the world origin, `-35.363261,
 `--model quad` mode keeps staggered homes, which is correct there. Verified in Gazebo: apex (0, 0),
 wings (-2.9, -3.0) and (+3.1, -3.0) in (East, North). Test: `test_gazebo_mode_uses_one_shared_home`.
 
+## Third issue: sideways drift after takeoff and drones facing different ways
+- Sideways movement: the wing drones used to spawn at (-4, +/-3.5) in the Gazebo world while their formation
+  slots are at (E -3, N -3) and (E +3, N -3), so after takeoff they had to fly across to the V. The world file
+  now spawns them on their slots (cinewhoop_2 at -3,-3; cinewhoop_3 at 3,-3), so the swarm climbs straight up.
+- Heading: the position setpoint ignored yaw (type_mask bit 10), so ArduCopter turned each drone toward its own
+  direction of travel. The setpoint now commands one fixed yaw (`FORMATION_YAW_RAD`, 0 = north) for all drones.
+- Verified in Gazebo: E/N within 0.05 m of the slots, z about 5 m, yaw 90/91/91 deg (Gazebo ENU = north) for
+  all three. Test: `test_formation_setpoints_command_one_common_heading`.
+
 ## Expect a wait
 Gazebo with a GUI on this machine runs at about 0.3x real time (`real_time_factor` in
 `gz topic -e -t /world/cinewhoop_3drones/stats -n 1`). With lock-step on, SITL runs at the same speed, so

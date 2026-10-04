@@ -25,8 +25,8 @@ echo "================================================================="
 echo "   Launching Gazebo Harmonic 3D Swarm World (3 Cinewhoops)      "
 echo "   World: ${WORLD_FILE}"
 echo "   - Drone 1 (Leader):     Port 9002 (Pose: 0, 0, 0.05)         "
-echo "   - Drone 2 (Left Wing):  Port 9012 (Pose: -4, 3.5, 0.05)      "
-echo "   - Drone 3 (Right Wing): Port 9022 (Pose: -4, -3.5, 0.05)     "
+echo "   - Drone 2 (Left Wing):  Port 9012 (Pose: -3, -3, 0.05)       "
+echo "   - Drone 3 (Right Wing): Port 9022 (Pose:  3, -3, 0.05)       "
 echo "================================================================="
 
 if [ ! -f "${WORLD_FILE}" ]; then

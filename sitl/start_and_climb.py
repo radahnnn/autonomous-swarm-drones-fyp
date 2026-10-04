@@ -31,6 +31,10 @@ from sitl.flight_prep import arm_with_retry, takeoff_and_verify
 
 
 class SwarmStartAndClimb:
+    # Fixed swarm heading: 0 rad = North (V opens south). Without a commanded yaw, ArduCopter
+    # turns each drone toward its own direction of travel, so the three end up facing different ways.
+    FORMATION_YAW_RAD = 0.0
+
     def __init__(self):
         self.repo_root = Path(__file__).resolve().parent.parent
         self.datum_lat = -35.363261
@@ -253,7 +257,7 @@ class SwarmStartAndClimb:
         with self.lock:
             centroid = self.centroid_pos.copy()
 
-        type_mask = 0b0000111111111000  # Position setpoint only
+        type_mask = 0b0000101111111000  # Position + yaw (yaw rate, velocity, accel ignored)
         for i, conn in enumerate(self.connections):
             tgt_global = np.array([
                 centroid[0] + self.v_offsets[i, 0],
@@ -266,7 +270,7 @@ class SwarmStartAndClimb:
                 mavutil.mavlink.MAV_FRAME_LOCAL_NED,
                 type_mask,
                 float(tgt_local[0]), float(tgt_local[1]), float(tgt_local[2]),
-                0, 0, 0, 0, 0, 0, 0, 0
+                0, 0, 0, 0, 0, 0, self.FORMATION_YAW_RAD, 0
             )
 
     def guidance_loop(self):

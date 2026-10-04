@@ -56,3 +56,23 @@ def test_gazebo_mode_uses_one_shared_home():
 
     homes = {cfg["home"] for cfg in SwarmStartAndClimb().drone_configs}
     assert len(homes) == 1
+
+
+def test_formation_setpoints_command_one_common_heading():
+    """All drones get position + the same fixed yaw (yaw-ignore bit 10 cleared), so they face one way."""
+    import numpy as np
+
+    from sitl.start_and_climb import SwarmStartAndClimb
+
+    swarm = SwarmStartAndClimb()
+    swarm.connections = [MagicMock() for _ in range(3)]
+    swarm.frame_origins = [np.zeros(3)] * 3
+    swarm.send_formation_setpoints()
+    yaws = set()
+    for conn in swarm.connections:
+        args = conn.mav.set_position_target_local_ned_send.call_args[0]
+        type_mask, yaw = args[4], args[-2]
+        assert not type_mask & (1 << 10), "yaw must not be ignored"
+        assert type_mask & (1 << 11), "yaw rate stays ignored"
+        yaws.add(yaw)
+    assert yaws == {swarm.FORMATION_YAW_RAD}
