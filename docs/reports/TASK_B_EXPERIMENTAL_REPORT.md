@@ -17,7 +17,7 @@ In accordance with academic review recommendations, **Task B (Fix the Experiment
    - *Naive Hybrid*: Instant degrade (1 drop) and instant recovery (1 packet), zero dwell time.
    - *Proposed Hybrid*: Asymmetric hysteresis, sliding-window delivery ratio ($\ge 70\%$), dwell time ($2.0\text{s}$), and smooth continuous blending $\alpha(t)$.
 4. **Target Velocity Feedforward & Error Decomposition**: Split tracking error into transient (during mid-flight morphing, $t \in [5.0, 7.5\text{s}]$) and steady-state ($t \in [8.5, 12.0\text{s}]$). Proved analytically and validated empirically why steady-state error was $\approx 1.14\text{ m}$ without feedforward, and demonstrated reduction to $0.018\text{ m}$ with feedforward enabled.
-5. **Parameter Provenance Registry**: Centralized all physical, sensor, control, and network parameters in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py) with explicit `"assumed"` labels.
+5. **Parameter Provenance Registry**: Centralized all physical, sensor, control, and network parameters in [`swarm_core/config.py`](../../swarm_core/config.py) with explicit `"assumed"` labels.
 
 ---
 

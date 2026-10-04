@@ -47,7 +47,7 @@ All SITL experiments were performed using the official ArduPilot Copter binary c
 5. Confirm stable hover ($Z \approx -5.05\text{ m}$, $|v_z| < 0.2\text{ m/s}$).
 6. Ingest baseline coordinates: $(x_0, y_0, z_0) = (0.02, -0.01, -5.07)\text{ m}$.
 7. Inject a **5.0 m North position step** (`set_position_target_local_ned_send` to $X = x_0 + 5.0$) at 20 Hz for 8.0 seconds.
-8. Record SITL position and velocity telemetry at 20 Hz (158 frames logged to [`experiments/results/sitl_step_response.csv`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/sitl_step_response.csv)).
+8. Record SITL position and velocity telemetry at 20 Hz (158 frames logged to [`experiments/results/sitl_step_response.csv`](../../experiments/results/sitl_step_response.csv)).
 
 ### 3.2 Parameter Optimization
 Using `scipy.optimize.minimize` (L-BFGS-B algorithm), we minimized the position tracking RMSE between the `swarm_core` kinematic model and the SITL flight record:
@@ -70,9 +70,9 @@ $$\min_{\tau, c_d} \sqrt{\frac{1}{N} \sum_{k=1}^N \left(x_{\text{sim}}(t_k; \tau
 =================================================================
 ```
 
-The identified parameters were updated in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py) with provenance marked explicitly as `"fitted from SITL"`.
+The identified parameters were updated in [`swarm_core/config.py`](../../swarm_core/config.py) with provenance marked explicitly as `"fitted from SITL"`.
 
-Validation plot saved to [`experiments/results/sitl_step_response_fit.png`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/sitl_step_response_fit.png).
+Validation plot saved to [`experiments/results/sitl_step_response_fit.png`](../../experiments/results/sitl_step_response_fit.png).
 
 ---
 
@@ -92,7 +92,7 @@ Validation plot saved to [`experiments/results/sitl_step_response_fit.png`](file
   - Position coordinates mapped into shared metric tangent plane using `CommonCoordinateFrame`.
 
 ### 4.2 Empirical Metrics
-Synchronized multi-vehicle telemetry recorded to [`experiments/results/swarm_core_vs_sitl_3drones.csv`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/swarm_core_vs_sitl_3drones.csv) (300 frames).
+Synchronized multi-vehicle telemetry recorded to [`experiments/results/swarm_core_vs_sitl_3drones.csv`](../../experiments/results/swarm_core_vs_sitl_3drones.csv) (300 frames).
 
 | Vehicle | Label | Trajectory RMS Difference | Maximum Discrepancy |
 | :--- | :--- | :--- | :--- |
@@ -101,13 +101,13 @@ Synchronized multi-vehicle telemetry recorded to [`experiments/results/swarm_cor
 | **Drone 2** | Right Wingman | **0.7361 m** (73.61 cm) | 0.9904 m |
 | **Swarm** | **Overall Fleet** | **0.7250 m** (72.50 cm) | **0.9904 m** |
 
-Overlay trajectory plot saved to [`experiments/results/swarm_core_vs_sitl_overlay.png`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/swarm_core_vs_sitl_overlay.png).
+Overlay trajectory plot saved to [`experiments/results/swarm_core_vs_sitl_overlay.png`](../../experiments/results/swarm_core_vs_sitl_overlay.png).
 
 ---
 
 ## 5. SITL Adapter & Frame Round-Trip Unit Tests (Task C Item 3)
 
-The test suite in [`tests/test_sitl_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py) provides 100% automated coverage for the integration layer:
+The test suite in [`tests/test_sitl_adapter.py`](../../tests/test_sitl_adapter.py) provides 100% automated coverage for the integration layer:
 
 1. **`test_common_frame_round_trip`**:
    - Tests Global NED $\longleftrightarrow$ WGS84 GPS forward and inverse transformations across 9 boundary points spanning $\pm 100\text{ m}$ radial distance and altitudes down to $-50\text{ m}$.

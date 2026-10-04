@@ -132,23 +132,23 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
      - Configured and launched 2 independent headless ArduCopter SITL processes:
        - Drone 1 (SYSID 1): Canberra airfield origin, MAVLink UDP `14550`, TCP `5762`.
        - Drone 2 (SYSID 2): Spawned $5\text{m}$ East offset, MAVLink UDP `14560`, TCP `5772`.
-     - Created automated launch scripts [`launch_drone1.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone1.sh) and [`launch_drone2.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone2.sh).
+     - Created automated launch scripts [`launch_drone1.sh`](../../sitl/launch_drone1.sh) and [`launch_drone2.sh`](../../sitl/launch_drone2.sh).
   2. **QGroundControl Commercial GCS Integration**:
      - Downloaded and verified standalone `QGroundControl.AppImage`.
      - Resolved MAVLink port contention by decoupling GCS telemetry (`14550`) from autonomous script telemetry (`tcp:5762`, `tcp:5772`).
      - Displayed both quadcopters live on high-resolution satellite imagery with full flight instruments (artificial horizon, altitude ladder, flight mode pills).
   3. **Battery Failsafe Diagnosis & Fix**:
      - Diagnosed simulated battery depletion (hovering current draw exhausted default $3300\text{ mAh}$ capacity in $\sim 7\text{ mins}$, triggering $0\%$ remaining battery alarm).
-     - Applied live parameter update setting $500,000\text{ mAh}$ capacity; created [`swarm_params.parm`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_params.parm) to permanently give unlimited endurance for development.
+     - Applied live parameter update setting $500,000\text{ mAh}$ capacity; created [`swarm_params.parm`](../../sitl/swarm_params.parm) to permanently give unlimited endurance for development.
   4. **Autonomous Leader-Follower Wingman (`autonomous_wingman.py`)**:
      - Implemented closed-loop $10\text{ Hz}$ MAVLink controller over TCP.
      - Armed Drone 2, launched to $5.0\text{ m}$, and engaged real-time position target streaming (`SET_POSITION_TARGET_LOCAL_NED`).
 ### Phase G: Phase 2 Milestone 1 Complete — 3-Drone Autonomous V-Formation in SITL (30 Sep 2026 Night)
 * **Milestone Accomplished**:
   1. **3-Vehicle SITL Infrastructure**:
-     - Configured and launched Drone 3 (SYSID 3, Instance 2, TCP `5782`, UDP `14550` & `14570`) via [`launch_drone3.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone3.sh).
+     - Configured and launched Drone 3 (SYSID 3, Instance 2, TCP `5782`, UDP `14550` & `14570`) via [`launch_drone3.sh`](../../sitl/launch_drone3.sh).
      - QGroundControl successfully loaded and displayed all 3 vehicles (`[ 1 ]`, `[ 2 ]`, `[ 3 ]`) on the live satellite map.
-  2. **Multi-Drone V-Formation Controller ([`swarm_3_drones.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_3_drones.py))**:
+  2. **Multi-Drone V-Formation Controller ([`swarm_3_drones.py`](../../sitl/swarm_3_drones.py))**:
      - Implemented simultaneous 3-vehicle MAVLink coordination at $10\text{ Hz}$ over TCP.
      - Coordinated takeoff to $5.0\text{ m}$ for wingmen and engaged symmetric V-Formation tracking.
      - **Live Flight Coordinates Recorded**:
@@ -201,10 +201,10 @@ The goal of this Final Year Project (FYP) is to develop the complete autonomous 
   - `cinewhoop_2`: Port 9012 (Left Wingman, SYSID 2)
   - `cinewhoop_3`: Port 9022 (Right Wingman, SYSID 3)
 - **Launch Automation**:
-  - [`sitl/launch_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_gazebo.sh)
-  - [`sitl/launch_drone1_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone1_gazebo.sh)
-  - [`sitl/launch_drone2_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone2_gazebo.sh)
-  - [`sitl/launch_drone3_gazebo.sh`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/launch_drone3_gazebo.sh)
+  - [`sitl/launch_gazebo.sh`](../../sitl/launch_gazebo.sh)
+  - [`sitl/launch_drone1_gazebo.sh`](../../sitl/launch_drone1_gazebo.sh)
+  - [`sitl/launch_drone2_gazebo.sh`](../../sitl/launch_drone2_gazebo.sh)
+  - [`sitl/launch_drone3_gazebo.sh`](../../sitl/launch_drone3_gazebo.sh)
 
 ### 6.3 Standardized Formation Geometry
 - **Consistent V-Formation Definition**:
@@ -240,11 +240,11 @@ Following a comprehensive expert review, 8 key technical vulnerabilities were id
 
 ### 7.4 Unifying the Codebase: MAVLink Swarm Adapter
 - **Vulnerability**: `swarm_3_drones.py` operated as an independent leader-follower script rather than running the `swarm_core` engine.
-- **Resolution**: Created [`sitl/mavlink_swarm_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/mavlink_swarm_adapter.py) which directly instantiates and executes `swarm_core.controllers.hybrid.HybridController` and `WirelessChannel` over live SITL MAVLink.
+- **Resolution**: Created [`sitl/mavlink_swarm_adapter.py`](../../sitl/mavlink_swarm_adapter.py) which directly instantiates and executes `swarm_core.controllers.hybrid.HybridController` and `WirelessChannel` over live SITL MAVLink.
 
 ### 7.5 Coordinate Frame Integrity
 - **Vulnerability**: Each SITL drone booted with local $(0, 0, 0)$ at its own spawn position.
-- **Resolution**: Built [`sitl/common_frame.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/common_frame.py) implementing a WGS84 flat-earth tangent plane transformation anchored to a shared global datum (`Lat0 = -35.3632621, Lon0 = 149.1652374`).
+- **Resolution**: Built [`sitl/common_frame.py`](../../sitl/common_frame.py) implementing a WGS84 flat-earth tangent plane transformation anchored to a shared global datum (`Lat0 = -35.3632621, Lon0 = 149.1652374`).
 
 ---
 
@@ -269,7 +269,7 @@ Following a comprehensive expert review, 8 key technical vulnerabilities were id
 In response to the audit recommendations, **Task B** was executed to eliminate remaining empirical ambiguities, validate recovery mechanisms under deterministic outages, and rigorously evaluate sensor noise and feedforward control across 4 baselines on identical random seeds.
 
 ### 9.1 Parameter Provenance Architecture (`swarm_core/config.py`)
-All parameters in the simulation were consolidated into [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py) and stamped with explicit `"assumed"` provenance labels:
+All parameters in the simulation were consolidated into [`swarm_core/config.py`](../../swarm_core/config.py) and stamped with explicit `"assumed"` provenance labels:
 - Multirotor closed-loop attitude lag: $\tau = 0.18\text{ s}$ (`provenance="assumed"`).
 - Aerodynamic linear rotor drag: $c_d = 0.20\text{ s}^{-1}$ (`provenance="assumed"`).
 - Plain GPS noise baseline: $\sigma = 1.50\text{ m}$ (`provenance="assumed"`).
@@ -298,7 +298,7 @@ Evaluated with $60\%$ shared common-mode error across the swarm:
 - *Decentralized Error*: Grows from $0.561\text{ m}$ to **$3.054 \pm 1.222\text{ m}$** due to noise propagation across the Laplacian graph.
 - *Zero Collisions*: APF collision avoidance preserved $> 1.63\text{ m}$ clearance with $0$ collisions in all 72 vehicle runs.
 
-Detailed tables and plots are archived in [`TASK_B_EXPERIMENTAL_REPORT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/TASK_B_EXPERIMENTAL_REPORT.md).
+Detailed tables and plots are archived in [`TASK_B_EXPERIMENTAL_REPORT.md`](../reports/TASK_B_EXPERIMENTAL_REPORT.md).
 
 ---
 
@@ -321,8 +321,8 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
   - $\tau = \mathbf{0.992\text{ s}}$ (`provenance="fitted from SITL"`)
   - $c_d = \mathbf{0.637\text{ s}^{-1}}$ (`provenance="fitted from SITL"`)
 - **Residual RMSE vs SITL Track**: **$0.1536\text{ m}$ ($15.36\text{ cm}$)**.
-- **Updated Config**: Parameter values and provenance updated in [`swarm_core/config.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/swarm_core/config.py).
-- **Plot**: Generated [`experiments/results/sitl_step_response_fit.png`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/sitl_step_response_fit.png).
+- **Updated Config**: Parameter values and provenance updated in [`swarm_core/config.py`](../../swarm_core/config.py).
+- **Plot**: Generated [`experiments/results/sitl_step_response_fit.png`](../../experiments/results/sitl_step_response_fit.png).
 
 ### 10.3 3-Drone Formation Scenario Validation (Item 2)
 - **Experiment**: 3 drones spawned at distinct WGS84 coordinates ($0\text{ m}$, $5\text{ m}$ East, $10\text{ m}$ East), mapped into a unified metric tangent plane via `CommonCoordinateFrame`.
@@ -333,10 +333,10 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
   - Drone 2 (Right Wing): Trajectory RMS difference $= \mathbf{0.7361\text{ m}}$ ($73.61\text{ cm}$), Max discrepancy $= 0.9904\text{ m}$.
   - **Overall Swarm Trajectory RMS Difference**: **$0.7250\text{ m}$ ($72.50\text{ cm}$)**.
 - **Physical Interpretation**: An honest $72.5\text{ cm}$ discrepancy over an $8\text{ m}$ flight reflects full multi-vehicle physics (EKF3 delays, motor dynamics, braking drag) and proves the validity of the Python model without making dubious claims of sub-centimeter accuracy.
-- **Plot & Data**: Generated [`experiments/results/swarm_core_vs_sitl_overlay.png`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/swarm_core_vs_sitl_overlay.png) and [`experiments/results/swarm_core_vs_sitl_3drones.csv`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/experiments/results/swarm_core_vs_sitl_3drones.csv).
+- **Plot & Data**: Generated [`experiments/results/swarm_core_vs_sitl_overlay.png`](../../experiments/results/swarm_core_vs_sitl_overlay.png) and [`experiments/results/swarm_core_vs_sitl_3drones.csv`](../../experiments/results/swarm_core_vs_sitl_3drones.csv).
 
 ### 10.4 Integration Unit Tests Added (Item 3)
-- Created [`tests/test_sitl_adapter.py`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/tests/test_sitl_adapter.py):
+- Created [`tests/test_sitl_adapter.py`](../../tests/test_sitl_adapter.py):
   1. `test_common_frame_round_trip`: Tested Global NED $\longleftrightarrow$ WGS84 GPS precision across 9 radial boundary points up to $100\text{ m}$. Round-trip error is $< 0.1\text{ mm}$ (exceeds $< 1\text{ cm}$ requirement).
   2. `test_mavlink_adapter_with_mock_connection`: Tests 3-drone telemetry ingestion, coordinate transformation, controller execution, and setpoint dispatch.
   3. `test_mavlink_adapter_formation_morph`: Tests setpoint updates across in-flight formation morphing (V-Shape $\to$ Line).
@@ -382,8 +382,8 @@ To address the audit concern regarding sim-to-real discrepancy and confirm wheth
    - Co-located plain GPS (u-blox M10Q) relative error: $1.0 - 2.5\text{ m}$ (common atmospheric error cancels, but multipath/ionospheric gradient remains).
    - RTK upgrade feasibility: Dual u-blox F9P setup ($300–$400) delivers centimeter accuracy ($0.02 - 0.05\text{ m}$), but plain GPS software safety buffers ($\ge 2.5\text{ m}$) are fully supported.
 
-Full detailed research report archived in [`TASK_E_RESEARCH_REPORT.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/TASK_E_RESEARCH_REPORT.md).  
-Master briefing file for external AI review created at [`CODEX_REVIEW_BRIEF.md`](file:///home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/CODEX_REVIEW_BRIEF.md).
+Full detailed research report archived in [`TASK_E_RESEARCH_REPORT.md`](../reports/TASK_E_RESEARCH_REPORT.md).  
+Master briefing file for external AI review created at [`CODEX_REVIEW_BRIEF.md`](../CODEX_REVIEW_BRIEF.md).
 
 
 

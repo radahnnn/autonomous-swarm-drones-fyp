@@ -45,8 +45,8 @@ Develop an autonomous swarm control framework for 5–10 multirotors capable of:
   - `sync_hud.py`: Real-time 5 Hz ASCII synchronization radar HUD.
 * `tests/`:
   - `test_graph.py`, `test_formations.py`, `test_simulation.py`, `test_hybrid_features.py`.
-* `FYP_RUNNING_LOG.md`: Comprehensive running history, architectural details, and defense notes.
-* `ACADEMIC_REVIEW_RESPONSE.md`: Point-by-point technical responses to all 8 concerns from the 01 Oct 2026 review.
+* `docs/logs/FYP_RUNNING_LOG.md`: Comprehensive running history, architectural details, and defense notes.
+* `docs/ACADEMIC_REVIEW_RESPONSE.md`: Point-by-point technical responses to all 8 concerns from the 01 Oct 2026 review.
 
 ---
 
@@ -73,4 +73,4 @@ All 8 reviewer concerns have been formally resolved:
 5. **Honest Scope**: Core engine: $90\%$, SITL fleet integration: $35\%$, Hardware: $10\%$.
 6. **Gold-Plating Ceased**: Retracted "digital twin" misnomer, standardized geometry ($7.00\text{m}$ wingspan).
 7. **Coordinate Frames**: `common_frame.py` anchors all SITL drones to common datum.
-8. **Defense Preparation**: Full mathematical derivations and examiner Q&A documented in `FYP_RUNNING_LOG.md`.
+8. **Defense Preparation**: Full mathematical derivations and examiner Q&A documented in `docs/logs/FYP_RUNNING_LOG.md`.
