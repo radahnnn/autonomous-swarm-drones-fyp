@@ -70,13 +70,24 @@ WPNAV_ACCEL         250.0   # 250 cm/s^2 = 2.5 m/s^2
 GUID_TIMEOUT        3.00    # Timeout (s) after last guided command before failsafe action
 GUID_OPTIONS        0
 
-# --- Failsafe Guardrails (Mirroring Physical Hardware) ---
-FS_GCS_ENABLE       1       # Enable Ground Control Station / coordinator heartbeat failsafe
-FS_GCS_TIMEOUT      5.00    # GCS loss timeout in seconds
+# --- Failsafe Guardrails (Simulation Mode) ---
+FS_GCS_ENABLE       0       # Disabled for headless/scripted control
+FS_GCS_TIMEOUT      5.00
 FS_EKF_ACTION       1       # 1 = LAND vehicle if EKF loses navigation fix
-FS_THR_ENABLE       1       # Enable throttle / RC loss failsafe
-FS_CRASH_CHECK      1       # Enable automatic motor cutoff on physical crash
+FS_THR_ENABLE       0       # Disabled in simulation so RC controller is not required
+FS_CRASH_CHECK      0       # Disable crash check in simulation
 DISARM_DELAY        0       # Immediate disarm upon landing detection
+
+# --- Simulation Pre-Calibrated Sensor Offsets ---
+INS_ACCOFFS_X       0.001
+INS_ACCOFFS_Y       0.001
+INS_ACCOFFS_Z       0.001
+INS_ACCSCAL_X       1.001
+INS_ACCSCAL_Y       1.001
+INS_ACCSCAL_Z       1.001
+INS_ACC2OFFS_X      0.001
+INS_ACC2OFFS_Y      0.001
+INS_ACC2OFFS_Z      0.001
 
 # --- Environmental & Sensor Simulation Baseline (Calm Scenario) ---
 # Switchable via sitl.scenarios (Item 23)

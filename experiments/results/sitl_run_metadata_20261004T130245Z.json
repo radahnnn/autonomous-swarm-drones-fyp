@@ -1,0 +1,15 @@
+{
+  "timestamp": "20261004T130245Z",
+  "ardupilot_version": "Options:",
+  "parameter_dump": "/home/drone/.gemini/antigravity/scratch/swarm_drones_fyp/sitl/swarm_params.parm",
+  "type_mask": "0xdc0",
+  "use_velocity_feedforward": true,
+  "scenario": "calm",
+  "missing_frame_counts": {
+    "0": 2,
+    "1": 2,
+    "2": 3
+  },
+  "initial_assembly_converged": true,
+  "initial_assembly_error_m": 0.14161374527370127
+}

@@ -5,11 +5,19 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ARDUPILOT_GAZEBO_DIR="${ARDUPILOT_GAZEBO_DIR:-$HOME/ardupilot_gazebo}"
+if [ -z "${ARDUPILOT_GAZEBO_DIR}" ]; then
+    if [ -d "$HOME/ardupilot_gazebo" ]; then
+        ARDUPILOT_GAZEBO_DIR="$HOME/ardupilot_gazebo"
+    elif [ -d "$HOME/.gemini/antigravity/scratch/ardupilot_gazebo" ]; then
+        ARDUPILOT_GAZEBO_DIR="$HOME/.gemini/antigravity/scratch/ardupilot_gazebo"
+    else
+        ARDUPILOT_GAZEBO_DIR="$HOME/ardupilot_gazebo"
+    fi
+fi
 
 export GZ_SIM_SYSTEM_PLUGIN_PATH="${ARDUPILOT_GAZEBO_DIR}/build:${GZ_SIM_SYSTEM_PLUGIN_PATH}"
 export GZ_SIM_RESOURCE_PATH="${REPO_ROOT}/simulator/gazebo/models:${REPO_ROOT}/simulator/gazebo/worlds:${ARDUPILOT_GAZEBO_DIR}/models:${GZ_SIM_RESOURCE_PATH}"
-export SDF_PATH="${REPO_ROOT}/simulator/gazebo/models:${SDF_PATH}"
+export SDF_PATH="${REPO_ROOT}/simulator/gazebo/models:${ARDUPILOT_GAZEBO_DIR}/models:${SDF_PATH}"
 
 WORLD_FILE="${REPO_ROOT}/simulator/gazebo/worlds/cinewhoop_3drones.sdf"
 
