@@ -21,6 +21,9 @@ from typing import List, Optional
 import numpy as np
 from pymavlink import mavutil
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from sitl.flight_prep import arm_with_retry, takeoff_and_verify  # noqa: E402
+
 
 class DroneAgent:
     def __init__(self, sysid: int, port: int, label: str):
@@ -230,18 +233,20 @@ class SwarmFlightController:
 
         # Arm and takeoff
         print(f"Arming and commanding takeoff to {target_alt}m on all 3 drones...")
+        # Arm every drone first (waits for the EKF position estimate; never takes off unarmed)
         for d in self.drones:
-            d.update()
-            d.set_mode("GUIDED")
-            time.sleep(0.2)
-            d.arm()
-            time.sleep(0.2)
-            d.takeoff(target_alt)
+            if not arm_with_retry(d.conn, d.label):
+                print(f"[ERROR] {d.label} did not arm. Check the SITL/Gazebo link and EKF health.")
+                return False
+        for d in self.drones:
+            if not takeoff_and_verify(d.conn, d.label, target_alt):
+                print(f"[ERROR] {d.label} armed but did not climb. Check the Gazebo motor link.")
+                return False
 
         # Monitor climb
         print(f"Climbing to {target_alt}m cruising hover...")
         t_climb = time.time()
-        while time.time() - t_climb < 18.0:
+        while time.time() - t_climb < 120.0:
             for d in self.drones:
                 d.update()
             alts = [-d.pos[2] for d in self.drones]

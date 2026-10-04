@@ -27,6 +27,7 @@ except ImportError:
     raise
 
 from sitl.common_frame import CommonCoordinateFrame
+from sitl.flight_prep import arm_with_retry, takeoff_and_verify
 
 
 class SwarmStartAndClimb:
@@ -173,52 +174,22 @@ class SwarmStartAndClimb:
 
     def arm_and_climb(self, target_altitude: float = 5.0):
         print(f"\n>> Arming swarm and commanding climb to {target_altitude}m cruising hover...")
+        # Arm every drone first (waits for the EKF position estimate; never takes off unarmed)
         for i, conn in enumerate(self.connections):
-            conn.set_mode(4)  # GUIDED
-            time.sleep(0.2)
-
-            # Force Arm
-            is_armed = False
-            t_arm = time.time()
-            while time.time() - t_arm < 15.0:
-                conn.mav.command_long_send(
-                    conn.target_system, conn.target_component,
-                    mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
-                    0, 1, 21196, 0, 0, 0, 0, 0
+            if not arm_with_retry(conn, self.drone_configs[i]["label"]):
+                raise RuntimeError(
+                    f"{self.drone_configs[i]['label']} did not arm. Check the SITL/Gazebo link and EKF health."
                 )
-                t_poll = time.time()
-                while time.time() - t_poll < 0.8:
-                    msg = conn.recv_match(type=["HEARTBEAT", "COMMAND_ACK"], blocking=False)
-                    if msg:
-                        if msg.get_type() == "HEARTBEAT" and (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED):
-                            is_armed = True
-                            break
-                        elif msg.get_type() == "COMMAND_ACK" and msg.command == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM:
-                            if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-                                is_armed = True
-                                break
-                    if conn.motors_armed():
-                        is_armed = True
-                        break
-                    time.sleep(0.05)
-                if is_armed:
-                    print(f"  [{self.drone_configs[i]['label']}] ARMED! Propellers spinning!")
-                    break
-                time.sleep(0.2)
 
-            # Command takeoff to target altitude
-            conn.mav.command_long_send(
-                conn.target_system, conn.target_component,
-                mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
-                0, 0, 0, 0, 0, 0, 0, float(target_altitude)
-            )
-            print(f"  [{self.drone_configs[i]['label']}] Takeoff commanded -> {target_altitude:.1f}m!")
+        for i, conn in enumerate(self.connections):
+            if not takeoff_and_verify(conn, self.drone_configs[i]["label"], target_altitude):
+                raise RuntimeError(f"{self.drone_configs[i]['label']} armed but did not climb. Check the Gazebo motor link.")
 
         # Monitor climb until hover
         print(f"\n>> Monitoring climb to {target_altitude:.1f}m cruising hover...")
         t_climb = time.time()
         hover_flags = [False, False, False]
-        while time.time() - t_climb < 30.0 and not all(hover_flags):
+        while time.time() - t_climb < 120.0 and not all(hover_flags):
             for i, conn in enumerate(self.connections):
                 if not hover_flags[i]:
                     latest_m = None
