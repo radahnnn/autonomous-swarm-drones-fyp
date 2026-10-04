@@ -97,12 +97,13 @@ CONFIG_CONTROL = {
         provenance="assumed",
         notes="Planned inter-drone slot distance providing clearance while fitting in standard 20x20m flight spaces."
     ),
-    # Artificial Potential Field (APF) repulsive activation radius
+    # Artificial Potential Field (APF) repulsive activation radius (single value shared by
+    # the centralized and decentralized controllers and the hybrid always-on safety barrier)
     "apf_safe_radius": ParameterProvenance(
-        value=2.5,
+        value=1.2,
         unit="m",
         provenance="assumed",
-        notes="Distance threshold below which inter-drone repulsive potential activates."
+        notes="Distance below which inter-drone repulsion activates. Previously 1.0 m (centralized) and 1.2 m (decentralized/hybrid); unified to 1.2 m."
     ),
     # Hard physical collision threshold (2 * drone_radius)
     "collision_threshold": ParameterProvenance(
@@ -174,3 +175,64 @@ CONFIG_NETWORK = {
         notes="Smoothing duration for alpha(t) transition between 0.0 and 1.0."
     ),
 }
+
+
+# ==============================================================================
+# TYPED CONFIG USED BY THE CODE
+# ==============================================================================
+# The CONFIG_* dictionaries above document provenance. SwarmConfig is what the
+# simulator, drone model and controllers actually read; its defaults are taken
+# from those dictionaries so the two can never drift apart.
+import os
+from dataclasses import dataclass, replace
+
+
+@dataclass(frozen=True)
+class SwarmConfig:
+    # Vehicle dynamics
+    attitude_tau: float = CONFIG_DYNAMICS["attitude_tau"].value
+    drag_coeff: float = CONFIG_DYNAMICS["drag_coeff"].value
+    drone_radius: float = CONFIG_DYNAMICS["drone_radius"].value
+    max_speed: float = CONFIG_DYNAMICS["max_speed"].value
+    max_accel: float = CONFIG_DYNAMICS["max_accel"].value
+    # Sensing
+    measurement_noise_std: float = CONFIG_SENSORS["gps_noise_std_rtk"].value
+    gps_common_mode_fraction: float = CONFIG_SENSORS["gps_common_mode_fraction"].value
+    # Formation / control
+    nominal_spacing: float = CONFIG_CONTROL["nominal_spacing"].value
+    sitl_formation_spacing: float = 3.5  # wider slots used in the SITL adapter (GPS-noise margin)
+    apf_radius: float = CONFIG_CONTROL["apf_safe_radius"].value
+    kp_central: float = CONFIG_CONTROL["kp_central"].value
+    kd_central: float = CONFIG_CONTROL["kd_central"].value
+    # Hybrid supervisor
+    degrade_timeout: float = CONFIG_NETWORK["degrade_timeout"].value
+    recovery_window_size: int = CONFIG_NETWORK["recovery_window_size"].value
+    recovery_ratio_threshold: float = CONFIG_NETWORK["recovery_ratio_threshold"].value
+    min_dwell_time: float = CONFIG_NETWORK["min_dwell_time"].value
+    ramp_duration: float = CONFIG_NETWORK["ramp_duration"].value
+
+    @property
+    def collision_threshold(self) -> float:
+        """Hard collision distance, derived: two vehicle radii."""
+        return 2.0 * self.drone_radius
+
+
+# Named dynamics profiles. "assumed" are the original hand-picked values used before the
+# SITL step-response identification; "fitted_sitl" are the identified values.
+PROFILES: Dict[str, SwarmConfig] = {
+    "fitted_sitl": SwarmConfig(),
+    "assumed": SwarmConfig(attitude_tau=0.18, drag_coeff=0.20),
+}
+
+
+def get_config(profile: str = "fitted_sitl") -> SwarmConfig:
+    try:
+        return PROFILES[profile]
+    except KeyError:
+        raise ValueError(f"Unknown profile '{profile}'. Choose from {sorted(PROFILES)}") from None
+
+
+# Default profile for the whole code base. Override for comparison runs with the
+# environment variable SWARM_DYNAMICS_PROFILE=assumed|fitted_sitl.
+DEFAULT_PROFILE = os.environ.get("SWARM_DYNAMICS_PROFILE", "fitted_sitl")
+DEFAULT_CONFIG: SwarmConfig = get_config(DEFAULT_PROFILE)

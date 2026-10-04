@@ -30,8 +30,10 @@ import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
+from exp_stats import NUM_SEEDS, ci95, record_trials
 
 
+@record_trials("outage_sweep")
 def run_outage_trial(
     baseline: str,
     outage_duration: float,
@@ -158,7 +160,7 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     outages = [0.0, 1.0, 2.0, 3.0]
-    num_seeds = 6
+    num_seeds = NUM_SEEDS
     seeds = [42 + i * 17 for i in range(num_seeds)]
 
     baselines = [
@@ -204,17 +206,17 @@ def main():
                 dist_list.append(res["min_dist"])
 
             m_fb = float(np.mean(fb_entries_list))
-            s_fb = float(np.std(fb_entries_list))
+            s_fb = float(ci95(fb_entries_list))
             m_tfb = float(np.mean(time_fb_list))
-            s_tfb = float(np.std(time_fb_list))
+            s_tfb = float(ci95(time_fb_list))
             m_rec = float(np.mean(rec_time_list))
-            s_rec = float(np.std(rec_time_list))
+            s_rec = float(ci95(rec_time_list))
             m_sw = float(np.mean(switches_list))
-            s_sw = float(np.std(switches_list))
+            s_sw = float(ci95(switches_list))
             m_err = float(np.mean(err_list))
-            s_err = float(np.std(err_list))
+            s_err = float(ci95(err_list))
             m_dist = float(np.mean(dist_list))
-            s_dist = float(np.std(dist_list))
+            s_dist = float(ci95(dist_list))
 
             results[b_key][dur]["fallback_entries"] = (m_fb, s_fb)
             results[b_key][dur]["time_fallback"] = (m_tfb, s_tfb)
@@ -248,8 +250,8 @@ def main():
             err_list.append(res["steady_error"])
             dist_list.append(res["min_dist"])
         print(
-            f"{b_label:<28} | GE-BURST | {np.mean(fb_list):4.1f}±{np.std(fb_list):3.1f}     | {np.mean(tfb_list):5.2f}±{np.std(tfb_list):4.2f}   | "
-            f"{'-':<10} | {np.mean(sw_list):4.1f}±{np.std(sw_list):3.1f}     | {np.mean(err_list):5.3f}±{np.std(err_list):4.3f}m | {np.mean(dist_list):5.2f}±{np.std(dist_list):4.2f}m"
+            f"{b_label:<28} | GE-BURST | {np.mean(fb_list):4.1f}±{ci95(fb_list):3.1f}     | {np.mean(tfb_list):5.2f}±{ci95(tfb_list):4.2f}   | "
+            f"{'-':<10} | {np.mean(sw_list):4.1f}±{ci95(sw_list):3.1f}     | {np.mean(err_list):5.3f}±{ci95(err_list):4.3f}m | {np.mean(dist_list):5.2f}±{ci95(dist_list):4.2f}m"
         )
 
     # Plot Outage Performance comparison

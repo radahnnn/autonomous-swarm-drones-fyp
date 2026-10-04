@@ -19,6 +19,7 @@ import numpy as np
 
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 
 
@@ -35,13 +36,13 @@ class HybridController:
 
     def __init__(
         self,
-        degrade_timeout: float = 0.5,           # Degrade after ~0.5s of silence
+        degrade_timeout: float = DEFAULT_CONFIG.degrade_timeout,           # Degrade after ~0.5s of silence
         recovery_consecutive_hb: int = 5,       # Consecutive requirement fallback
-        min_dwell_time: float = 2.0,            # Minimum time in fallback before recovery (2.0s)
+        min_dwell_time: float = DEFAULT_CONFIG.min_dwell_time,            # Minimum time in fallback before recovery (2.0s)
         max_command_age: float = 0.15,          # Stale threshold: reject commands older than threshold
-        ramp_duration: float = 0.8,             # Smooth ramping duration tau_ramp for alpha(t)
-        window_size: int = 20,                  # Sliding window size for delivery ratio calculation
-        recovery_ratio_threshold: float = 0.70, # Recover if delivery ratio >= 70% in sliding window
+        ramp_duration: float = DEFAULT_CONFIG.ramp_duration,             # Smooth ramping duration tau_ramp for alpha(t)
+        window_size: int = DEFAULT_CONFIG.recovery_window_size,                  # Sliding window size for delivery ratio calculation
+        recovery_ratio_threshold: float = DEFAULT_CONFIG.recovery_ratio_threshold, # Recover if delivery ratio >= 70% in sliding window
     ):
         self.central_controller = CentralizedController()
         self.decentral_controller = DecentralizedController()
@@ -211,7 +212,7 @@ class HybridController:
         desired_neighbor_offsets: Optional[Dict[int, np.ndarray]] = None,
         target_velocity: Optional[np.ndarray] = None,
         use_velocity_feedforward: bool = True,
-        drag_coeff: float = 0.20,
+        drag_coeff: float = DEFAULT_CONFIG.drag_coeff,
     ) -> np.ndarray:
         """
         Computes smoothly blended control command:

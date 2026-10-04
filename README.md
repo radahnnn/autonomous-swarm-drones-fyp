@@ -34,7 +34,7 @@ This repository provides an autonomous swarm control framework enabling groups o
 │   ├── network.py           # Wireless channel emulator (loss, delay, range, bursts)
 │   ├── formations.py        # Line, V, Circle, Grid + Hungarian slot assignment
 │   ├── metrics.py           # Tracking error, separation, convergence, chattering
-│   ├── config.py            # Parameter provenance (fitted vs assumed) -- not yet wired in
+│   ├── config.py            # Parameter provenance (fitted vs assumed) -- single source of defaults (profiles: fitted_sitl, assumed)
 │   └── controllers/         # centralized.py, decentralized.py, hybrid.py
 ├── simulator/               # Tier 1: numerical engine, Matplotlib visualizer, Gazebo models/world
 ├── sitl/                    # Tier 2: ArduPilot SITL / MAVLink adapter, launch scripts, diagnostics

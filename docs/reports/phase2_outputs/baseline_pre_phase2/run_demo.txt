@@ -1,0 +1,24 @@
+==================================================
+  Swarm Drones FYP: 4-Formation Transition Demo   
+==================================================
+
+Running mission simulation...
+ -> t =  0.0s: Switching to LINE
+ -> t =  6.0s: Switching to V_SHAPE
+ -> t = 12.0s: Switching to CIRCLE
+ -> t = 18.0s: Switching to GRID
+   [Saved snapshot] experiments/results/formation_line.png
+   [Saved snapshot] experiments/results/formation_v_shape.png
+   [Saved snapshot] experiments/results/formation_circle.png
+   [Saved snapshot] experiments/results/formation_grid.png
+
+Generating performance metrics plot...
+   [Saved metrics plot] experiments/results/demo_metrics.png
+
+Mission Summary Statistics:
+ - Min Recorded Inter-Drone Distance: 1.751 m (Safety: PASSED)
+ - Collisions Detected: 0
+ - Final Formation Error: 0.002 m
+ - Total Wireless Packets Exchanged: 16385 (Delivered), 860 (Dropped)
+
+Completed successfully! Figures saved to: experiments/results

@@ -1,0 +1,44 @@
+=================================================================
+  Swarm Drones FYP: Dynamic Stress-Tested Network Sweep          
+  - Trajectory: Moving Centroid (0.85 m/s)                       
+  - Formation Switch: V-Shape -> Line at t = 5.0s                
+  - Dynamics: 1st-Order Attitude Lag (0.18s) + Rotor Drag        
+=================================================================
+
+Evaluating: Centralized...
+  Loss:    0% | Error: 0.043 +/- 0.000m | MinDist: 1.529m | Switches:   0.0
+  Loss:    5% | Error: 0.043 +/- 0.000m | MinDist: 1.529m | Switches:   0.0
+  Loss:   10% | Error: 0.043 +/- 0.000m | MinDist: 1.528m | Switches:   0.0
+  Loss:   20% | Error: 0.043 +/- 0.000m | MinDist: 1.535m | Switches:   0.0
+  Loss:   30% | Error: 0.042 +/- 0.000m | MinDist: 1.532m | Switches:   0.0
+  Loss:   40% | Error: 0.042 +/- 0.000m | MinDist: 1.540m | Switches:   0.0
+  Loss:   50% | Error: 0.042 +/- 0.000m | MinDist: 1.459m | Switches:   0.0
+
+Evaluating: Decentralized...
+  Loss:    0% | Error: 0.462 +/- 0.008m | MinDist: 1.540m | Switches:   0.0
+  Loss:    5% | Error: 0.445 +/- 0.011m | MinDist: 1.535m | Switches:   0.0
+  Loss:   10% | Error: 0.427 +/- 0.009m | MinDist: 1.536m | Switches:   0.0
+  Loss:   20% | Error: 0.396 +/- 0.016m | MinDist: 1.534m | Switches:   0.0
+  Loss:   30% | Error: 0.356 +/- 0.010m | MinDist: 1.546m | Switches:   0.0
+  Loss:   40% | Error: 0.312 +/- 0.011m | MinDist: 1.537m | Switches:   0.0
+  Loss:   50% | Error: 0.292 +/- 0.013m | MinDist: 1.535m | Switches:   0.0
+
+Evaluating: Proposed Hybrid (Hysteresis)...
+  Loss:    0% | Error: 0.002 +/- 0.000m | MinDist: 1.513m | Switches:   0.0
+  Loss:    5% | Error: 0.003 +/- 0.001m | MinDist: 1.513m | Switches:   0.0
+  Loss:   10% | Error: 0.005 +/- 0.001m | MinDist: 1.513m | Switches:   0.0
+  Loss:   20% | Error: 0.012 +/- 0.001m | MinDist: 1.510m | Switches:   0.0
+  Loss:   30% | Error: 0.018 +/- 0.002m | MinDist: 1.513m | Switches:   0.0
+  Loss:   40% | Error: 0.033 +/- 0.004m | MinDist: 1.508m | Switches:   0.3
+  Loss:   50% | Error: 0.053 +/- 0.019m | MinDist: 1.516m | Switches:   1.3
+
+Evaluating: Naive Hybrid (No Hysteresis)...
+  Loss:    0% | Error: 0.002 +/- 0.000m | MinDist: 1.513m | Switches:   0.0
+  Loss:    5% | Error: 0.005 +/- 0.003m | MinDist: 1.513m | Switches:   7.0
+  Loss:   10% | Error: 0.007 +/- 0.002m | MinDist: 1.513m | Switches:  22.0
+  Loss:   20% | Error: 0.019 +/- 0.001m | MinDist: 1.505m | Switches:  92.7
+  Loss:   30% | Error: 0.029 +/- 0.002m | MinDist: 1.517m | Switches: 187.3
+  Loss:   40% | Error: 0.054 +/- 0.006m | MinDist: 1.511m | Switches: 269.7
+  Loss:   50% | Error: 0.079 +/- 0.014m | MinDist: 1.541m | Switches: 364.2
+
+>>> Stress-tested network sweep complete! Plot saved to: experiments/results/network_loss_comparison.png <<<

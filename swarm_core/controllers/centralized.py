@@ -5,6 +5,7 @@ A global mission planner assigns optimal formation slots and commands trajectori
 
 from typing import List, Optional
 import numpy as np
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
 
@@ -14,10 +15,10 @@ class CentralizedController:
 
     def __init__(
         self,
-        kp: float = 1.8,
-        kd: float = 2.2,
+        kp: float = DEFAULT_CONFIG.kp_central,
+        kd: float = DEFAULT_CONFIG.kd_central,
         k_repulse: float = 4.0,
-        collision_dist: float = 1.0,
+        collision_dist: float = DEFAULT_CONFIG.apf_radius,
     ):
         self.kp = float(kp)
         self.kd = float(kd)
@@ -30,9 +31,9 @@ class CentralizedController:
         formation_type: FormationType,
         centroid_target: np.ndarray,
         centroid_velocity: Optional[np.ndarray] = None,
-        spacing: float = 2.5,
+        spacing: float = DEFAULT_CONFIG.nominal_spacing,
         use_velocity_feedforward: bool = True,
-        drag_coeff: float = 0.20,
+        drag_coeff: float = DEFAULT_CONFIG.drag_coeff,
     ) -> np.ndarray:
         """
         Compute acceleration commands for all drones.

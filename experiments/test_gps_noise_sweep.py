@@ -17,7 +17,7 @@ Noise Levels Tested:
   - 1.50m: Standard plain U-Blox M8N/M9N GPS (assumed baseline)
   - 2.50m: Degraded plain GPS under poor DOP / canopy
 
-Reports raw numbers (mean +/- std) across multiple seeds.
+Reports raw numbers (mean +/- 95% CI) across multiple seeds.
 """
 
 import os
@@ -30,8 +30,10 @@ import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
+from exp_stats import NUM_SEEDS, ci95, record_trials
 
 
+@record_trials("gps_noise_sweep")
 def run_gps_noise_trial(
     sigma: float,
     baseline: str = "hybrid_proposed",
@@ -107,7 +109,7 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     sigmas = [0.04, 0.50, 1.50, 2.50]
-    num_seeds = 6
+    num_seeds = NUM_SEEDS
     seeds = [100 + i * 23 for i in range(num_seeds)]
     common_mode_ratio = 0.60
 
@@ -149,11 +151,11 @@ def main():
                 col_list.append(res["any_collision"])
 
             m_s_err = float(np.mean(s_err_list))
-            s_s_err = float(np.std(s_err_list))
+            s_s_err = float(ci95(s_err_list))
             m_t_err = float(np.mean(t_err_list))
-            s_t_err = float(np.std(t_err_list))
+            s_t_err = float(ci95(t_err_list))
             m_dist = float(np.mean(dist_list))
-            s_dist = float(np.std(dist_list))
+            s_dist = float(ci95(dist_list))
             total_col = int(np.sum(col_list))
 
             results[b_key][sig]["steady_err"] = (m_s_err, s_s_err)

@@ -6,6 +6,7 @@ Tracks formation tracking error, convergence duration, safety margins, and veloc
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 import numpy as np
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 
 
@@ -26,7 +27,7 @@ class SwarmMetricsSnapshot:
 class SwarmMetricsTracker:
     """Collects and aggregates performance data over the course of a simulation run."""
 
-    def __init__(self, collision_threshold: float = 0.7):
+    def __init__(self, collision_threshold: float = DEFAULT_CONFIG.collision_threshold):
         self.collision_threshold = float(collision_threshold)
         self.history: List[SwarmMetricsSnapshot] = []
 

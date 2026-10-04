@@ -1,0 +1,149 @@
+
+##### run_demo.py #####
+==================================================
+  Swarm Drones FYP: 4-Formation Transition Demo   
+==================================================
+
+Running mission simulation...
+ -> t =  0.0s: Switching to LINE
+ -> t =  6.0s: Switching to V_SHAPE
+ -> t = 12.0s: Switching to CIRCLE
+ -> t = 18.0s: Switching to GRID
+   [Saved snapshot] experiments/results/formation_line.png
+   [Saved snapshot] experiments/results/formation_v_shape.png
+   [Saved snapshot] experiments/results/formation_circle.png
+   [Saved snapshot] experiments/results/formation_grid.png
+
+Generating performance metrics plot...
+   [Saved metrics plot] experiments/results/demo_metrics.png
+
+Mission Summary Statistics:
+ - Min Recorded Inter-Drone Distance: 1.751 m (Safety: PASSED)
+ - Collisions Detected: 0
+ - Final Formation Error: 0.002 m
+ - Total Wireless Packets Exchanged: 16395 (Delivered), 853 (Dropped)
+
+Completed successfully! Figures saved to: experiments/results
+
+##### test_network_sweep.py #####
+=================================================================
+  Swarm Drones FYP: Dynamic Stress-Tested Network Sweep          
+  - Trajectory: Moving Centroid (0.85 m/s)                       
+  - Formation Switch: V-Shape -> Line at t = 5.0s                
+  - Dynamics: lag tau=0.180s, drag cd=0.200/s
+  - Seeds per condition: 20; +/- is the 95% CI of the mean
+=================================================================
+
+Evaluating: Centralized...
+  Loss:    0% | Error: 0.043 +/- 0.000m | MinDist: 1.469m | Switches:   0.0
+  Loss:    5% | Error: 0.043 +/- 0.000m | MinDist: 1.469m | Switches:   0.0
+  Loss:   10% | Error: 0.043 +/- 0.000m | MinDist: 1.464m | Switches:   0.0
+  Loss:   20% | Error: 0.043 +/- 0.000m | MinDist: 1.459m | Switches:   0.0
+  Loss:   30% | Error: 0.042 +/- 0.000m | MinDist: 1.463m | Switches:   0.0
+  Loss:   40% | Error: 0.042 +/- 0.000m | MinDist: 1.443m | Switches:   0.0
+  Loss:   50% | Error: 0.042 +/- 0.000m | MinDist: 1.412m | Switches:   0.0
+
+Evaluating: Decentralized...
+  Loss:    0% | Error: 0.473 +/- 0.010m | MinDist: 1.484m | Switches:   0.0
+  Loss:    5% | Error: 0.454 +/- 0.009m | MinDist: 1.480m | Switches:   0.0
+  Loss:   10% | Error: 0.435 +/- 0.009m | MinDist: 1.483m | Switches:   0.0
+  Loss:   20% | Error: 0.406 +/- 0.010m | MinDist: 1.487m | Switches:   0.0
+  Loss:   30% | Error: 0.367 +/- 0.012m | MinDist: 1.483m | Switches:   0.0
+  Loss:   40% | Error: 0.325 +/- 0.009m | MinDist: 1.486m | Switches:   0.0
+  Loss:   50% | Error: 0.293 +/- 0.010m | MinDist: 1.490m | Switches:   0.0
+
+Evaluating: Proposed Hybrid (Hysteresis)...
+  Loss:    0% | Error: 0.002 +/- 0.000m | MinDist: 1.478m | Switches:   0.0
+  Loss:    5% | Error: 0.004 +/- 0.000m | MinDist: 1.478m | Switches:   0.0
+  Loss:   10% | Error: 0.006 +/- 0.000m | MinDist: 1.475m | Switches:   0.0
+  Loss:   20% | Error: 0.012 +/- 0.001m | MinDist: 1.473m | Switches:   0.0
+  Loss:   30% | Error: 0.019 +/- 0.001m | MinDist: 1.469m | Switches:   0.0
+  Loss:   40% | Error: 0.032 +/- 0.003m | MinDist: 1.481m | Switches:   0.2
+  Loss:   50% | Error: 0.046 +/- 0.006m | MinDist: 1.487m | Switches:   0.8
+
+Evaluating: Naive Hybrid (No Hysteresis)...
+  Loss:    0% | Error: 0.002 +/- 0.000m | MinDist: 1.478m | Switches:   0.0
+  Loss:    5% | Error: 0.005 +/- 0.001m | MinDist: 1.477m | Switches:   8.0
+  Loss:   10% | Error: 0.008 +/- 0.001m | MinDist: 1.474m | Switches:  24.2
+  Loss:   20% | Error: 0.019 +/- 0.002m | MinDist: 1.477m | Switches:  92.0
+  Loss:   30% | Error: 0.032 +/- 0.002m | MinDist: 1.465m | Switches: 187.2
+  Loss:   40% | Error: 0.052 +/- 0.004m | MinDist: 1.474m | Switches: 276.5
+  Loss:   50% | Error: 0.075 +/- 0.005m | MinDist: 1.488m | Switches: 361.4
+
+>>> Stress-tested network sweep complete! Plot saved to: experiments/results/network_loss_comparison.png <<<
+
+##### test_burst_outage_sweep.py #####
+=========================================================================================
+  EXPERIMENT 1: DETERMINISTIC OUTAGES & BURST LOSS ACROSS 4 BASELINES (IDENTICAL SEEDS)   
+  Seeds tested: 20 ([42, 59, 76, 93, 110, 127, 144, 161, 178, 195, 212, 229, 246, 263, 280, 297, 314, 331, 348, 365]) | Outages: [0.0, 1.0, 2.0, 3.0]s | Drones: 5               
+=========================================================================================
+Baseline                     | Outage | FB Entries   | Time FB (s)  | Recov (s)  | Switches   | Steady Err   | Min Dist
+--------------------------------------------------------------------------------------------------------------
+Centralized (Hold Command)   | 0.0    |  0.0±0.0     |  0.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.078±0.000m |  1.41±0.13m
+Decentralized (Consensus)    | 0.0    |  0.0±0.0     | 12.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.567±0.013m |  1.46±0.11m
+Naive Hybrid (No Dwell)      | 0.0    |  0.5±0.1     |  0.03±0.01   | 0.05±0.01   |  5.4±1.4     | 0.060±0.002m |  1.43±0.12m
+Proposed Hybrid (Hardened)   | 0.0    |  0.0±0.0     |  0.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.058±0.000m |  1.43±0.12m
+Centralized (Hold Command)   | 1.0    |  0.0±0.0     |  0.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.078±0.000m |  1.41±0.13m
+Decentralized (Consensus)    | 1.0    |  0.0±0.0     | 12.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.601±0.012m |  1.46±0.11m
+Naive Hybrid (No Dwell)      | 1.0    |  1.5±0.1     |  0.98±0.01   | 0.11±0.01   | 14.8±1.2     | 0.059±0.001m |  1.43±0.12m
+Proposed Hybrid (Hardened)   | 1.0    |  1.0±0.0     |  2.05±0.00   | 1.65±0.00   | 10.0±0.0     | 0.083±0.000m |  1.43±0.12m
+Centralized (Hold Command)   | 2.0    |  0.0±0.0     |  0.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.077±0.000m |  1.41±0.13m
+Decentralized (Consensus)    | 2.0    |  0.0±0.0     | 12.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.609±0.014m |  1.46±0.11m
+Naive Hybrid (No Dwell)      | 2.0    |  1.4±0.1     |  1.98±0.01   | 0.11±0.01   | 14.3±1.2     | 0.059±0.001m |  1.43±0.12m
+Proposed Hybrid (Hardened)   | 2.0    |  1.0±0.0     |  2.05±0.00   | 0.65±0.00   | 10.0±0.0     | 0.084±0.000m |  1.43±0.12m
+Centralized (Hold Command)   | 3.0    |  0.0±0.0     |  0.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.081±0.003m |  1.40±0.12m
+Decentralized (Consensus)    | 3.0    |  0.0±0.0     | 12.00±0.00   | 0.00±0.00   |  0.0±0.0     | 0.590±0.014m |  1.46±0.11m
+Naive Hybrid (No Dwell)      | 3.0    |  1.4±0.1     |  2.98±0.01   | 0.11±0.01   | 13.9±1.2     | 0.079±0.002m |  1.43±0.13m
+Proposed Hybrid (Hardened)   | 3.0    |  1.0±0.0     |  2.72±0.01   | 0.34±0.02   | 10.0±0.0     | 0.130±0.001m |  1.43±0.12m
+
+-----------------------------------------------------------------------------------------
+  GILBERT-ELLIOTT BURST LOSS (p_g_to_b=0.05, p_b_to_g=0.20, burst loss=100%)              
+-----------------------------------------------------------------------------------------
+Centralized (Hold Command)   | GE-BURST |  0.0±0.0     |  0.00±0.00   | -          |  0.0±0.0     | 0.078±0.001m |  1.39±0.13m
+Decentralized (Consensus)    | GE-BURST |  0.0±0.0     | 12.00±0.00   | -          |  0.0±0.0     | 0.516±0.026m |  1.45±0.11m
+Naive Hybrid (No Dwell)      | GE-BURST | 10.9±0.5     |  0.89±0.05   | -          | 108.8±4.9     | 0.061±0.002m |  1.43±0.13m
+Proposed Hybrid (Hardened)   | GE-BURST |  0.0±0.0     |  0.00±0.00   | -          |  0.0±0.0     | 0.065±0.001m |  1.43±0.12m
+
+Saved outage experiment plots to experiments/results/outage_burst_comparison.png.
+
+##### test_gps_noise_sweep.py #####
+=========================================================================================
+  EXPERIMENT 2: GPS NOISE SWEEP WITH COMMON-MODE (60%) + INDEPENDENT (40%) ERROR          
+  Sigmas: [0.04, 0.5, 1.5, 2.5] m | Seeds: 20 | Common-Mode Ratio: 0.6        
+=========================================================================================
+Baseline             | GPS Sigma  | Steady Err (m)     | Transient Err (m)  | Min Dist (m)     | Collisions
+---------------------------------------------------------------------------------------------------------
+Proposed Hybrid      | 0.04       | 0.058 ± 0.000   | 1.166 ± 0.001   | 1.531 ± 0.123 | 0/20
+Pure Centralized     | 0.04       | 0.077 ± 0.000   | 1.171 ± 0.001   | 1.517 ± 0.120 | 0/20
+Pure Decentralized   | 0.04       | 0.572 ± 0.017   | 1.294 ± 0.025   | 1.536 ± 0.118 | 0/20
+Proposed Hybrid      | 0.50       | 0.058 ± 0.001   | 1.166 ± 0.001   | 1.543 ± 0.117 | 0/20
+Pure Centralized     | 0.50       | 0.077 ± 0.000   | 1.171 ± 0.001   | 1.517 ± 0.120 | 0/20
+Pure Decentralized   | 0.50       | 0.947 ± 0.137   | 1.526 ± 0.094   | 1.544 ± 0.116 | 0/20
+Proposed Hybrid      | 1.50       | 0.088 ± 0.004   | 1.207 ± 0.007   | 1.519 ± 0.121 | 0/20
+Pure Centralized     | 1.50       | 0.077 ± 0.000   | 1.171 ± 0.001   | 1.517 ± 0.120 | 0/20
+Pure Decentralized   | 1.50       | 2.022 ± 0.412   | 2.570 ± 0.308   | 1.542 ± 0.120 | 0/20
+Proposed Hybrid      | 2.50       | 0.083 ± 0.004   | 1.198 ± 0.007   | 1.530 ± 0.126 | 0/20
+Pure Centralized     | 2.50       | 0.077 ± 0.000   | 1.171 ± 0.001   | 1.517 ± 0.120 | 0/20
+Pure Decentralized   | 2.50       | 3.216 ± 0.679   | 3.290 ± 0.463   | 1.525 ± 0.103 | 0/20
+
+Saved GPS noise sweep plot to experiments/results/gps_noise_sweep_comparison.png.
+
+##### test_feedforward_ablation.py #####
+=========================================================================================
+  EXPERIMENT 3: TARGET VELOCITY FEEDFORWARD ABLATION & ERROR DECOMPOSITION                 
+  Comparing: use_velocity_feedforward in {True, False} at 0% packet loss                  
+=========================================================================================
+
+[ANALYTICAL DERIVATION]
+  Target Velocity: ||v_target|| = sqrt(0.8^2 + 0.3^2) = 0.8544 m/s
+  Controller Gains: kp = 1.8, kd = 2.2, Rotor Drag: cd = 0.2
+  Theoretical Steady Lag: e_steady = ((kd + cd) / kp) * ||v_target||
+                         = ((2.2 + 0.2) / 1.8) * 0.8544
+                         = (2.40 / 1.80) * 0.8544 = 1.1392 m
+------------------------------------------------------------------------------------------
+Mode: HYBRID      | WITHOUT Feedforward | Transient Morph Err: 1.849±0.000m | Steady-State Err: 1.140±0.000m | Final Err: 1.139±0.000m
+Mode: HYBRID      | WITH Feedforward   | Transient Morph Err: 1.329±0.000m | Steady-State Err: 0.018±0.000m | Final Err: 0.001±0.000m
+Mode: CENTRALIZED | WITHOUT Feedforward | Transient Morph Err: 1.809±0.000m | Steady-State Err: 1.098±0.000m | Final Err: 1.097±0.000m
+Mode: CENTRALIZED | WITH Feedforward   | Transient Morph Err: 1.303±0.000m | Steady-State Err: 0.049±0.000m | Final Err: 0.043±0.000m
+
+Saved feedforward ablation plots to experiments/results/feedforward_ablation_comparison.png.

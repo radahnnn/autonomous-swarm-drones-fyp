@@ -6,6 +6,7 @@ Requires no global coordinator; each drone relies strictly on 1-hop neighbor sta
 
 from typing import Dict, List, Optional
 import numpy as np
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 
 
@@ -18,7 +19,7 @@ class DecentralizedController:
         k_align: float = 1.6,     # Velocity consensus gain
         k_form: float = 1.4,      # Formation cohesion gain
         k_goal: float = 0.8,      # Navigational goal gain
-        safe_radius: float = 1.2, # Collision boundary radius
+        safe_radius: float = DEFAULT_CONFIG.apf_radius,  # APF activation radius
     ):
         self.k_sep = float(k_sep)
         self.k_align = float(k_align)

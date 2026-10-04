@@ -6,6 +6,8 @@ Represents individual autonomous UAVs in 2D/3D space with acceleration limits.
 from typing import Optional
 import numpy as np
 
+from swarm_core.config import DEFAULT_CONFIG
+
 
 class Drone:
     """Autonomous drone model with second-order kinematics."""
@@ -15,12 +17,12 @@ class Drone:
         drone_id: int,
         initial_position: np.ndarray,
         initial_velocity: Optional[np.ndarray] = None,
-        max_speed: float = 3.0,
-        max_accel: float = 2.5,
-        radius: float = 0.35,  # Collision radius in meters
-        attitude_tau: float = 0.18,  # First-order attitude / thrust time-constant lag (s)
-        drag_coeff: float = 0.20,    # Aerodynamic rotor drag coefficient (1/s)
-        measurement_noise_std: float = 0.04,  # Realistic GPS/EKF sensor noise (m)
+        max_speed: Optional[float] = None,
+        max_accel: Optional[float] = None,
+        radius: Optional[float] = None,  # Collision radius in meters (default: config)
+        attitude_tau: Optional[float] = None,  # First-order lag time constant (s); default: config
+        drag_coeff: Optional[float] = None,    # Rotor drag coefficient (1/s); default: config
+        measurement_noise_std: Optional[float] = None,  # GPS/EKF sensor noise (m); default: config
     ):
         self.id = drone_id
         self.position = np.array(initial_position, dtype=np.float64)
@@ -35,12 +37,15 @@ class Drone:
         self.acceleration = np.zeros(self.dim, dtype=np.float64)  # Actual lagged acceleration
         
         # Physical & dynamics constraints
-        self.max_speed = float(max_speed)
-        self.max_accel = float(max_accel)
-        self.radius = float(radius)
-        self.attitude_tau = float(attitude_tau)
-        self.drag_coeff = float(drag_coeff)
-        self.measurement_noise_std = float(measurement_noise_std)
+        cfg = DEFAULT_CONFIG
+        self.max_speed = float(cfg.max_speed if max_speed is None else max_speed)
+        self.max_accel = float(cfg.max_accel if max_accel is None else max_accel)
+        self.radius = float(cfg.drone_radius if radius is None else radius)
+        self.attitude_tau = float(cfg.attitude_tau if attitude_tau is None else attitude_tau)
+        self.drag_coeff = float(cfg.drag_coeff if drag_coeff is None else drag_coeff)
+        self.measurement_noise_std = float(
+            cfg.measurement_noise_std if measurement_noise_std is None else measurement_noise_std
+        )
         self.wind_vector = np.zeros(self.dim, dtype=np.float64)
         
         # Historical trajectory tracking for metrics/plotting

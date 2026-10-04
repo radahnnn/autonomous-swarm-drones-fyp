@@ -6,6 +6,7 @@ Coordinates the physics step, wireless network exchange, control computation, an
 from typing import Dict, List, Optional
 import numpy as np
 
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 from swarm_core.graph import SwarmGraph
 from swarm_core.network import WirelessChannel
@@ -29,7 +30,7 @@ class SwarmSimulation:
         dt: float = 0.05,
         use_velocity_feedforward: bool = True,
         gps_noise_std: float = 0.0,
-        gps_common_mode_fraction: float = 0.60,
+        gps_common_mode_fraction: float = DEFAULT_CONFIG.gps_common_mode_fraction,
         seed: Optional[int] = None,
         use_gilbert_elliott: bool = False,
         p_g_to_b: float = 0.05,
@@ -57,6 +58,8 @@ class SwarmSimulation:
             p_b_to_g=p_b_to_g,
         )
         self.metrics = SwarmMetricsTracker(collision_threshold=drones[0].radius * 2.0)
+        # Feedforward drag compensation must match the vehicle model actually being flown
+        self.drag_coeff = float(drones[0].drag_coeff)
 
         # Controllers
         self.central_ctrl = CentralizedController()
@@ -66,7 +69,7 @@ class SwarmSimulation:
 
         # Mission state
         self.current_formation = FormationType.LINE
-        self.formation_spacing = 2.5
+        self.formation_spacing = DEFAULT_CONFIG.nominal_spacing
         self.centroid_target = np.array([0.0, 0.0], dtype=np.float64)
         self.centroid_velocity = np.array([0.0, 0.0], dtype=np.float64)
         self.target_slots: Optional[np.ndarray] = None
@@ -79,6 +82,7 @@ class SwarmSimulation:
             self.centroid_velocity,
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
+            drag_coeff=self.drag_coeff,
         )
         self.last_central_accel: Dict[int, np.ndarray] = {
             d.id: init_accels[i].copy() for i, d in enumerate(self.drones)
@@ -92,7 +96,7 @@ class SwarmSimulation:
         self,
         formation: FormationType,
         centroid: Optional[np.ndarray] = None,
-        spacing: float = 2.5,
+        spacing: float = DEFAULT_CONFIG.nominal_spacing,
     ) -> None:
         """Update target formation geometry and centroid."""
         self.current_formation = formation
@@ -160,6 +164,7 @@ class SwarmSimulation:
             self.centroid_velocity,
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
+            drag_coeff=self.drag_coeff,
         )
 
         if self.coordinator_link_active:
@@ -249,6 +254,7 @@ class SwarmSimulation:
                     desired_neighbor_offsets=desired_offsets,
                     target_velocity=self.centroid_velocity,
                     use_velocity_feedforward=self.use_velocity_feedforward,
+                    drag_coeff=self.drag_coeff,
                 )
                 d.set_control_input(accel_i)
 

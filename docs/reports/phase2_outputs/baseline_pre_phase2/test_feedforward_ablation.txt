@@ -1,0 +1,18 @@
+=========================================================================================
+  EXPERIMENT 3: TARGET VELOCITY FEEDFORWARD ABLATION & ERROR DECOMPOSITION                 
+  Comparing: use_velocity_feedforward in {True, False} at 0% packet loss                  
+=========================================================================================
+
+[ANALYTICAL DERIVATION]
+  Target Velocity: ||v_target|| = sqrt(0.8^2 + 0.3^2) = 0.8544 m/s
+  Controller Gains: kp = 1.8, kd = 2.2, Rotor Drag: cd = 0.2
+  Theoretical Steady Lag: e_steady = ((kd + cd) / kp) * ||v_target||
+                         = ((2.2 + 0.2) / 1.8) * 0.8544
+                         = (2.40 / 1.80) * 0.8544 = 1.1392 m (~1.14 m)
+------------------------------------------------------------------------------------------
+Mode: HYBRID      | WITHOUT Feedforward | Transient Morph Err: 1.849±0.000m | Steady-State Err: 1.140±0.000m | Final Err: 1.139±0.000m
+Mode: HYBRID      | WITH Feedforward   | Transient Morph Err: 1.329±0.000m | Steady-State Err: 0.018±0.000m | Final Err: 0.001±0.000m
+Mode: CENTRALIZED | WITHOUT Feedforward | Transient Morph Err: 1.809±0.000m | Steady-State Err: 1.098±0.000m | Final Err: 1.097±0.000m
+Mode: CENTRALIZED | WITH Feedforward   | Transient Morph Err: 1.303±0.001m | Steady-State Err: 0.049±0.000m | Final Err: 0.043±0.000m
+
+Saved feedforward ablation plots to experiments/results/feedforward_ablation_comparison.png.

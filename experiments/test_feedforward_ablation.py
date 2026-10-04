@@ -16,11 +16,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
+from exp_stats import NUM_SEEDS, ci95, record_trials
 
 
+@record_trials("feedforward_ablation")
 def run_feedforward_trial(
     use_feedforward: bool,
     mode: str = "hybrid",
@@ -84,7 +87,7 @@ def main():
     output_dir = "experiments/results"
     os.makedirs(output_dir, exist_ok=True)
 
-    seeds = [42, 63, 105, 204, 305, 406]
+    seeds = [42 + 21 * i for i in range(NUM_SEEDS)]
     modes = ["hybrid", "centralized"]
 
     print("=========================================================================================")
@@ -93,9 +96,9 @@ def main():
     print("=========================================================================================")
 
     # Analytical calculation
-    kp = 1.8
-    kd = 2.2
-    cd = 0.20
+    kp = DEFAULT_CONFIG.kp_central
+    kd = DEFAULT_CONFIG.kd_central
+    cd = DEFAULT_CONFIG.drag_coeff  # must match the vehicle model being simulated
     v_target_norm = float(np.linalg.norm([0.8, 0.3]))
     expected_lag_no_ff = ((kd + cd) / kp) * v_target_norm
 
@@ -104,7 +107,7 @@ def main():
     print(f"  Controller Gains: kp = {kp}, kd = {kd}, Rotor Drag: cd = {cd}")
     print(f"  Theoretical Steady Lag: e_steady = ((kd + cd) / kp) * ||v_target||")
     print(f"                         = (({kd} + {cd}) / {kp}) * {v_target_norm:.4f}")
-    print(f"                         = ({kd+cd:.2f} / {kp:.2f}) * {v_target_norm:.4f} = {expected_lag_no_ff:.4f} m (~1.14 m)")
+    print(f"                         = ({kd+cd:.2f} / {kp:.2f}) * {v_target_norm:.4f} = {expected_lag_no_ff:.4f} m")
     print("-" * 90)
 
     results_table = []
@@ -123,9 +126,9 @@ def main():
                     sample_time = res["time"]
                     sample_error = res["error"]
 
-            m_t, s_t = float(np.mean(t_errs)), float(np.std(t_errs))
-            m_s, s_s = float(np.mean(s_errs)), float(np.std(s_errs))
-            m_f, s_f = float(np.mean(f_errs)), float(np.std(f_errs))
+            m_t, s_t = float(np.mean(t_errs)), float(ci95(t_errs))
+            m_s, s_s = float(np.mean(s_errs)), float(ci95(s_errs))
+            m_f, s_f = float(np.mean(f_errs)), float(ci95(f_errs))
 
             ff_label = "WITH Feedforward" if ff_flag else "WITHOUT Feedforward"
             print(

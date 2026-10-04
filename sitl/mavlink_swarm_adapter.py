@@ -20,6 +20,7 @@ from pymavlink import mavutil
 # Add repository root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from swarm_core.config import DEFAULT_CONFIG
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
 from swarm_core.controllers.centralized import CentralizedController
@@ -156,7 +157,7 @@ class MAVLinkSwarmAdapter:
 
         # Swarm Mission State
         self.current_formation = FormationType.V_SHAPE
-        self.formation_spacing = 3.5
+        self.formation_spacing = DEFAULT_CONFIG.sitl_formation_spacing
         self.centroid_target = np.array([0.0, 0.0, -5.05], dtype=np.float64)
         self.cruise_alt = 5.05
         
