@@ -43,10 +43,12 @@ class SwarmPilotConsole:
         # instances must share ONE home (the world origin). Staggered homes (used only by the standalone
         # --model quad mode, to keep drones apart) would shift each drone away from its Gazebo spawn point.
         self.gazebo_home = "-35.363261,149.165230,584,0"
+        # UDP ports match --out=udp:127.0.0.1:XXXXX in launch_swarm_2d.sh / launch_droneN.sh
+        # Using UDP avoids TCP port conflicts with MAVProxy's own console on 5760/5770/5780
         self.drone_configs = [
-            {"id": 0, "inst": 0, "port": 5760, "home": "-35.363261,149.165230,584,0", "label": "Drone 0 (Apex)"},
-            {"id": 1, "inst": 1, "port": 5770, "home": "-35.363261,149.165285,584,0", "label": "Drone 1 (Left Wing)"},
-            {"id": 2, "inst": 2, "port": 5780, "home": "-35.363261,149.165340,584,0", "label": "Drone 2 (Right Wing)"},
+            {"id": 0, "inst": 0, "port": 14552, "udp": True, "home": "-35.363261,149.165230,584,0", "label": "Drone 0 (Apex)"},
+            {"id": 1, "inst": 1, "port": 14562, "udp": True, "home": "-35.363261,149.165285,584,0", "label": "Drone 1 (Left Wing)"},
+            {"id": 2, "inst": 2, "port": 14572, "udp": True, "home": "-35.363261,149.165180,584,0", "label": "Drone 2 (Right Wing)"},
         ]
 
         # V-Formation offsets: Apex at (0,0), Left at (-3,-3), Right at (-3,+3)
@@ -125,15 +127,33 @@ class SwarmPilotConsole:
             except Exception:
                 pass
 
-        # Check if already running with matching configuration
+        # Check if already running — try the UDP port that launch_swarm_2d.sh outputs on
+        already_running = False
         try:
-            test_conn = mavutil.mavlink_connection("tcp:127.0.0.1:5760")
-            msg = test_conn.wait_heartbeat(timeout=1.5)
+            test_conn = mavutil.mavlink_connection("udpin:127.0.0.1:14552")
+            msg = test_conn.wait_heartbeat(timeout=2.0)
             if msg:
-                print(">> Connected to active ArduPilot SITL instances.")
-                return
+                print(">> Detected active SITL instances on UDP 14552/14562/14572.")
+                print(">> Skipping SITL launch — connecting to existing drones.")
+                already_running = True
+            test_conn.close()
         except Exception:
             pass
+
+        # Also check legacy TCP 5760 (raw arducopter / old standalone mode)
+        if not already_running:
+            try:
+                test_conn = mavutil.mavlink_connection("tcp:127.0.0.1:5760")
+                msg = test_conn.wait_heartbeat(timeout=1.5)
+                if msg:
+                    print(">> Connected to active ArduPilot SITL instances (TCP 5760).")
+                    already_running = True
+                test_conn.close()
+            except Exception:
+                pass
+
+        if already_running:
+            return
 
         if is_gazebo:
             print(">> [3D GAZEBO DETECTED] Linking ArduPilot SITL to Gazebo Cinewhoops (FDM Ports 9002, 9012, 9022)...")
@@ -186,17 +206,25 @@ class SwarmPilotConsole:
         print(">> Connecting MAVLink telemetry to all 3 drones...")
         self.connections.clear()
         for cfg in self.drone_configs:
+            use_udp = cfg.get("udp", False)
+            endpoint = f"udpin:127.0.0.1:{cfg['port']}" if use_udp else f"tcp:127.0.0.1:{cfg['port']}"
             conn = None
-            for _ in range(15):
+            for attempt in range(20):
                 try:
-                    conn = mavutil.mavlink_connection(f"tcp:127.0.0.1:{cfg['port']}")
-                    msg = conn.wait_heartbeat(timeout=2.0)
+                    conn = mavutil.mavlink_connection(endpoint)
+                    msg = conn.wait_heartbeat(timeout=3.0)
                     if msg:
+                        print(f"  [OK] {cfg['label']} connected on {endpoint} (SYSID={conn.target_system})")
                         break
+                    conn = None
                 except Exception:
+                    conn = None
                     time.sleep(0.5)
             if not conn:
-                raise RuntimeError(f"Failed to connect to {cfg['label']}")
+                raise RuntimeError(
+                    f"Failed to connect to {cfg['label']} on {endpoint}.\n"
+                    f"  Make sure all 3 SITL drones are running via: bash sitl/launch_swarm_2d.sh"
+                )
             self.connections.append(conn)
 
             # Set parameters and request stream
