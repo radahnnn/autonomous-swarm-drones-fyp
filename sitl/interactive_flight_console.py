@@ -51,12 +51,61 @@ class SwarmPilotConsole:
             {"id": 2, "inst": 2, "port": 14572, "udp": True, "home": "-35.363261,149.165180,584,0", "label": "Drone 2 (Right Wing)"},
         ]
 
-        # V-Formation offsets: Apex at (0,0), Left at (-3,-3), Right at (-3,+3)
-        self.v_offsets = np.array([
-            [ 0.0,  0.0, 0.0],
-            [-3.0, -3.0, 0.0],
-            [-3.0,  3.0, 0.0],
-        ])
+        # Supported Swarm Formations
+        self.formations = {
+            "v": {
+                "name": "Flying-V (Chevron)",
+                "offsets": np.array([
+                    [ 0.0,  0.0, 0.0],
+                    [-3.0, -3.0, 0.0],
+                    [-3.0,  3.0, 0.0],
+                ])
+            },
+            "line": {
+                "name": "Line (Abreast / Side-by-Side)",
+                "offsets": np.array([
+                    [ 0.0,  0.0, 0.0],
+                    [ 0.0, -3.5, 0.0],
+                    [ 0.0,  3.5, 0.0],
+                ])
+            },
+            "column": {
+                "name": "Column (In-Trail Single File)",
+                "offsets": np.array([
+                    [ 3.5,  0.0, 0.0],
+                    [ 0.0,  0.0, 0.0],
+                    [-3.5,  0.0, 0.0],
+                ])
+            },
+            "triangle": {
+                "name": "Triangle (Delta)",
+                "offsets": np.array([
+                    [ 2.5,  0.0, 0.0],
+                    [-1.5, -2.5, 0.0],
+                    [-1.5,  2.5, 0.0],
+                ])
+            },
+            "circle": {
+                "name": "Circle (Radial Ring)",
+                "offsets": np.array([
+                    [ 3.0,  0.0, 0.0],
+                    [-1.5, -2.6, 0.0],
+                    [-1.5,  2.6, 0.0],
+                ])
+            },
+            "echelon": {
+                "name": "Echelon (Diagonal Flight)",
+                "offsets": np.array([
+                    [ 2.5, -2.5, 0.0],
+                    [ 0.0,  0.0, 0.0],
+                    [-2.5,  2.5, 0.0],
+                ])
+            }
+        }
+        self.current_formation_key = "v"
+        self.current_offsets = self.formations["v"]["offsets"].astype(float).copy()
+        self.target_offsets = self.formations["v"]["offsets"].astype(float).copy()
+        self.morph_steps_remaining = 0
 
         self.connections = []
         self.procs = []
@@ -261,16 +310,28 @@ class SwarmPilotConsole:
             time.sleep(0.1)
 
     def takeoff_and_assemble(self):
-        print("\n>> Arming and commanding takeoff to 5.0m...")
-        # Arm every drone first (waits for the EKF position estimate; never takes off unarmed)
-        for i, conn in enumerate(self.connections):
-            if not arm_with_retry(conn, self.drone_configs[i]["label"]):
-                raise RuntimeError(
-                    f"{self.drone_configs[i]['label']} did not arm. Check the SITL/Gazebo link and EKF health."
-                )
-        for i, conn in enumerate(self.connections):
-            if not takeoff_and_verify(conn, self.drone_configs[i]["label"], 5.0):
-                raise RuntimeError(f"{self.drone_configs[i]['label']} armed but did not climb. Check the Gazebo motor link.")
+        print("\n>> Arming and commanding SIMULTANEOUS takeoff to 5.0m across all 3 drones...")
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Parallel simultaneous arming
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [
+                executor.submit(arm_with_retry, conn, self.drone_configs[i]["label"])
+                for i, conn in enumerate(self.connections)
+            ]
+            results = [f.result() for f in futures]
+            if not all(results):
+                raise RuntimeError("One or more drones failed to arm. Check SITL link and EKF health.")
+
+        # Parallel simultaneous takeoff
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [
+                executor.submit(takeoff_and_verify, conn, self.drone_configs[i]["label"], 5.0)
+                for i, conn in enumerate(self.connections)
+            ]
+            results = [f.result() for f in futures]
+            if not all(results):
+                raise RuntimeError("One or more drones armed but failed to climb.")
 
         # Monitor climb
         print(">> Monitoring climb to 5.0m cruising hover...")
@@ -336,16 +397,27 @@ class SwarmPilotConsole:
             time.sleep(0.1)
         print(">> Swarm in formation and ready for pilot commands!")
 
+    def set_formation(self, form_key: str):
+        if form_key not in self.formations:
+            print(f">> Unknown formation key '{form_key}'. Valid: {list(self.formations.keys())}")
+            return
+        with self.lock:
+            self.current_formation_key = form_key
+            self.target_offsets = self.formations[form_key]["offsets"].astype(float).copy()
+            self.morph_steps_remaining = 25  # Smooth 2.5s transition at 10 Hz
+        print(f"\n>> [FORMATION MORPH] Morphing to {self.formations[form_key]['name']} over 2.5s...")
+
     def send_formation_setpoints(self):
         with self.lock:
             centroid = self.centroid_pos.copy()
+            offsets = self.current_offsets.copy()
 
         type_mask = 0b0000101111111000  # Position + yaw (yaw rate, velocity, accel ignored)
         for i, conn in enumerate(self.connections):
             tgt_global = np.array([
-                centroid[0] + self.v_offsets[i, 0],
-                centroid[1] + self.v_offsets[i, 1],
-                centroid[2]
+                centroid[0] + offsets[i, 0],
+                centroid[1] + offsets[i, 1],
+                centroid[2] + offsets[i, 2]
             ])
             tgt_local = tgt_global - self.frame_origins[i]
             conn.mav.set_position_target_local_ned_send(
@@ -357,8 +429,13 @@ class SwarmPilotConsole:
             )
 
     def guidance_loop(self):
-        """Continuous 10 Hz background thread keeping swarm locked to pilot centroid."""
+        """Continuous 10 Hz background thread keeping swarm locked to pilot centroid and morphing smoothly."""
         while self.running:
+            with self.lock:
+                if self.morph_steps_remaining > 0:
+                    alpha = 1.0 / self.morph_steps_remaining
+                    self.current_offsets += alpha * (self.target_offsets - self.current_offsets)
+                    self.morph_steps_remaining -= 1
             self.send_formation_setpoints()
             time.sleep(0.1)
 
@@ -399,7 +476,20 @@ class SwarmPilotConsole:
         d01 = np.linalg.norm(p0[:2] - p1[:2])
         d02 = np.linalg.norm(p0[:2] - p2[:2])
         span = np.linalg.norm(p1[:2] - p2[:2])
-        print(f"  [SWARM STATUS] Apex: ({p0[0]:4.1f}N, {p0[1]:4.1f}E, {p0[2]:4.1f}Alt) | D0-D1={d01:4.2f}m | D0-D2={d02:4.2f}m | Span={span:4.2f}m")
+        form_name = self.formations[self.current_formation_key]["name"]
+        print(f"  [SWARM STATUS | {form_name}] Centroid: ({self.centroid_pos[0]:4.1f}N, {self.centroid_pos[1]:4.1f}E, {-self.centroid_pos[2]:4.1f}Alt) | D0-D1={d01:4.2f}m | D0-D2={d02:4.2f}m | Span={span:4.2f}m")
+
+    def land_all(self):
+        print("\n>> Commanding simultaneous LAND for all 3 drones...")
+        self.running = False
+        for i, conn in enumerate(self.connections):
+            conn.set_mode(9)  # LAND mode in ArduCopter
+            conn.mav.command_long_send(
+                conn.target_system, conn.target_component,
+                mavutil.mavlink.MAV_CMD_NAV_LAND,
+                0, 0, 0, 0, 0, 0, 0, 0
+            )
+        print(">> All 3 drones landing smoothly and will auto-disarm upon touchdown.")
 
 
 def main():
@@ -425,18 +515,28 @@ def main():
     t = threading.Thread(target=console.guidance_loop, daemon=True)
     t.start()
 
-    print("\n" + "=" * 65)
+    print("\n" + "=" * 70)
     print("      LIVE SITL PILOT COMMAND CONSOLE (3 CINEWHOOP DRONES)     ")
-    print("=" * 65)
-    print(" Pilot Commands:")
-    print("   [w / 1] Fly North +6m          [s / 2] Fly South -6m")
-    print("   [a / 3] Fly West -5m           [d / 4] Fly East +5m")
-    print("   [u / 5] Climb +2m              [j / 6] Descend -2m")
-    print("   [p / 7] Square Patrol Route (Autonomous 4-corner flight)")
-    print("   [c / 8] Return to Center (0, 0, 5m)")
-    print("   [space] Print Current Telemetry Status")
-    print("   [q / 0] Land and Exit")
-    print("=" * 65)
+    print("=" * 70)
+    print(" Swarm Movement (Simultaneous in Lockstep):")
+    print("   [w] Fly North +6m               [s] Fly South -6m")
+    print("   [a] Fly West -5m                [d] Fly East +5m")
+    print("   [u] Climb +2m                   [j] Descend -2m")
+    print("   [p] Square Patrol (Autonomous 4-corner flight in formation)")
+    print("   [c] Return to Center (0, 0, 5m)")
+    print("")
+    print(" Formation Switching (Live Morphing):")
+    print("   [v] Flying-V Formation (Chevron / Wings Back)")
+    print("   [l] Line Formation (Side-by-Side Abreast)")
+    print("   [k] Column Formation (Single-File In-Trail)")
+    print("   [t] Triangle Formation (Delta / Inverted V)")
+    print("   [o] Circle Formation (Radial Orbit Ring)")
+    print("   [e] Echelon Formation (Diagonal Flight)")
+    print("")
+    print(" Telemetry & System:")
+    print("   [space] Print Current Swarm Status")
+    print("   [q] Land all drones and Exit")
+    print("=" * 70)
 
     try:
         while True:
@@ -453,6 +553,18 @@ def main():
                 console.move(d_alt=2.0)
             elif cmd in ["j", "6"]:
                 console.move(d_alt=-2.0)
+            elif cmd in ["v"]:
+                console.set_formation("v")
+            elif cmd in ["l"]:
+                console.set_formation("line")
+            elif cmd in ["k"]:
+                console.set_formation("column")
+            elif cmd in ["t"]:
+                console.set_formation("triangle")
+            elif cmd in ["o"]:
+                console.set_formation("circle")
+            elif cmd in ["e"]:
+                console.set_formation("echelon")
             elif cmd in ["p", "7"]:
                 console.run_square_patrol()
             elif cmd in ["c", "8"]:
@@ -462,14 +574,13 @@ def main():
             elif cmd in ["", "space", "status"]:
                 console.print_status()
             elif cmd in ["q", "0", "exit"]:
-                print(">> Exiting pilot console...")
-                console.running = False
+                console.land_all()
                 break
             else:
-                print("Invalid command. Use: w, a, s, d, u, j, p, c, or q.")
+                print("Invalid command. Options: w, a, s, d, u, j, v, l, k, t, o, e, p, c, q.")
     except KeyboardInterrupt:
         print("\n>> Interrupted by pilot. Shutting down...")
-        console.running = False
+        console.land_all()
     finally:
         console.cleanup()
 

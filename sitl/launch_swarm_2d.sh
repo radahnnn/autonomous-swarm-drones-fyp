@@ -11,12 +11,27 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ARDUPILOT_HOME="${ARDUPILOT_HOME:-$HOME/ardupilot}"
 PARAMS="${SCRIPT_DIR}/swarm_params.parm"
-VENV_ACTIVATE="${HOME}/venv-ardupilot/bin/activate"
+
+if [ -z "$XAUTHORITY" ]; then
+    MUTTER_AUTH="$(ls -t /run/user/1000/.mutter-Xwaylandauth.* 2>/dev/null | head -n 1)"
+    if [ -n "$MUTTER_AUTH" ]; then
+        export XAUTHORITY="$MUTTER_AUTH"
+    fi
+fi
+export DISPLAY="${DISPLAY:-:0}"
+
+if [ -f "${HOME}/venv-ardupilot/bin/activate" ]; then
+    VENV_ACTIVATE="${HOME}/venv-ardupilot/bin/activate"
+elif [ -f "${SCRIPT_DIR}/../.venv/bin/activate" ]; then
+    VENV_ACTIVATE="${SCRIPT_DIR}/../.venv/bin/activate"
+else
+    VENV_ACTIVATE="${HOME}/venv-ardupilot/bin/activate"
+fi
 
 # --- Pre-flight sanity checks ---
 if [ ! -f "${VENV_ACTIVATE}" ]; then
     echo "[PRE-FLIGHT ERROR] Virtualenv activate script not found at: ${VENV_ACTIVATE}" >&2
-    echo "Please ensure the ArduPilot Python environment is set up at ~/venv-ardupilot." >&2
+    echo "Please ensure the ArduPilot Python environment is set up at ~/venv-ardupilot or .venv." >&2
     exit 1
 fi
 
@@ -45,6 +60,7 @@ source "${VENV_ACTIVATE}"
 echo "[LAUNCH] Cleaning up any existing SITL instances..."
 pkill -9 -f "arducopter" 2>/dev/null
 pkill -9 -f "sim_vehicle" 2>/dev/null
+pkill -9 -f "mavproxy" 2>/dev/null
 pkill -9 -f "Drone.*SITL" 2>/dev/null
 sleep 2
 
@@ -65,8 +81,7 @@ xterm -hold -T "Drone 1 - Apex Leader [SITL]" -geometry 100x25+0+0 -e /bin/bash 
         --custom-location=-35.363261,149.165230,584,0 \
         --out=udp:127.0.0.1:14550 \
         --out=udp:127.0.0.1:14552 \
-        --add-param-file='${PARAMS}' \
-        --map
+        --add-param-file='${PARAMS}'
 " &
 
 sleep 5
@@ -82,10 +97,9 @@ xterm -hold -T "Drone 2 - Left Wing [SITL]" -geometry 100x25+0+450 -e /bin/bash 
         -N \
         --auto-sysid \
         --custom-location=-35.363261,149.165285,584,0 \
-        --out=udp:127.0.0.1:14550 \
+        --out=udp:127.0.0.1:14560 \
         --out=udp:127.0.0.1:14562 \
-        --add-param-file='${PARAMS}' \
-        --map
+        --add-param-file='${PARAMS}'
 " &
 
 sleep 5
@@ -101,11 +115,12 @@ xterm -hold -T "Drone 3 - Right Wing [SITL]" -geometry 100x25+750+0 -e /bin/bash
         -N \
         --auto-sysid \
         --custom-location=-35.363261,149.165180,584,0 \
-        --out=udp:127.0.0.1:14550 \
+        --out=udp:127.0.0.1:14570 \
         --out=udp:127.0.0.1:14572 \
-        --add-param-file='${PARAMS}' \
-        --map
+        --add-param-file='${PARAMS}'
 " &
+
+sleep 5
 
 disown -a 2>/dev/null || true
 
