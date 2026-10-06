@@ -36,3 +36,8 @@ mav.tlog.raw
 
 # Diagnostic Run Scripts
 sitl/takeoff.scr
+
+# Large Binaries & Ground Station App
+*.AppImage
+qgroundcontrol-app/
+
