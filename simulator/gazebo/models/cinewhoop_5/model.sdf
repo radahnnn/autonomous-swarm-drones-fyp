@@ -784,6 +784,7 @@
       <!-- Port settings -->
       <fdm_addr>127.0.0.1</fdm_addr>
       <fdm_port_in>9042</fdm_port_in>
+      <fdm_port_out>9043</fdm_port_out>
       <connectionTimeoutMaxCount>50</connectionTimeoutMaxCount>
       <lock_step>1</lock_step>
       <no_time_sync>1</no_time_sync>

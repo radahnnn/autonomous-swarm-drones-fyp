@@ -2,7 +2,7 @@
 <sdf version="1.9">
   <world name="cinewhoop_5drones">
     <physics name="1ms" type="ignore">
-      <max_step_size>0.002</max_step_size>
+      <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
 
@@ -119,35 +119,35 @@
     <include>
       <name>cinewhoop_1</name>
       <uri>model://cinewhoop_1</uri>
-      <pose degrees="true">0 0 0.05 0 0 90</pose>
+      <pose degrees="true">0 0 0.2 0 0 90</pose>
     </include>
 
     <!-- Drone 2: Follower 1 (Left Wing Inner, Port 9012) -->
     <include>
       <name>cinewhoop_2</name>
       <uri>model://cinewhoop_2</uri>
-      <pose degrees="true">-3.0 -3.0 0.05 0 0 90</pose>
+      <pose degrees="true">-3.0 -3.0 0.2 0 0 90</pose>
     </include>
 
     <!-- Drone 3: Follower 2 (Right Wing Inner, Port 9022) -->
     <include>
       <name>cinewhoop_3</name>
       <uri>model://cinewhoop_3</uri>
-      <pose degrees="true">3.0 -3.0 0.05 0 0 90</pose>
+      <pose degrees="true">3.0 -3.0 0.2 0 0 90</pose>
     </include>
 
     <!-- Drone 4: Follower 3 (Left Wing Outer, Port 9032) -->
     <include>
       <name>cinewhoop_4</name>
       <uri>model://cinewhoop_4</uri>
-      <pose degrees="true">-6.0 -6.0 0.05 0 0 90</pose>
+      <pose degrees="true">-6.0 -6.0 0.2 0 0 90</pose>
     </include>
 
     <!-- Drone 5: Follower 4 (Right Wing Outer, Port 9042) -->
     <include>
       <name>cinewhoop_5</name>
       <uri>model://cinewhoop_5</uri>
-      <pose degrees="true">6.0 -6.0 0.05 0 0 90</pose>
+      <pose degrees="true">6.0 -6.0 0.2 0 0 90</pose>
     </include>
 
   </world>

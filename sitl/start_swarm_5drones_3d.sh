@@ -61,6 +61,8 @@ echo "[SWARM-3D] Starting Drone 3 (Right Inner, SysID 3) -> Gazebo Port 9022..."
 cd "$ARDUPILOT_DIR/ArduCopter"
 $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
+    -f gazebo-iris \
+    --model JSON \
     -I 2 \
     -N \
     --auto-sysid \
@@ -76,6 +78,8 @@ echo "[SWARM-3D] Starting Drone 4 (Left Outer, SysID 4) -> Gazebo Port 9032..."
 cd "$ARDUPILOT_DIR/ArduCopter"
 $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
+    -f gazebo-iris \
+    --model JSON \
     -I 3 \
     -N \
     --auto-sysid \
@@ -91,6 +95,8 @@ echo "[SWARM-3D] Starting Drone 5 (Right Outer, SysID 5) -> Gazebo Port 9042..."
 cd "$ARDUPILOT_DIR/ArduCopter"
 $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     -v ArduCopter \
+    -f gazebo-iris \
+    --model JSON \
     -I 4 \
     -N \
     --auto-sysid \
