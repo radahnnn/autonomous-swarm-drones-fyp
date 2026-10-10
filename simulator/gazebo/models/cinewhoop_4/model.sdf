@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
 <sdf version="1.9">
-  <model name="cinewhoop_2">
+  <model name="cinewhoop_4">
     <include>
       <uri>model://iris_with_standoffs</uri>
     </include>
@@ -783,7 +783,7 @@
       filename="ArduPilotPlugin">
       <!-- Port settings -->
       <fdm_addr>127.0.0.1</fdm_addr>
-      <fdm_port_in>9012</fdm_port_in>
+      <fdm_port_in>9032</fdm_port_in>
       <connectionTimeoutMaxCount>50</connectionTimeoutMaxCount>
       <lock_step>1</lock_step>
       <no_time_sync>1</no_time_sync>
