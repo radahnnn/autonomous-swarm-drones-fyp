@@ -14,6 +14,7 @@ Advanced Features:
 """
 
 import atexit
+import itertools
 import math
 import os
 from pathlib import Path
@@ -25,6 +26,10 @@ import traceback
 from typing import Dict, List, Optional
 import numpy as np
 from pymavlink import mavutil
+try:
+    from scipy.optimize import linear_sum_assignment
+except ImportError:
+    linear_sum_assignment = None
 
 from sitl.common_frame import CommonCoordinateFrame
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify, wait_ekf_ready
@@ -405,84 +410,93 @@ class SelfHealingSwarmConsole:
             self.target_offsets = offsets
             return
 
-        if self.current_leader_idx not in active_indices:
-            self.current_leader_idx = active_indices[0]
-
         style = self.current_formation_style
 
-        if n == 5:
-            if style == "v":
-                offsets[active_indices[0]] = [ 0.0,  0.0, 0.0]  # Apex
-                offsets[active_indices[1]] = [-3.0, -3.0, 0.0]  # Left Inner
-                offsets[active_indices[2]] = [-3.0,  3.0, 0.0]  # Right Inner
-                offsets[active_indices[3]] = [-6.0, -6.0, 0.0]  # Left Outer
-                offsets[active_indices[4]] = [-6.0,  6.0, 0.0]  # Right Outer
-            elif style == "line":
-                offsets[active_indices[0]] = [ 0.0,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 0.0, -3.0, 0.0]
-                offsets[active_indices[2]] = [ 0.0,  3.0, 0.0]
-                offsets[active_indices[3]] = [ 0.0, -6.0, 0.0]
-                offsets[active_indices[4]] = [ 0.0,  6.0, 0.0]
-            elif style == "column":
-                offsets[active_indices[0]] = [ 6.0,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 3.0,  0.0, 0.0]
-                offsets[active_indices[2]] = [ 0.0,  0.0, 0.0]
-                offsets[active_indices[3]] = [-3.0,  0.0, 0.0]
-                offsets[active_indices[4]] = [-6.0,  0.0, 0.0]
-            elif style == "diamond":
-                offsets[active_indices[0]] = [ 0.0,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 4.0,  0.0, 0.0]
-                offsets[active_indices[2]] = [-4.0,  0.0, 0.0]
-                offsets[active_indices[3]] = [ 0.0, -4.0, 0.0]
-                offsets[active_indices[4]] = [ 0.0,  4.0, 0.0]
-            else:  # ring
-                r = 4.0
-                for rank, idx in enumerate(active_indices):
-                    ang = rank * (2 * math.pi / 5) - (math.pi / 2)
-                    offsets[idx] = [r * math.cos(ang), r * math.sin(ang), 0.0]
-
-        elif n == 4:
-            if style in ["v", "diamond"]:
-                offsets[active_indices[0]] = [ 3.0,  0.0, 0.0]  # Apex Leader
-                offsets[active_indices[1]] = [ 0.0, -3.5, 0.0]  # Left Wing
-                offsets[active_indices[2]] = [ 0.0,  3.5, 0.0]  # Right Wing
-                offsets[active_indices[3]] = [-3.0,  0.0, 0.0]  # Rear Trail
-            elif style == "line":
-                offsets[active_indices[0]] = [ 0.0, -4.5, 0.0]
-                offsets[active_indices[1]] = [ 0.0, -1.5, 0.0]
-                offsets[active_indices[2]] = [ 0.0,  1.5, 0.0]
-                offsets[active_indices[3]] = [ 0.0,  4.5, 0.0]
-            elif style == "column":
-                offsets[active_indices[0]] = [ 4.5,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 1.5,  0.0, 0.0]
-                offsets[active_indices[2]] = [-1.5,  0.0, 0.0]
-                offsets[active_indices[3]] = [-4.5,  0.0, 0.0]
+        # Template slot coordinates for candidate geometries
+        if style == "v":
+            if n == 5:
+                slots = np.array([[0.0, 0.0, 0.0], [-3.0, -3.0, 0.0], [-3.0, 3.0, 0.0], [-6.0, -6.0, 0.0], [-6.0, 6.0, 0.0]])
+            elif n == 4:
+                slots = np.array([[0.0, 0.0, 0.0], [-3.0, -3.0, 0.0], [-3.0, 3.0, 0.0], [-5.0, 0.0, 0.0]])
+            elif n == 3:
+                slots = np.array([[0.0, 0.0, 0.0], [-3.0, -3.0, 0.0], [-3.0, 3.0, 0.0]])
+            elif n == 2:
+                slots = np.array([[0.0, -2.5, 0.0], [0.0, 2.5, 0.0]])
             else:
-                offsets[active_indices[0]] = [ 2.5, -2.5, 0.0]
-                offsets[active_indices[1]] = [ 2.5,  2.5, 0.0]
-                offsets[active_indices[2]] = [-2.5, -2.5, 0.0]
-                offsets[active_indices[3]] = [-2.5,  2.5, 0.0]
-
-        elif n == 3:
-            if style in ["v", "diamond", "ring"]:
-                offsets[active_indices[0]] = [ 2.5,  0.0, 0.0]  # Lead
-                offsets[active_indices[1]] = [-2.5, -3.0, 0.0]  # Left
-                offsets[active_indices[2]] = [-2.5,  3.0, 0.0]  # Right
-            elif style == "line":
-                offsets[active_indices[0]] = [ 0.0,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 0.0, -3.5, 0.0]
-                offsets[active_indices[2]] = [ 0.0,  3.5, 0.0]
+                slots = np.array([[0.0, 0.0, 0.0]])
+        elif style == "line":
+            if n == 5:
+                slots = np.array([[0.0, -6.0, 0.0], [0.0, -3.0, 0.0], [0.0, 0.0, 0.0], [0.0, 3.0, 0.0], [0.0, 6.0, 0.0]])
+            elif n == 4:
+                slots = np.array([[0.0, -4.5, 0.0], [0.0, -1.5, 0.0], [0.0, 1.5, 0.0], [0.0, 4.5, 0.0]])
+            elif n == 3:
+                slots = np.array([[0.0, -3.0, 0.0], [0.0, 0.0, 0.0], [0.0, 3.0, 0.0]])
+            elif n == 2:
+                slots = np.array([[0.0, -2.5, 0.0], [0.0, 2.5, 0.0]])
             else:
-                offsets[active_indices[0]] = [ 3.0,  0.0, 0.0]
-                offsets[active_indices[1]] = [ 0.0,  0.0, 0.0]
-                offsets[active_indices[2]] = [-3.0,  0.0, 0.0]
+                slots = np.array([[0.0, 0.0, 0.0]])
+        elif style == "column":
+            if n == 5:
+                slots = np.array([[6.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, 0.0, 0.0], [-3.0, 0.0, 0.0], [-6.0, 0.0, 0.0]])
+            elif n == 4:
+                slots = np.array([[4.5, 0.0, 0.0], [1.5, 0.0, 0.0], [-1.5, 0.0, 0.0], [-4.5, 0.0, 0.0]])
+            elif n == 3:
+                slots = np.array([[3.0, 0.0, 0.0], [0.0, 0.0, 0.0], [-3.0, 0.0, 0.0]])
+            elif n == 2:
+                slots = np.array([[2.5, 0.0, 0.0], [-2.5, 0.0, 0.0]])
+            else:
+                slots = np.array([[0.0, 0.0, 0.0]])
+        elif style == "diamond":
+            if n == 5:
+                slots = np.array([[4.0, 0.0, 0.0], [0.0, -4.0, 0.0], [0.0, 4.0, 0.0], [-4.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+            elif n == 4:
+                slots = np.array([[3.5, 0.0, 0.0], [0.0, -3.5, 0.0], [0.0, 3.5, 0.0], [-3.5, 0.0, 0.0]])
+            elif n == 3:
+                slots = np.array([[2.5, 0.0, 0.0], [-2.5, -3.0, 0.0], [-2.5, 3.0, 0.0]])
+            elif n == 2:
+                slots = np.array([[0.0, -2.5, 0.0], [0.0, 2.5, 0.0]])
+            else:
+                slots = np.array([[0.0, 0.0, 0.0]])
+        else:  # ring
+            r = 4.0
+            slots = np.array([
+                [r * math.cos(k * 2 * math.pi / n - math.pi / 2), r * math.sin(k * 2 * math.pi / n - math.pi / 2), 0.0]
+                for k in range(n)
+            ])
 
-        elif n == 2:
-            offsets[active_indices[0]] = [ 0.0, -2.5, 0.0]
-            offsets[active_indices[1]] = [ 0.0,  2.5, 0.0]
+        # Solve optimal bipartite matching (Hungarian Algorithm) to minimize
+        # total travel distance and strictly prevent path crossovers / collisions.
+        curr_pts = np.array([self.current_offsets[i] for i in active_indices])
+        cost_matrix = np.zeros((n, n), dtype=float)
+        for i in range(n):
+            for j in range(n):
+                diff = curr_pts[i] - slots[j]
+                cost_matrix[i, j] = diff[0]**2 + diff[1]**2 + 2.0 * diff[2]**2
 
-        elif n == 1:
-            offsets[active_indices[0]] = [ 0.0,  0.0, 0.0]
+        if linear_sum_assignment is not None:
+            row_ind, col_ind = linear_sum_assignment(cost_matrix)
+        else:
+            best_perm = None
+            min_c = float('inf')
+            for p in itertools.permutations(range(n)):
+                c = sum(cost_matrix[i, p[i]] for i in range(n))
+                if c < min_c:
+                    min_c = c
+                    best_perm = p
+            row_ind = list(range(n))
+            col_ind = list(best_perm)
+
+        for r, c in zip(row_ind, col_ind):
+            offsets[active_indices[r]] = slots[c]
+
+        # In apex-centered formations (V, diamond), the drone matched to slot 0 is the apex leader
+        if style in ["v", "diamond"]:
+            for r, c in zip(row_ind, col_ind):
+                if c == 0:
+                    self.current_leader_idx = active_indices[r]
+                    break
+        elif self.current_leader_idx not in active_indices:
+            self.current_leader_idx = active_indices[0]
 
         self.target_offsets = offsets
 
@@ -528,7 +542,7 @@ class SelfHealingSwarmConsole:
                 print(f" [SWARM FAULT TOLERANCE] Follower Drone {drone_num} lost. Maintaining active formation.")
 
             self._calculate_active_topology()
-            self.morph_steps_remaining = 25
+            self.morph_steps_remaining = 45
             print(f" [SELF-HEALING] Reconfiguring remaining {len(active_indices)} drones into optimal topology...")
             print("!" * 70 + "\n")
 
@@ -577,13 +591,21 @@ class SelfHealingSwarmConsole:
                     cur_alt = gp.relative_alt / 1000.0
                 if cur_alt >= 1.0:
                     print(f">> Drone {drone_num} still airborne at {cur_alt:.1f}m; rejoining formation directly.")
+                    cur_pos = None
+                    if gp is not None:
+                        cur_pos = self.frame.gps_to_global_ned(
+                            gp.lat / 1e7, gp.lon / 1e7, gp.relative_alt / 1000.0
+                        )
                     with self.lock:
                         self.simulated_faults[idx] = False
                         self.drone_health[idx] = True
                         self.is_airborne[idx] = True
                         self.last_heartbeat[idx] = time.time()
+                        if cur_pos is not None:
+                            self.last_pos[idx] = cur_pos
+                            self.current_offsets[idx] = cur_pos - self.centroid_pos
                         self._calculate_active_topology()
-                        self.morph_steps_remaining = 25
+                        self.morph_steps_remaining = 45
                     print(f"\n* [REJOIN COMPLETE] Drone {drone_num} locked back into swarm!\n")
                     return
 
@@ -601,12 +623,20 @@ class SelfHealingSwarmConsole:
                     m = conn.recv_match(type=["GLOBAL_POSITION_INT", "LOCAL_POSITION_NED"], blocking=True, timeout=0.5)
                     if m:
                         alt = m.relative_alt / 1000.0 if m.get_type() == "GLOBAL_POSITION_INT" else -m.z
-                        if alt >= (target_alt * 0.75):
+                        if alt >= (target_alt * 0.85):
                             reached = True
                             break
                 if not reached:
                     print(f"!! [ERROR] Drone {drone_num} did not reach altitude. Not joining formation.")
                     return
+
+                # Read actual physical position from drone to initialize its offset accurately
+                cur_pos = None
+                gp = conn.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=2.0)
+                if gp is not None:
+                    cur_pos = self.frame.gps_to_global_ned(
+                        gp.lat / 1e7, gp.lon / 1e7, gp.relative_alt / 1000.0
+                    )
 
                 # Only now is the drone healthy and part of the swarm.
                 with self.lock:
@@ -614,8 +644,11 @@ class SelfHealingSwarmConsole:
                     self.drone_health[idx] = True
                     self.is_airborne[idx] = True
                     self.last_heartbeat[idx] = time.time()
+                    if cur_pos is not None:
+                        self.last_pos[idx] = cur_pos
+                        self.current_offsets[idx] = cur_pos - self.centroid_pos
                     self._calculate_active_topology()
-                    self.morph_steps_remaining = 25
+                    self.morph_steps_remaining = 45
                 print(f"\n* [REJOIN COMPLETE] Drone {drone_num} reached altitude and locked back into swarm!\n")
             finally:
                 self.busy[idx] = False  # release the connection back to the guidance thread
@@ -647,8 +680,8 @@ class SelfHealingSwarmConsole:
         with self.lock:
             self.current_formation_style = style
             self._calculate_active_topology()
-            self.morph_steps_remaining = 25
-        print(f">> [MORPH] Swarm morphing into {style.upper()} topology over 2.5s...")
+            self.morph_steps_remaining = 45
+        print(f">> [MORPH] Swarm morphing into {style.upper()} topology over 4.5s...")
 
     def send_formation_setpoints(self):
         with self.lock:
