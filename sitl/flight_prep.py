@@ -94,3 +94,57 @@ def takeoff_and_verify(conn, label: str, target_alt: float, timeout: float = 60.
                 return True
     print(f"  [{label}] ERROR: no climb after {timeout:.0f}s (alt {alt if alt is not None else 'unknown'})")
     return False
+
+
+# EKF_STATUS_FLAGS bits (MAVLink common.xml)
+_EKF_ATTITUDE = 1
+_EKF_VEL_H = 2
+_EKF_VEL_V = 4
+_EKF_POS_REL = 8
+_EKF_POS_ABS = 16
+_EKF_POS_VERT_ABS = 32
+_EKF_CONST_POS_MODE = 128
+_EKF_UNINITIALIZED = 1024
+_EKF_REQUIRED = _EKF_ATTITUDE | _EKF_VEL_H | _EKF_VEL_V | _EKF_POS_REL | _EKF_POS_ABS | _EKF_POS_VERT_ABS
+_EKF_FORBIDDEN = _EKF_CONST_POS_MODE | _EKF_UNINITIALIZED
+
+
+def request_message_interval(conn, msg_id: int, hz: float) -> None:
+    conn.mav.command_long_send(
+        conn.target_system, conn.target_component,
+        mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,
+        0, msg_id, int(1e6 / hz), 0, 0, 0, 0, 0,
+    )
+
+
+def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 3) -> bool:
+    """
+    Block until the EKF reports a converged absolute position (and GPS has a 3D fix)
+    in `stable` consecutive EKF_STATUS_REPORT messages. Progress is driven by the
+    vehicle's own telemetry, so it adapts to any Gazebo real-time factor.
+    Must not be called while another thread is reading from `conn`.
+    """
+    request_message_interval(conn, 193, 2.0)  # EKF_STATUS_REPORT
+    request_message_interval(conn, 24, 2.0)   # GPS_RAW_INT
+    t0 = time.time()
+    last_print = 0.0
+    good = 0
+    fix = 0
+    flags = 0
+    while time.time() - t0 < wall_timeout:
+        m = conn.recv_match(type=["EKF_STATUS_REPORT", "GPS_RAW_INT"], blocking=True, timeout=1.0)
+        if m is not None:
+            if m.get_type() == "GPS_RAW_INT":
+                fix = m.fix_type
+            else:
+                flags = m.flags
+                ok = (flags & _EKF_REQUIRED) == _EKF_REQUIRED and not (flags & _EKF_FORBIDDEN) and fix >= 3
+                good = good + 1 if ok else 0
+                if good >= stable:
+                    print(f"  [{label}] EKF ready after {time.time() - t0:.0f}s (flags=0x{flags:x}, gps_fix={fix})")
+                    return True
+        if time.time() - last_print > 10.0:
+            last_print = time.time()
+            print(f"  [{label}] waiting for EKF ({time.time() - t0:.0f}s) flags=0x{flags:x} gps_fix={fix}")
+    print(f"  [{label}] ERROR: EKF not ready after {wall_timeout:.0f}s (flags=0x{flags:x}, gps_fix={fix})")
+    return False

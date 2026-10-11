@@ -38,7 +38,7 @@ $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     --mavproxy-args="--daemon" \
     --add-param-file="$SWARM_PARAMS" &
 
-sleep 3
+sleep 1.5
 
 echo "[SWARM-3D] Starting Drone 2 (Left Inner, SysID 2) -> Gazebo Port 9012..."
 cd "$ARDUPILOT_DIR/ArduCopter"
@@ -55,7 +55,7 @@ $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     --mavproxy-args="--daemon" \
     --add-param-file="$SWARM_PARAMS" &
 
-sleep 3
+sleep 1.5
 
 echo "[SWARM-3D] Starting Drone 3 (Right Inner, SysID 3) -> Gazebo Port 9022..."
 cd "$ARDUPILOT_DIR/ArduCopter"
@@ -72,7 +72,7 @@ $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     --mavproxy-args="--daemon" \
     --add-param-file="$SWARM_PARAMS" &
 
-sleep 3
+sleep 1.5
 
 echo "[SWARM-3D] Starting Drone 4 (Left Outer, SysID 4) -> Gazebo Port 9032..."
 cd "$ARDUPILOT_DIR/ArduCopter"
@@ -89,7 +89,7 @@ $VENV_PYTHON "$ARDUPILOT_DIR/Tools/autotest/sim_vehicle.py" \
     --mavproxy-args="--daemon" \
     --add-param-file="$SWARM_PARAMS" &
 
-sleep 3
+sleep 1.5
 
 echo "[SWARM-3D] Starting Drone 5 (Right Outer, SysID 5) -> Gazebo Port 9042..."
 cd "$ARDUPILOT_DIR/ArduCopter"
