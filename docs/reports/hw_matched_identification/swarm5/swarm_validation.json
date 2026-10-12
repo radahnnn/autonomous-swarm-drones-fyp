@@ -1,0 +1,111 @@
+{
+  "summary": {
+    "OLD (tau .992, c_d .637)": {
+      "rmse_cm_per_drone": [
+        28.973577935902227,
+        30.132377529556276,
+        31.229102542995417,
+        30.837847055671357,
+        30.594192893961925
+      ],
+      "rmse_cm_mean": 30.353419591617445,
+      "max_cm": 151.52081521106103
+    },
+    "S1 refit (tau 0.21, c_d 0.01, td 0.20)": {
+      "rmse_cm_per_drone": [
+        11.323046706460946,
+        13.977118088541987,
+        16.249739073498674,
+        15.545153088768322,
+        14.172594155277407
+      ],
+      "rmse_cm_mean": 14.253530222509468,
+      "max_cm": 61.82528978251328
+    },
+    "S4 identified autopilot model": {
+      "rmse_cm_per_drone": [
+        11.480536805815353,
+        13.100483540263443,
+        14.366223089372074,
+        13.919444821784277,
+        12.757610440267264
+      ],
+      "rmse_cm_mean": 13.124859739500483,
+      "max_cm": 84.92974101320456
+    },
+    "ZERO (drone sits on setpoint)": {
+      "rmse_cm_per_drone": [
+        130.69112505293964,
+        132.37627273507468,
+        133.850038029521,
+        133.20570747435212,
+        132.1371305043136
+      ],
+      "rmse_cm_mean": 132.4520547592402,
+      "max_cm": 602.2195878340784
+    }
+  },
+  "phases": {
+    "start@0s": {
+      "OLD (tau .992, c_d .637)": 1.9901632396948636,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 1.999215511335644,
+      "S4 identified autopilot model": 2.0171076041644262,
+      "ZERO (drone sits on setpoint)": 2.169917824296961
+    },
+    "w 6@10s": {
+      "OLD (tau .992, c_d .637)": 44.60959045681526,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 7.002015050681036,
+      "S4 identified autopilot model": 13.57565774877141,
+      "ZERO (drone sits on setpoint)": 208.1951869003718
+    },
+    "l@24s": {
+      "OLD (tau .992, c_d .637)": 16.776084924075978,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 15.626064401463873,
+      "S4 identified autopilot model": 10.57514943847154,
+      "ZERO (drone sits on setpoint)": 46.51072309017374
+    },
+    "o@36s": {
+      "OLD (tau .992, c_d .637)": 13.193590373230268,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 12.154073805637175,
+      "S4 identified autopilot model": 7.917754272849682,
+      "ZERO (drone sits on setpoint)": 41.292421409839875
+    },
+    "d 5@48s": {
+      "OLD (tau .992, c_d .637)": 36.16422138445445,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 5.5723801184943795,
+      "S4 identified autopilot model": 12.222967805383304,
+      "ZERO (drone sits on setpoint)": 168.2664890907621
+    },
+    "v@62s": {
+      "OLD (tau .992, c_d .637)": 20.662344655898927,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 19.208634779154423,
+      "S4 identified autopilot model": 13.035136746476855,
+      "ZERO (drone sits on setpoint)": 55.47570044324052
+    },
+    "s 6@74s": {
+      "OLD (tau .992, c_d .637)": 40.508992819347775,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 11.092408922987365,
+      "S4 identified autopilot model": 18.62726972793854,
+      "ZERO (drone sits on setpoint)": 211.66003077106953
+    },
+    "a 5@88s": {
+      "OLD (tau .992, c_d .637)": 38.55194819441104,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 6.008604466800956,
+      "S4 identified autopilot model": 10.587891957959684,
+      "ZERO (drone sits on setpoint)": 167.00507903156574
+    },
+    "x@102s": {
+      "OLD (tau .992, c_d .637)": 24.162579204376087,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 22.26770336000876,
+      "S4 identified autopilot model": 15.732820440624163,
+      "ZERO (drone sits on setpoint)": 59.68774860806193
+    },
+    "v@114s": {
+      "OLD (tau .992, c_d .637)": 21.0653318284683,
+      "S1 refit (tau 0.21, c_d 0.01, td 0.20)": 19.73192075723275,
+      "S4 identified autopilot model": 13.107268023385041,
+      "ZERO (drone sits on setpoint)": 62.90291889006774
+    }
+  },
+  "n_drones": 5
+}
