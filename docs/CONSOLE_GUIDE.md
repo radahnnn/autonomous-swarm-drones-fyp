@@ -10,7 +10,8 @@ python3 sitl/swarm_console.py --drones 3 --standalone    # headless 2D SITL, fas
 python3 sitl/swarm_console.py --drones 5 --auto-launch   # take off immediately
 sitl/launch_console.sh --drones 5 --gazebo               # same, in its own terminal window
 ```
-Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`.
+Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`,
+`--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time).
 
 ## Commands
 | Command | Action |
@@ -34,3 +35,9 @@ Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-dete
 ## Old command mapping
 Old 3/5-drone consoles took off automatically and used `t` = triangle, `x` = diamond (5 drones). Now: use `launch`
 (or `--auto-launch`), `tri` = triangle, `x` = diamond, `o` = ring (was circle/pentagon). `t <id>` still means lift.
+
+## Verification status
+Tested live in standalone SITL with 5 drones (auto-launch, takeoff, V/triangle/ring/line morphs, leader failure and re-election,
+revive and rejoin, synchronized landing). The Gazebo path (`--gazebo`) has not been run with this console yet: the Ubuntu laptop
+has no GPU and the 5-drone world ran at about 6% real time headless. 74+ unit tests cover the formation library, fleet layout
+and console logic without hardware.

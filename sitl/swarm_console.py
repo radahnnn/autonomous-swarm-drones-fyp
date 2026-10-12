@@ -47,7 +47,8 @@ class SwarmConsole:
     CRUISE_ALT = 5.0
     MORPH_STEPS = 45  # 4.5 s at the 10 Hz guidance rate
 
-    def __init__(self, n: int = 5, use_gazebo: Optional[bool] = None, force_restart: bool = False):
+    def __init__(self, n: int = 5, use_gazebo: Optional[bool] = None, force_restart: bool = False,
+                 ekf_timeout: Optional[float] = None):
         self.n = n
         self.fleet = build_fleet(n)
         self.repo_root = Path(__file__).resolve().parent.parent
@@ -68,6 +69,8 @@ class SwarmConsole:
         # Heartbeats are paced by *sim* time: in Gazebo (slow real-time factor) the 2D timeout would false-trip.
         gazebo_mode = use_gazebo if use_gazebo is not None else self.detect_gazebo()
         self.hb_timeout = 25.0 if gazebo_mode else 3.5
+        # Wall-clock budget for the EKF to converge (~45 s of sim time): Gazebo can run at 5-30% real time.
+        self.ekf_timeout = ekf_timeout if ekf_timeout is not None else (900.0 if gazebo_mode else 300.0)
 
         self.current_formation_style = "v"
         self.current_offsets = np.zeros((n, 3), dtype=float)
@@ -76,6 +79,7 @@ class SwarmConsole:
 
         self.connections: List[mavutil.mavlink_connection] = []
         self.procs: List[subprocess.Popen] = []
+        self.use_tcp = False  # True when this console started the SITL binaries (no MAVProxy UDP forwarding)
         self.frame_origins: List[np.ndarray] = []
         self.centroid_pos = np.array([0.0, 0.0, -self.CRUISE_ALT])  # [North, East, Down]
         self.running = True
@@ -144,6 +148,16 @@ class SwarmConsole:
                 return
         except Exception:
             pass
+        try:
+            probe = mavutil.mavlink_connection(f"tcp:127.0.0.1:{self.fleet[0].tcp_port}")
+            alive = probe.wait_heartbeat(timeout=1.5)
+            probe.close()
+            if alive:
+                print(f">> [OK] Detected active SITL instances on TCP {self.fleet[0].tcp_port}...; connecting to them.")
+                self.use_tcp = True
+                return
+        except Exception:
+            pass
 
         sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter")))
         if not sitl_bin.exists():
@@ -162,6 +176,7 @@ class SwarmConsole:
                 cmd += ["--model", "quad", "--home", spec.home_standalone]
             cmd += ["--defaults", params_file, "--speedup", "1"]
             self.procs.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+        self.use_tcp = True  # our own instances only expose ArduPilot's TCP server
         atexit.register(self.cleanup)
         time.sleep(2.5)
 
@@ -181,7 +196,7 @@ class SwarmConsole:
         print(f">> Establishing MAVLink links to all {self.n} drones...")
         self.connections.clear()
         for spec in self.fleet:
-            endpoint = f"udpin:127.0.0.1:{spec.port}"
+            endpoint = f"tcp:127.0.0.1:{spec.tcp_port}" if self.use_tcp else f"udpin:127.0.0.1:{spec.port}"
             conn = None
             for _ in range(60):
                 try:
@@ -205,7 +220,7 @@ class SwarmConsole:
 
         print(">> Waiting for EKF convergence (position + GPS 3D fix) on all vehicles...")
         with ThreadPoolExecutor(max_workers=self.n) as executor:
-            futures = [executor.submit(wait_ekf_ready, c, self.fleet[i].label, 300.0) for i, c in enumerate(self.connections)]
+            futures = [executor.submit(wait_ekf_ready, c, self.fleet[i].label, self.ekf_timeout) for i, c in enumerate(self.connections)]
             if not all(f.result() for f in futures):
                 raise RuntimeError("EKF did not converge on one or more drones. Check Gazebo RTF / SITL logs.")
 
@@ -256,7 +271,7 @@ class SwarmConsole:
             def prep(i):
                 conn, label = self.connections[i], self.fleet[i].label
                 return (
-                    wait_ekf_ready(conn, label, 300.0)
+                    wait_ekf_ready(conn, label, self.ekf_timeout)
                     and arm_with_retry(conn, label, timeout=120.0, force_after=60.0)
                     and takeoff_and_verify(conn, label, target_alt)
                 )
@@ -330,7 +345,7 @@ class SwarmConsole:
             conn, label = self.connections[idx], self.fleet[idx].label
             try:
                 print(f"\n>> [LIFTOFF] Arming and initiating climb for Drone {drone_num} to {target_alt:.1f}m...")
-                if not wait_ekf_ready(conn, label, wall_timeout=300.0):
+                if not wait_ekf_ready(conn, label, wall_timeout=self.ekf_timeout):
                     print(f"!! [ERROR] Drone {drone_num}: EKF never converged. Liftoff aborted.")
                     return
                 if not arm_with_retry(conn, label, timeout=120.0, force_after=60.0):
@@ -657,13 +672,14 @@ def main():
     parser.add_argument("--gazebo", action="store_true", help="force Gazebo 3D mode (--model JSON)")
     parser.add_argument("--standalone", action="store_true", help="force standalone SITL (--model quad)")
     parser.add_argument("--restart", action="store_true", help="kill existing SITL processes and start fresh")
+    parser.add_argument("--ekf-timeout", type=float, default=None, help="seconds to wait for the EKF (default 300, 900 in Gazebo)")
     parser.add_argument("--auto-launch", action="store_true", help="take off and form up immediately")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
-    console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart)
+    console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart, ekf_timeout=args.ekf_timeout)
     try:
         console.launch_sitl()
         console.connect_all()

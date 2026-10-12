@@ -3,7 +3,8 @@ Fleet layout for the SITL / Gazebo swarm: ports, labels and home locations for N
 
 Conventions (shared by the launch scripts, the Gazebo worlds and the console):
 - drone i is ArduPilot instance -I<i>, SYSID i+1
-- MAVLink telemetry on UDP 14552 + 10*i (the launchers add `--out=udp:127.0.0.1:<port>`)
+- MAVLink telemetry on UDP 14552 + 10*i when a launcher added `--out=udp:127.0.0.1:<port>`, otherwise on the
+  instance's own TCP server at 5760 + 10*i (used when the console starts the SITL binaries itself)
 - Gazebo ArduPilotPlugin FDM port 9002 + 10*i
 - Gazebo mode: ALL instances share one home (the world origin). The plugin sends absolute
   world positions that SITL adds to --home, so staggered homes would shift the drones.
@@ -29,6 +30,7 @@ _M_PER_DEG_LAT = 111_320.0
 class DroneSpec:
     index: int          # 0-based
     port: int           # MAVLink UDP port
+    tcp_port: int       # ArduPilot's built-in SERIAL0 TCP server
     fdm_port: int       # Gazebo FDM (ArduPilotPlugin) port
     home_standalone: str
     home_gazebo: str
@@ -59,6 +61,7 @@ def build_fleet(n: int) -> List[DroneSpec]:
         DroneSpec(
             index=i,
             port=14552 + 10 * i,
+            tcp_port=5760 + 10 * i,
             fdm_port=9002 + 10 * i,
             home_standalone=_home(float(slots[i, 0]), float(slots[i, 1])),
             home_gazebo=gazebo_home,

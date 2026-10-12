@@ -47,6 +47,7 @@ def test_assign_slots_is_a_permutation_and_minimises_travel():
 def test_fleet_ports_and_homes():
     fleet = build_fleet(5)
     assert [d.port for d in fleet] == [14552, 14562, 14572, 14582, 14592]
+    assert [d.tcp_port for d in fleet] == [5760, 5770, 5780, 5790, 5800]
     assert [d.fdm_port for d in fleet] == [9002, 9012, 9022, 9032, 9042]
     assert [d.sysid for d in fleet] == [1, 2, 3, 4, 5]
     assert len({d.home_gazebo for d in fleet}) == 1          # Gazebo: one shared home
