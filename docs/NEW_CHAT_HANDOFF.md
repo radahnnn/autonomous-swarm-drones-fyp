@@ -38,7 +38,8 @@ swarm_drones_fyp/
 ├── sitl/                    # ArduPilot Software-In-The-Loop & 3D Gazebo Integration
 │   ├── flight_prep.py       # Robust arming & takeoff verification (handles slow EKF convergence)
 │   ├── start_and_climb.py   # Headless or Gazebo automated arm, climb to 5m, hold V-formation
-│   ├── interactive_flight_console.py # Pilot console with WASD controls & Square Patrol
+│   ├── swarm_console.py     # THE pilot console: 1-10 drones, standalone/Gazebo, formations, fault tolerance (see docs/CONSOLE_GUIDE.md)
+│   ├── fleet.py, formation_library.py  # ports/homes and formation slots used by the console
 │   ├── mavlink_swarm_adapter.py      # Translates swarm targets to MAVLink SET_POSITION_TARGET
 │   ├── common_frame.py      # GPS WGS84 to NED datum transforms
 │   ├── launch_gazebo.sh     # Starts Gazebo Harmonic 3D world with 3 Cinewhoop drones
@@ -84,7 +85,7 @@ Three major bugs previously prevented the drones from flying in 3D Gazebo. All t
 
 3. **Or Terminal 2 with Interactive Pilot Console**:
    ```bash
-   python3 sitl/interactive_flight_console.py --gazebo
+   python3 sitl/swarm_console.py --drones 5 --gazebo
    ```
    - Supports WASD manual keyboard control of the swarm centroid.
    - Supports `p` to trigger an automated Square Patrol mission.
@@ -93,7 +94,7 @@ Three major bugs previously prevented the drones from flying in 3D Gazebo. All t
 ### Mode B: Fast Standalone Headless Simulation (No Gazebo GUI)
 Runs 3 ArduPilot SITL instances at 1.0x Real-Time Factor:
 ```bash
-python3 sitl/interactive_flight_console.py --standalone
+python3 sitl/swarm_console.py --drones 3 --standalone
 ```
 Arming takes <10 seconds.
 
@@ -109,7 +110,7 @@ PYTHONPATH=. pytest
 If branching into a new conversation or task, here are the most impactful next objectives:
 
 1. **In-Flight Formation Morphing in Gazebo**:
-   - Extend `sitl/interactive_flight_console.py` and `sitl/start_and_climb.py` to trigger live transitions (e.g. V-Formation $\to$ Circle $\to$ Line $\to$ Grid) while airborne in Gazebo, leveraging Hungarian assignment to minimize trajectory intersections.
+   - Extend `sitl/swarm_console.py` and `sitl/start_and_climb.py` to trigger live transitions (e.g. V-Formation $\to$ Circle $\to$ Line $\to$ Grid) while airborne in Gazebo, leveraging Hungarian assignment to minimize trajectory intersections.
 2. **Gazebo Headless Decoupled Mode (`gz sim -s`)**:
    - Run the Gazebo physics server headless (`gz sim -s -r ...`) and attach a separate GUI client only when needed, bringing Real-Time Factor (RTF) from 0.3x closer to 1.0x to cut EKF wait times.
 3. **Fleet Scaling (3 Drones $\to$ 5+ Drones)**:

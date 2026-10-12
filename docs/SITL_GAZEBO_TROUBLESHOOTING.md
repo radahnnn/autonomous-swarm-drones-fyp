@@ -17,7 +17,7 @@ Symptom: `sitl/start_and_climb.py` (or the interactive consoles) print "Takeoff 
 - `simulator/gazebo/models/cinewhoop_{1,2,3}/model.sdf`: `lock_step` back to 1.
 - New `sitl/flight_prep.py`: `arm_with_retry()` retries GUIDED + arm until the heartbeat reports ARMED
   (up to 180 s, forced arm only as a last resort) and `takeoff_and_verify()` confirms the vehicle climbs.
-  `start_and_climb.py`, `interactive_flight_console.py` and `interactive_swarm_flight.py` use them and now
+  `start_and_climb.py`, `swarm_console.py` (formerly `interactive_flight_console.py`) and `interactive_swarm_flight.py` use them and now
   stop with a clear error instead of pretending to fly. Tests: `tests/test_flight_prep.py`.
 
 ## Second bug: one wing drone ends up behind/next to another (V-formation broken)
@@ -29,7 +29,7 @@ every drone's real position was shifted west by 5 m per drone index (drone 2: -5
 to where the controller thought it was.
 
 Fix: in Gazebo mode all instances share ONE home (the world origin, `-35.363261,149.165230`).
-`start_and_climb.py` and `interactive_flight_console.py` (Gazebo branch) do this; the standalone
+`start_and_climb.py` and `swarm_console.py` (via `sitl/fleet.py`) do this; the standalone
 `--model quad` mode keeps staggered homes, which is correct there. Verified in Gazebo: apex (0, 0),
 wings (-2.9, -3.0) and (+3.1, -3.0) in (East, North). Test: `test_gazebo_mode_uses_one_shared_home`.
 
