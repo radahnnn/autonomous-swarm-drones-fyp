@@ -23,13 +23,17 @@ def main():
     ap.add_argument("out_dir", nargs="?", default="runs/steps")
     ap.add_argument("--sizes", default="2,5,8")
     ap.add_argument("--repeats", type=int, default=2)
+    ap.add_argument("--directions", default="N", help="comma list from N (north), E (east), NE (diagonal)")
     args = ap.parse_args()
-    for size in [float(s) for s in args.sizes.split(",")]:
+    dirs = {"N": (1.0, 0.0), "E": (0.0, 1.0), "NE": (1.0, 1.0)}
+    for dname in args.directions.split(","):
+      for size in [float(s) for s in args.sizes.split(",")]:
         for rep in range(1, args.repeats + 1):
-            d = Path(args.out_dir) / f"step_{size:g}m_r{rep}"
+            tag = "" if dname == "N" else f"_{dname}"
+            d = Path(args.out_dir) / f"step_{size:g}m{tag}_r{rep}"
             d.mkdir(parents=True, exist_ok=True)
             print(f"\n##### step {size:g} m, repeat {rep} #####", flush=True)
-            df = run_sitl_step_test(sim_time_limit=10.0, step_distance=size)
+            df = run_sitl_step_test(sim_time_limit=10.0, step_distance=size, direction=dirs[dname])
             if len(df) == 0:
                 print("no data recorded", flush=True)
                 continue

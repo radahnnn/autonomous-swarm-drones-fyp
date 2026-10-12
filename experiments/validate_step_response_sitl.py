@@ -50,6 +50,7 @@ def run_sitl_step_test(
     sim_time_limit: float = 8.0,
     step_distance: float = 5.0,
     scenario: str = "calm",
+    direction: Tuple[float, float] = (1.0, 0.0),  # unit vector (north, east) of the step
 ) -> pd.DataFrame:
     """Executes a position step response test on ArduPilot SITL."""
     if mavutil is None:
@@ -199,8 +200,10 @@ def run_sitl_step_test(
                 break
             time.sleep(0.1)
 
-        target_x = x0 + step_distance
-        target_y = y0
+        dnorm = float(np.hypot(*direction))
+        dir_n, dir_e = direction[0] / dnorm, direction[1] / dnorm
+        target_x = x0 + step_distance * dir_n
+        target_y = y0 + step_distance * dir_e
         target_z = z0
 
         print(f">> INJECTING {step_distance:.1f}m POSITION STEP (Target X={target_x:.2f}m)...")
@@ -236,6 +239,10 @@ def run_sitl_step_test(
                     "vx": latest_pos.vx,
                     "vy": latest_pos.vy,
                     "target_x": step_distance,
+                    # along-track / cross-track components for steps that are not along north
+                    "s": (latest_pos.x - x0) * dir_n + (latest_pos.y - y0) * dir_e,
+                    "vs": latest_pos.vx * dir_n + latest_pos.vy * dir_e,
+                    "cross": -(latest_pos.x - x0) * dir_e + (latest_pos.y - y0) * dir_n,
                 })
             elif len(data_log) > 0:
                 last_frame = data_log[-1].copy()
