@@ -35,11 +35,13 @@ VMAX = {"A_baseline": 3.0, "B_hardware": 16.0, "C_speedonly": 16.0, "D_velponly"
 # ----------------------------------------------------------------------------- data
 def load_csv(path: Path) -> Dict[str, np.ndarray]:
     raw = np.genfromtxt(path, delimiter=",", names=True)
-    x0 = float(raw["x"][0])
+    # steps that are not along north carry along-track columns s / vs; otherwise use x / vx
+    xc, vc = ("s", "vs") if "s" in raw.dtype.names else ("x", "vx")
+    x0 = float(raw[xc][0])
     return {
         "t": raw["time"] - raw["time"][0],
-        "x": raw["x"] - x0,
-        "v": raw["vx"],
+        "x": raw[xc] - x0,
+        "v": raw[vc],
         "r": float(raw["target_x"][0]) - x0,
     }
 
@@ -53,7 +55,7 @@ def _sqrt_controller(err: float, k: float, a_lim: float) -> float:
     return k * err
 
 
-def _integrate(deriv: Callable, state0: np.ndarray, t_end: float) -> Tuple[np.ndarray, np.ndarray]:
+def _integrate(deriv: Callable, state0: np.ndarray, t_end: float, v_clip: float = None) -> Tuple[np.ndarray, np.ndarray]:
     n = int(round(t_end / DT)) + 1
     ts = np.arange(n) * DT
     out = np.zeros((n, len(state0)))
@@ -61,6 +63,8 @@ def _integrate(deriv: Callable, state0: np.ndarray, t_end: float) -> Tuple[np.nd
     for i, t in enumerate(ts):
         out[i] = s
         s = s + DT * deriv(t, s)
+        if v_clip is not None:  # speed saturation (swarm_core Drone.max_speed)
+            s[1] = np.clip(s[1], -v_clip, v_clip)
     return ts, out
 
 
@@ -76,7 +80,7 @@ def sim_s1(p, r, t_end, vmax):
         dv = s[2] - drag * s[1]
         return np.array([s[1], dv, da])
 
-    ts, out = _integrate(f, np.zeros(3), t_end)
+    ts, out = _integrate(f, np.zeros(3), t_end, v_clip=vsat)
     return ts, out[:, 0], out[:, 1]
 
 
