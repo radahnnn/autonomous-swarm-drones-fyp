@@ -74,6 +74,9 @@ def run_sitl_step_test(
 
     home_loc = "-35.363261,149.165230,584,0"
     params_file = str(repo_root / "sitl" / "swarm_params.parm")
+    extra_params = os.environ.get("SWARM_PARAMS_EXTRA")  # optional override file layered on top (identification runs)
+    if extra_params:
+        params_file += "," + str(Path(extra_params).resolve())
 
     cmd = [
         str(sitl_bin),
@@ -347,7 +350,7 @@ def cross_validate_step_responses(
 
 
 def main():
-    output_dir = "experiments/results"
+    output_dir = os.environ.get("SWARM_RESULTS_DIR", "experiments/results")
     os.makedirs(output_dir, exist_ok=True)
     csv_path = f"{output_dir}/sitl_step_response.csv"
 

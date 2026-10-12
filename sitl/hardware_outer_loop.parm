@@ -1,0 +1,28 @@
+# Outer-loop (position / navigation) settings copied from the real Matek H743 quad
+# (hardware/params/matek_h743_quad_20261006.param, ArduCopter 4.6.2).
+# Layered ON TOP of swarm_params.parm for identification runs only:
+#   SWARM_PARAMS_EXTRA=sitl/hardware_outer_loop.parm python3 experiments/validate_step_response_sitl.py
+# Attitude/rate-loop gains (ATC_RAT_*, ATC_ANG_*) are deliberately NOT copied: they are tuned for the
+# 5-inch airframe and would be invalid on SITL's generic quad. Both the 4.6 names (PSC_POSXY_*) and the
+# newer names used by the dev SITL build (PSC_NE_*) are listed; names a build does not know are ignored.
+
+# Hardware position/velocity controller
+PSC_POSXY_P         1.00
+PSC_NE_POS_P        1.00
+PSC_VELXY_P         1.50      # SITL default file uses 2.00
+PSC_NE_VEL_P        1.50
+PSC_VELXY_I         1.00
+PSC_NE_VEL_I        1.00
+PSC_VELXY_D         0.50
+PSC_NE_VEL_D        0.50
+PSC_JERK_XY         5.00
+PSC_NE_JERK         5.00
+
+# Hardware navigation limits (centimetres)
+WPNAV_SPEED         1600      # SITL default file limits to 300 (3 m/s)
+WPNAV_ACCEL         250
+WPNAV_JERK          1.0
+
+# Hardware attitude command shaping / tilt limit
+ANGLE_MAX           3000      # 30 deg
+ATC_INPUT_TC        0.15
