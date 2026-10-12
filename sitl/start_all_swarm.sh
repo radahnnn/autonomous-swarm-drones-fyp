@@ -74,7 +74,7 @@ gazebo_ready() { gz topic -l 2>/dev/null | grep -q "/world/"; }
 # 1. Clean up stale simulator processes (QGC is preserved if alive)
 echo ">> [1/4] Sweeping prior flight simulator processes..."
 for name in console gazebo sitl; do stop_daemon "${name}"; done
-for pat in "sim_vehicle.py" "arducopter" "mavproxy" "self_healing" "interactive_flight_console" "gz sim"; do
+for pat in "sim_vehicle.py" "arducopter" "mavproxy" "swarm_console" "gz sim"; do
     pkill -TERM -f "${pat}" 2>/dev/null || true
 done
 sleep 2
@@ -106,16 +106,16 @@ fi
 echo ">> Waiting for MAVLink heartbeats from all 5 drones..."
 wait_for "5/5 drone heartbeats" 180 mavlink_ready || { echo "See logs in ${RUN_DIR}/"; exit 1; }
 
-# 4. Launch Self-Healing Swarm Pilot Console in a visible xterm window.
+# 4. Launch the Swarm Pilot Console in a visible xterm window.
 #    The console itself waits for EKF convergence (EKF_STATUS_REPORT) before arming.
-echo ">> [4/4] Opening Self-Healing Swarm Console Terminal..."
+echo ">> [4/4] Opening Swarm Console Terminal..."
 DISPLAY=:1 start_daemon console xterm -geometry 102x36+360+70 \
     -bg "#1e1e2e" -fg "#cdd6f4" \
-    -T "Self-Healing Swarm Pilot Console (Hybrid Fault-Tolerant)" \
+    -T "Swarm Pilot Console (5 drones)" \
     -e bash -c "
         source /home/drone/venv-ardupilot/bin/activate
         cd '${PROJECT_DIR}'
-        python3 -u sitl/self_healing_swarm_console.py ${CONSOLE_FLAG} 2>&1 | tee -a '${RUN_DIR}/console.log'
+        python3 -u sitl/swarm_console.py --drones 5 ${CONSOLE_FLAG} 2>&1 | tee -a '${RUN_DIR}/console.log'
         echo ''
         echo \"Console exited (code \${PIPESTATUS[0]}). Full log: ${RUN_DIR}/console.log\"
         echo 'Press Enter to close this window...'

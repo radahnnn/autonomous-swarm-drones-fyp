@@ -1,0 +1,36 @@
+# Swarm flight console guide
+
+One console replaces the former `interactive_flight_console.py` (3 drones), `interactive_flight_console_5drones.py`
+and `self_healing_swarm_console.py`. Code: `sitl/swarm_console.py`; formation slots: `sitl/formation_library.py`;
+ports, homes and labels: `sitl/fleet.py`; arming/takeoff helpers: `sitl/flight_prep.py`.
+
+```bash
+python3 sitl/swarm_console.py --drones 5 --gazebo        # 3D (needs cinewhoop_5drones.sdf running)
+python3 sitl/swarm_console.py --drones 3 --standalone    # headless 2D SITL, fast arming
+python3 sitl/swarm_console.py --drones 5 --auto-launch   # take off immediately
+sitl/launch_console.sh --drones 5 --gazebo               # same, in its own terminal window
+```
+Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`.
+
+## Commands
+| Command | Action |
+|---|---|
+| `launch` | arm (EKF-gated), take off and form up every grounded drone together |
+| `w s a d u j [metres]` | move North / South / West / East / up / down (e.g. `w 10`); `c` returns to centre |
+| `v l k x o e tri` | morph to V, line, column, diamond, ring, echelon, triangle (Hungarian slot assignment) |
+| `p` | square patrol demo |
+| `f <id>` / `r <id>` / `lift <id>` | fail a drone (leader re-election + reconfiguration) / revive and rejoin / launch one drone |
+| `status` | role and position table |
+| `q` | synchronized landing |
+
+## Conventions (shared with launchers and Gazebo worlds)
+- Drone i = ArduPilot instance `-I<i>`, SYSID i+1, MAVLink on UDP 14552 + 10*i, Gazebo FDM port 9002 + 10*i.
+- Gazebo: all instances share one home (the world origin); the world files spawn drones on their V slots
+  (`cinewhoop_3drones.sdf`, `cinewhoop_5drones.sdf`). Other swarm sizes work standalone; Gazebo needs a matching world.
+- Standalone: each drone's home is its own V slot, so the swarm starts on the ground in formation.
+- Slots are offsets [N, E, D] from the centroid; every style keeps drones at least 2.5 m apart for 1-10 drones
+  (tested). Hand-tuned tables for up to 5 drones are preserved; larger swarms use generators.
+
+## Old command mapping
+Old 3/5-drone consoles took off automatically and used `t` = triangle, `x` = diamond (5 drones). Now: use `launch`
+(or `--auto-launch`), `tri` = triangle, `x` = diamond, `o` = ring (was circle/pentagon). `t <id>` still means lift.

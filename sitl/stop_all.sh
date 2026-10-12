@@ -11,8 +11,7 @@ pkill -9 -f "arducopter" 2>/dev/null || true
 pkill -9 -f "mavproxy" 2>/dev/null || true
 pkill -9 -f "swarm_3_drones.py" 2>/dev/null || true
 pkill -9 -f "autonomous_wingman.py" 2>/dev/null || true
-pkill -9 -f "interactive_flight_console" 2>/dev/null || true
-pkill -9 -f "self_healing" 2>/dev/null || true
+pkill -9 -f "swarm_console" 2>/dev/null || true
 pkill -9 -f "qgc_swarm_wingman" 2>/dev/null || true
 pkill -9 -f "start_swarm" 2>/dev/null || true
 pkill -9 -f "gz sim" 2>/dev/null || true
