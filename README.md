@@ -1,104 +1,82 @@
-# Autonomous Swarm Drones: Coordinated Controlled Movement
+# Autonomous Swarm Drones
 
-**Final Year Project (BEE-60, Department of Electrical Engineering)**  
-**Supervisor:** Dr. Abdul Ghafoor  
-**Target Completion:** December 31, 2026  
+Final Year Project (BEE-60), Department of Electrical Engineering  
+Supervisor: Dr. Abdul Ghafoor  
+Status summarized: 12 October 2026
 
----
+This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
-## 1. Project Overview
+## Current implementation
 
-This repository provides an autonomous swarm control framework enabling groups of multirotors to perform dynamic formation flying, smooth topology reconfiguration, and decentralized collision avoidance under lossy, delayed wireless communication constraints.
+The default `master` branch is the demo-oriented baseline. It includes:
 
-### Current Implementation & Validation Status
-* **Numerical Simulation Engine**: Validated for arbitrary swarm sizes ($N \ge 3$, tested up to 6 drones) in 2D/3D continuous time.
-* **ArduPilot SITL Software-in-the-Loop**: High-fidelity integration verified for 3 drones (`sitl/mavlink_swarm_adapter.py`). Fleet scaling to 5+ SITL instances is scheduled for Phase 2.
-* **Trajectory Discrepancy**: A 72.5 cm trajectory discrepancy was measured between the lightweight simulation model and ArduPilot SITL GUIDED mode tracking (simulation-to-SITL discrepancy; physical hardware flight validation remains future work).
-* **Test Suite**: 23/23 unit tests passing via `pytest` (verifying imports, profile propagation, graph Laplacians, Hungarian assignment, hybrid state machines, and MAVLink adapter mocks). Passing test count reflects regression coverage, not 100% statement or branch coverage.
+- A unified interactive ArduPilot SITL console in `sitl/swarm_console.py`, supporting 1–10 vehicles in standalone mode and Gazebo mode when a matching world is available.
+- EKF-gated launch, coordinated takeoff and landing, status reporting, movement commands, square patrol, and failure/revive handling with leader re-election.
+- Seven console formations: V, line, column, diamond, ring, echelon, and triangle. The formation library tests slot spacing and assignment; these tests do not establish a formal collision-free guarantee.
+- A separate swarm simulator with centralized, decentralized, and hybrid control experiments, plus network loss and delay emulation.
+- ArduPilot/Gazebo and Matek H743 support files. Hardware configuration files are project artifacts and must not be treated as approval for real-aircraft flight.
 
-### Key Framework Capabilities
-* **Four Formation Geometries**: Line, V-Formation (Chevron), Circle, and Grid with dynamic reconfiguration.
-* **Hungarian Algorithm Slot Assignment**: Solves the Linear Sum Assignment Problem to minimize total swarm displacement during formation transitions, reducing trajectory crossing risk (note: does not provide a formal collision-free guarantee; proximity risk is empirically mitigated by APF separation control).
-* **Three Control Regimes**:
-  1. **Centralized**: Global coordinator computing optimal slot assignments, PD tracking, and moving centroid feedforward.
-  2. **Decentralized**: Distributed Laplacian velocity consensus ($\dot{v}_i = -k_v L v$) and Reynolds/Olfati-Saber flocking relying strictly on 1-hop neighbor broadcasts.
-  3. **Hybrid**: Centralized trajectory guidance blended with an always-on decentralized Artificial Potential Field (APF) safety barrier, featuring asymmetric hysteresis, message age validation, and automatic fallback upon coordinator silence.
-* **Explicit Configuration Profiles**:
-  - `assumed_baseline`: Engineering literature baseline ($\tau=0.18\text{ s}$, $c_d=0.20\text{ s}^{-1}$).
-  - `sitl_fitted`: Closed-loop model calibrated against ArduPilot SITL GUIDED-mode step response ($\tau=0.992\text{ s}$, $c_d=0.637\text{ s}^{-1}$, sensor noise $\sigma=1.5\text{ m}$).
-* **Wireless Channel Emulation**: Realistic packet drop ($0\%\dots 50\%$), latency queues ($10\dots 400\text{ ms}$), Gilbert-Elliott burst outages, and RF communication range cutoffs.
+The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md).
 
----
+## Branches and project state
 
-## 2. Directory Structure
+| Branch or tag | Purpose | State |
+|---|---|---|
+| `master` | Demo baseline | Tagged `demo-ready-2026-10-12` at `2620f585`. This is the default branch and does not include the local-only consolidation fixes described below. |
+| `hw-matched-identification` | SITL position-controller identification study | Eight commits ahead of `master`; intentionally kept separate. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
+| `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved as a historical savepoint, not the current demo baseline. |
 
-```
-swarm_drones_fyp/
-├── swarm_core/
-│   ├── config.py            # Explicit configuration profiles & parameter provenance
-│   ├── drone.py             # Multirotor kinematics, first-order lag, rotor drag
-│   ├── graph.py             # Graph Laplacian, adjacency, algebraic connectivity
-│   ├── network.py           # Wireless channel emulator (loss, delay, burst outage)
-│   ├── formations.py        # Line, V, Circle, Grid geometries & Hungarian assignment
-│   ├── metrics.py           # Tracking error, convergence time, safety distance
-│   └── controllers/
-│       ├── centralized.py   # Global Hungarian + PD tracking + APF safety
-│       ├── decentralized.py # Laplacian velocity consensus + Reynolds flocking
-│       └── hybrid.py        # Asymmetric hysteresis & continuous alpha(t) blending
-├── simulator/
-│   ├── engine.py            # Physics integration, wireless channel, and control step
-│   └── visualizer.py        # Telemetry renderer and static figure generation
-├── sitl/
-│   ├── common_frame.py      # WGS84 GPS to local/global NED datum frame conversion
-│   ├── mavlink_swarm_adapter.py # MAVLink adapter translating setpoints to ArduPilot
-│   └── launch_drone*.sh     # Headless SITL drone launcher scripts
-├── experiments/
-│   ├── run_demo.py          # 4-formation transition mission demo with JSON export
-│   ├── test_network_sweep.py# Monte Carlo packet loss sweep
-│   └── results/             # Generated figures, plots, and JSON metadata
-├── tests/
-│   ├── test_config_and_safety.py # Profile, provenance, and safety hierarchy tests
-│   ├── test_formations.py        # Geometry & Hungarian assignment tests
-│   ├── test_graph.py             # Graph Laplacian & connectivity tests
-│   ├── test_hybrid_features.py   # Hysteresis, blending, and burst loss tests
-│   ├── test_simulation.py        # Multi-regime simulation tests
-│   └── test_sitl_adapter.py      # Frame round-trip & mocked MAVLink tests
-├── docs/                    # Audit, parity report, reviews, project log and experiment reports
-│   ├── BASELINE_AUDIT.md, SIMULATION_SITL_PARITY.md
-│   ├── logs/FYP_RUNNING_LOG.md
-│   └── reports/             # TASK_B / TASK_C / TASK_E and PHASE2_CONFIG_VALIDATION reports
-├── pyproject.toml           # Standard PEP 517/621 packaging configuration
-├── requirements.txt         # Pinned runtime dependencies
-└── pytest.ini               # Test discovery configuration
-```
+The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. The new model is not yet used in the simulator's Phase 2 experiments.
 
----
+The identification results are preliminary: one default SITL airframe, two repeats per step condition, no confidence intervals, and horizontal motion only. The study does not identify physical mass, thrust, or inertia and has not been validated against real-flight logs. See [`docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md`](docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md) for methods, raw-data locations, comparisons, and limitations.
 
-## 3. Quick Start & Installation
+## Verification status (12 October 2026)
 
-### Standard Installation
-Install the package and optional development dependencies in editable mode:
+These are results from the local consolidated copies on one development machine, not GitHub Actions results and not a claim that the exact GitHub commits were independently rerun:
+
+- The consolidated demo copy's Python suite passed 161 tests; the identification copy's suite passed 168 tests. The identification count includes a local timing regression test. Two preserved checkpoint suites also passed 10 tests each.
+- A five-drone standalone SITL session completed takeoff, formation change, movement, square patrol, failure/re-election, revive/rejoin, and landing. The consolidated-copy landing fix waits for all vehicles to report disarmed before stopping SITL.
+- Gazebo rendered the five-drone world on the NVIDIA GPU and all five SITL instances connected. The console then remained at EKF flags `0xa7` (GPS fix 6), so the EKF readiness gate blocked flight. Gazebo rendering and connection were checked; Gazebo flight was not verified.
+- No physical-airframe flight was performed as part of these checks.
+
+## Local consolidated-copy changes not yet on GitHub
+
+The local consolidated working copies include path updates for running the project from its organized folder and a landing-shutdown fix. The identification copy also contains a timing correction and regression test for uneven timestamps. These are uncommitted local edits; this README does not imply that they are already present on either GitHub branch.
+
+## Quick start
+
+Create an environment, install project dependencies, and run the tests:
+
 ```bash
-# Clone the repository
 git clone https://github.com/radahnnn/autonomous-swarm-drones-fyp.git
 cd autonomous-swarm-drones-fyp
-
-# Install in editable mode with development dependencies
-pip install -e ".[dev]"
-
-# Optional: install SITL dependencies (pymavlink) if running live SITL simulations
-pip install -e ".[sitl]"
+python3 -m pip install -e ".[dev]"
+python3 -m pip install -e ".[sitl]"  # needed for live MAVLink/SITL use
+python3 -m pytest -q tests
 ```
 
-### Running Unit Tests
-No `PYTHONPATH` workaround is needed. Run pytest directly from the repository root:
+Start the standalone five-drone console:
+
 ```bash
-python3 -m pytest -q
+python3 sitl/swarm_console.py --drones 5 --standalone
 ```
 
-### Running the 4-Formation Mission Demo
-Executes a 6-drone mission transitioning through Line $\to$ V-Shape $\to$ Circle $\to$ Grid with reproducible fixed seed and profile recording:
+For Gazebo, first start the matching Gazebo world/plugin as described in the console guide, then run:
+
 ```bash
-python3 experiments/run_demo.py --profile assumed_baseline --seed 123
+python3 sitl/swarm_console.py --drones 5 --gazebo
 ```
-Snapshots, telemetry plots, and machine-readable JSON metadata will be written to `experiments/results/demo_summary.json`.
+
+Gazebo flight has not yet passed the console's EKF readiness gate on the tested laptop. Do not bypass arming or EKF checks to make a demo proceed.
+
+## Main directories
+
+```text
+sitl/          ArduPilot console, launchers, fleet layout, and formation library
+swarm_core/    Swarm models and control logic
+simulator/     Numerical simulation engine and visualization
+experiments/   Identification, simulation, and SITL experiment scripts
+hardware/      Matek H743 diagnostics, parameters, and hardware notes
+docs/          Console guide, research reports, and project records
+tests/         Automated project tests
+```
