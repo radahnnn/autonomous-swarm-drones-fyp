@@ -31,6 +31,7 @@ mav.tlog.raw
 *.bin
 *.log
 *.raw
+/runs/console/
 
 # Local Archives & Backups
 *.tar.gz
@@ -41,4 +42,3 @@ sitl/takeoff.scr
 # Large Binaries & Ground Station App
 *.AppImage
 qgroundcontrol-app/
-

@@ -35,6 +35,7 @@ from sitl.common_frame import CommonCoordinateFrame
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, MAX_DRONES, build_fleet
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, assign_slots, slots_for
+from sitl.run_evidence import RunEvidence
 
 # Position + yaw setpoint (velocity, acceleration and yaw-rate ignored)
 _TYPE_MASK_POS_YAW = 0b0000101111111000
@@ -71,8 +72,10 @@ class SwarmConsole:
         self.simulated_faults = [False] * n     # True if the pilot injected a failure
         self.is_airborne = [False] * n
         self.last_heartbeat = [time.time()] * n
+        self.last_real_heartbeat = [0.0] * n
         self.busy = [False] * n
         self.last_pos = [np.zeros(3) for _ in range(n)]
+        self.last_pos_at = [0.0] * n
         self.current_leader_idx = 0
 
         # Heartbeats are paced by *sim* time: in Gazebo (slow real-time factor) the 2D timeout would false-trip.
@@ -94,6 +97,9 @@ class SwarmConsole:
         self.running = True
         self.lock = threading.Lock()
         self.guidance_thread = None
+        self.evidence = None
+        self.landed = False
+        self.last_target_change = time.time()
 
         self._calculate_active_topology()
         self.current_offsets = self.target_offsets.copy()
@@ -226,6 +232,10 @@ class SwarmConsole:
                     f"Start the SITL drones first (see sitl/launch_console.sh) or let this console launch them."
                 )
             self.connections.append(conn)
+            self.last_real_heartbeat[spec.inst] = time.time()
+            if self.evidence:
+                self.evidence.connected += 1
+                self.evidence.event("connected", drone=spec.inst + 1, endpoint=endpoint, sysid=conn.target_system)
             conn.mav.param_set_send(conn.target_system, conn.target_component, b"ARMING_CHECK", 0.0, mavutil.mavlink.MAV_PARAM_TYPE_REAL32)
             conn.mav.param_set_send(conn.target_system, conn.target_component, b"GUID_TIMEOUT", 3.0, mavutil.mavlink.MAV_PARAM_TYPE_REAL32)
             conn.mav.request_data_stream_send(conn.target_system, conn.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 20, 1)
@@ -235,6 +245,9 @@ class SwarmConsole:
             futures = [executor.submit(wait_ekf_ready, c, self.fleet[i].label, self.ekf_timeout) for i, c in enumerate(self.connections)]
             if not all(f.result() for f in futures):
                 raise RuntimeError("EKF did not converge on one or more drones. Check Gazebo RTF / SITL logs.")
+        if self.evidence:
+            self.evidence.ekf_ready = True
+            self.evidence.event("ekf_ready", drones=self.n)
 
     def sync_frames(self):
         """Each drone's NED offset to the shared datum (works on the ground)."""
@@ -259,6 +272,8 @@ class SwarmConsole:
             g_ned = self.frame.gps_to_global_ned(glob_msg.lat / 1e7, glob_msg.lon / 1e7, glob_msg.relative_alt / 1000.0)
             l_ned = np.array([loc_msg.x, loc_msg.y, loc_msg.z])
             self.frame_origins.append(g_ned - l_ned)
+            self.last_pos[i] = g_ned
+            self.last_pos_at[i] = time.time()
 
     # ------------------------------------------------------------------ launch / liftoff
     def launch_swarm(self, target_alt: Optional[float] = None, wait: bool = False):
@@ -271,6 +286,8 @@ class SwarmConsole:
         if not idxs:
             print(">> Nothing to launch (all drones airborne, failed, or already launching). Use 'r <id>' for failed drones.")
             return
+        if self.evidence:
+            self.evidence.event("launch_requested", drones=[i + 1 for i in idxs], target_alt_m=target_alt)
         worker = threading.Thread(target=self._launch_worker, args=(idxs, target_alt), daemon=True)
         worker.start()
         if wait:
@@ -321,6 +338,9 @@ class SwarmConsole:
                 self._calculate_active_topology()
                 self.morph_steps_remaining = 40
             print(f"\n>> Swarm ready! {len(reached)} drone(s) airborne and forming up.\n")
+            if self.evidence:
+                self.evidence.event("launch_result", requested=[i + 1 for i in idxs], airborne=[i + 1 for i in reached],
+                                    target_alt_m=target_alt)
         finally:
             for i in idxs:
                 self.busy[i] = False
@@ -331,9 +351,12 @@ class SwarmConsole:
         self.drone_health[idx] = True
         self.is_airborne[idx] = True
         self.last_heartbeat[idx] = time.time()
+        self.last_real_heartbeat[idx] = 0.0  # wait for a heartbeat observed by the guidance reader
         if cur_pos is not None:
             self.last_pos[idx] = cur_pos
+            self.last_pos_at[idx] = time.time()
             self.current_offsets[idx] = cur_pos - self.centroid_pos
+        self.last_target_change = time.time()
 
     def liftoff_drone(self, drone_num: int, target_alt: Optional[float] = None, quiet_if_busy: bool = False):
         """Asynchronously arms and climbs one drone to altitude so it can (re)join the swarm."""
@@ -352,6 +375,8 @@ class SwarmConsole:
                     print(f">> Drone {drone_num} already has a liftoff in progress.")
                 return
             self.busy[idx] = True
+        if self.evidence:
+            self.evidence.event("liftoff_requested", drone=drone_num, target_alt_m=target_alt)
 
         def _climb_worker():
             conn, label = self.connections[idx], self.fleet[idx].label
@@ -431,7 +456,7 @@ class SwarmConsole:
             self.current_leader_idx = active[0]
         self.target_offsets = offsets
 
-    def inject_failure(self, drone_num: int):
+    def inject_failure(self, drone_num: int, cause: str = "operator"):
         """Simulates immediate failure / communication loss of Drone N (1-indexed)."""
         if not self._valid_id(drone_num):
             return
@@ -462,6 +487,12 @@ class SwarmConsole:
                 print(f" [SWARM FAULT TOLERANCE] Follower Drone {drone_num} lost. Maintaining active formation.")
             self._calculate_active_topology()
             self.morph_steps_remaining = self.MORPH_STEPS
+            self.last_target_change = time.time()
+            if self.evidence:
+                if cause == "heartbeat_timeout":
+                    self.evidence.watchdog_timeouts += 1
+                self.evidence.event("drone_failed", drone=drone_num, cause=cause,
+                                    new_leader=self.current_leader_idx + 1, remaining=[i + 1 for i in active])
             print(f" [SELF-HEALING] Reconfiguring remaining {len(active)} drones into optimal topology...")
             print("!" * 70 + "\n")
 
@@ -470,6 +501,8 @@ class SwarmConsole:
         if not self._valid_id(drone_num):
             return
         print(f"\n>> [REVIVING] Telemetry link restored for Drone {drone_num}!")
+        if self.evidence:
+            self.evidence.event("revive_requested", drone=drone_num, auto_liftoff=auto_liftoff)
         if auto_liftoff:
             self.liftoff_drone(drone_num)
         else:
@@ -486,7 +519,10 @@ class SwarmConsole:
             self.current_formation_style = style
             self._calculate_active_topology()
             self.morph_steps_remaining = self.MORPH_STEPS
+            self.last_target_change = time.time()
         print(f">> [MORPH] Swarm morphing into {style.upper()} topology over {self.MORPH_STEPS / 10:.1f}s...")
+        if self.evidence:
+            self.evidence.event("formation_command", formation=style)
 
     # ------------------------------------------------------------------ guidance
     def send_formation_setpoints(self):
@@ -494,6 +530,7 @@ class SwarmConsole:
             centroid = self.centroid_pos.copy()
             offsets = self.current_offsets.copy()
             active = [self._active(i) for i in range(self.n)]
+        targets = [None] * self.n
         for i, conn in enumerate(self.connections):
             if not active[i]:
                 continue
@@ -505,6 +542,8 @@ class SwarmConsole:
                 float(tgt_local[0]), float(tgt_local[1]), float(tgt_local[2]),
                 0, 0, 0, 0, 0, 0, self.FORMATION_YAW_RAD, 0,
             )
+            targets[i] = (centroid + offsets[i]).tolist()
+        return targets
 
     def guidance_loop(self):
         """
@@ -526,8 +565,10 @@ class SwarmConsole:
                     mtype = msg.get_type()
                     if mtype == "HEARTBEAT":
                         self.last_heartbeat[i] = time.time()
+                        self.last_real_heartbeat[i] = self.last_heartbeat[i]
                     elif mtype == "GLOBAL_POSITION_INT":
                         self.last_pos[i] = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lon / 1e7, msg.relative_alt / 1000.0)
+                        self.last_pos_at[i] = time.time()
 
             now = time.time()
             for i in range(self.n):
@@ -535,13 +576,24 @@ class SwarmConsole:
                     watched = self._active(i)
                 if watched and not self.busy[i] and now - self.last_heartbeat[i] > self.hb_timeout:
                     print(f"\n[TIMEOUT] Drone {i + 1} silent for >{self.hb_timeout:.0f}s! Triggering dynamic failover...")
-                    self.inject_failure(i + 1)
+                    self.inject_failure(i + 1, cause="heartbeat_timeout")
 
             with self.lock:
                 if self.morph_steps_remaining > 0:
                     self.current_offsets += (self.target_offsets - self.current_offsets) / self.morph_steps_remaining
                     self.morph_steps_remaining -= 1
-            self.send_formation_setpoints()
+            targets = self.send_formation_setpoints()
+            if self.evidence:
+                with self.lock:
+                    positions = [p.tolist() for p in self.last_pos]
+                    active = [self._active(i) for i in range(self.n)]
+                    fresh = [now - t <= 1.0 for t in self.last_pos_at]
+                    ages = [round(now - t, 3) if t and active[i] and not self.busy[i] else None
+                            for i, t in enumerate(self.last_real_heartbeat)]
+                    formation = self.current_formation_style
+                    leader = self.current_leader_idx + 1
+                    settled = self.morph_steps_remaining == 0 and now - self.last_target_change >= 5.0
+                self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled)
             time.sleep(0.1)
 
     def stop_guidance(self):
@@ -558,10 +610,16 @@ class SwarmConsole:
             self.centroid_pos[0] += dn
             self.centroid_pos[1] += de
             self.centroid_pos[2] -= d_alt
+            self.last_target_change = time.time()
         print(f">> Vector Setpoint: N={self.centroid_pos[0]:.1f}m, E={self.centroid_pos[1]:.1f}m, Alt={-self.centroid_pos[2]:.1f}m")
+        if self.evidence:
+            self.evidence.event("centroid_command", north_m=float(self.centroid_pos[0]),
+                                east_m=float(self.centroid_pos[1]), altitude_m=float(-self.centroid_pos[2]))
 
     def run_square_patrol(self):
         print("\n>>> EXECUTING AUTONOMOUS SQUARE PATROL <<<")
+        if self.evidence:
+            self.evidence.event("patrol_start")
         legs = [
             (8.0, 0.0, "Leg 1: North +8m"),
             (0.0, 6.0, "Leg 2: East +6m"),
@@ -575,6 +633,8 @@ class SwarmConsole:
                 time.sleep(1.0)
                 self.print_status_line()
         print(f">>> Square Patrol Completed! Swarm held {self.current_formation_style.upper()} formation! <<<\n")
+        if self.evidence:
+            self.evidence.event("patrol_commands_complete")
 
     # ------------------------------------------------------------------ status / landing
     def print_status_line(self):
@@ -609,6 +669,8 @@ class SwarmConsole:
 
     def land_all(self, timeout: float = 180.0) -> bool:
         print("\n>> Synchronous LAND commanded for entire swarm...")
+        if self.evidence:
+            self.evidence.event("land_command", drones=self.n)
         self.stop_guidance()
         for conn in self.connections:
             conn.set_mode(9)  # LAND
@@ -619,6 +681,10 @@ class SwarmConsole:
             states = [_armed_state(conn) for conn in self.connections]
             if states and all(state is False for state in states):
                 print(">> Landing confirmed: all vehicles disarmed after touchdown.")
+                self.landed = True
+                if self.evidence:
+                    self.evidence.landing_confirmed = True
+                    self.evidence.event("landing_confirmed")
                 return True
             armed = [str(i + 1) for i, state in enumerate(states) if state is True]
             unknown = [str(i + 1) for i, state in enumerate(states) if state is None]
@@ -628,6 +694,8 @@ class SwarmConsole:
                 last_report = now
             time.sleep(0.5)
         print(">> LAND timeout: not all vehicles confirmed disarmed; stopping SITL after timeout.")
+        if self.evidence:
+            self.evidence.event("landing_timeout")
         return False
 
 
@@ -643,6 +711,8 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
     tokens = cmd.strip().lower().split()
     if not tokens:
         return True
+    if console.evidence:
+        console.evidence.event("pilot_command", command=cmd.strip())
     action = tokens[0]
     num = tokens[1] if len(tokens) > 1 else None
     val = float(num) if num is not None and num.replace(".", "", 1).replace("-", "", 1).isdigit() else None
@@ -663,6 +733,7 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
     elif action in ("c", "center"):
         with console.lock:
             console.centroid_pos = np.array([0.0, 0.0, -console.CRUISE_ALT])
+            console.last_target_change = time.time()
         print(f">> Centroid returned to origin (0, 0, {console.CRUISE_ALT:.0f}m).")
     elif action in _SHAPE_ALIASES:
         console.set_formation_style(_SHAPE_ALIASES[action])
@@ -710,12 +781,16 @@ def main():
     parser.add_argument("--restart", action="store_true", help="kill existing SITL processes and start fresh")
     parser.add_argument("--ekf-timeout", type=float, default=None, help="seconds to wait for the EKF (default 300, 900 in Gazebo)")
     parser.add_argument("--auto-launch", action="store_true", help="take off and form up immediately")
+    parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
     console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart, ekf_timeout=args.ekf_timeout)
+    mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
+    console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
+    print(f">> Run evidence: {console.evidence.directory}")
     try:
         console.launch_sitl()
         console.connect_all()
@@ -738,14 +813,21 @@ def main():
                 console.land_all()
                 break
             except Exception as exc:
+                console.evidence.event("command_error", error=str(exc))
                 traceback.print_exc()
                 print(f"!! Command failed: {exc} (console is still running)")
     except KeyboardInterrupt:
         print("\n>> Interrupted by pilot. Shutting down...")
         console.land_all()
+    except Exception as exc:
+        console.evidence.event("run_error", error=str(exc))
+        raise
     finally:
         console.stop_guidance()
-        console.cleanup()
+        try:
+            console.cleanup()
+        finally:
+            console.evidence.close("landed" if console.landed else "incomplete")
 
 
 if __name__ == "__main__":

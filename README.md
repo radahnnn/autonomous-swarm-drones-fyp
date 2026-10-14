@@ -11,10 +11,12 @@
 This repository provides an autonomous swarm control framework enabling groups of multirotors to perform dynamic formation flying, smooth topology reconfiguration, and decentralized collision avoidance under lossy, delayed wireless communication constraints.
 
 ### Current Implementation & Validation Status
-* **Numerical Simulation Engine**: Validated for arbitrary swarm sizes ($N \ge 3$, tested up to 6 drones) in 2D/3D continuous time.
-* **ArduPilot SITL Software-in-the-Loop**: High-fidelity integration verified for 3 drones (`sitl/mavlink_swarm_adapter.py`). Fleet scaling to 5+ SITL instances is scheduled for Phase 2.
-* **Trajectory Discrepancy**: A 72.5 cm trajectory discrepancy was measured between the lightweight simulation model and ArduPilot SITL GUIDED mode tracking (simulation-to-SITL discrepancy; physical hardware flight validation remains future work).
-* **Test Suite**: 23/23 unit tests passing via `pytest` (verifying imports, profile propagation, graph Laplacians, Hungarian assignment, hybrid state machines, and MAVLink adapter mocks). Passing test count reflects regression coverage, not 100% statement or branch coverage.
+* **Numerical simulation**: The research simulator contains centralized, decentralized, and hybrid control regimes. Its fallback behavior has not been integrated into the unified live console.
+* **ArduPilot standalone SITL**: A five-drone 2D run completed takeoff, formation changes, movement, patrol, injected failure and rejoin, and confirmed landing on 12 October 2026. The unified console accepts 1–10 drones; that range is not a claim of live validation at every size. See [console guide](docs/CONSOLE_GUIDE.md).
+* **Gazebo 3D**: The five-drone world rendered and all SITL links connected, but the EKF readiness gate blocked takeoff. No completed five-drone Gazebo flight has been demonstrated.
+* **Physical aircraft**: One quad is assembled and has not been flight-tested. Physical swarm communication and fallback remain unverified.
+* **Tests**: The consolidated demo checkout passed 161 tests on 12 October 2026. This count is not coverage or flight evidence. The local consolidation collection contains `VALIDATION_2026-10-12.md` with the run details.
+* **Run evidence**: The unified console now writes per-run commands, telemetry, link ages, separation, tracking error, and an outcome summary under `runs/console/`. The [criteria and limitations](docs/RUN_EVIDENCE.md) are specified before each new run; no post-instrumentation run is claimed here.
 
 ### Key Framework Capabilities
 * **Four Formation Geometries**: Line, V-Formation (Chevron), Circle, and Grid with dynamic reconfiguration.
@@ -26,7 +28,10 @@ This repository provides an autonomous swarm control framework enabling groups o
 * **Explicit Configuration Profiles**:
   - `assumed_baseline`: Engineering literature baseline ($\tau=0.18\text{ s}$, $c_d=0.20\text{ s}^{-1}$).
   - `sitl_fitted`: Closed-loop model calibrated against ArduPilot SITL GUIDED-mode step response ($\tau=0.992\text{ s}$, $c_d=0.637\text{ s}^{-1}$, sensor noise $\sigma=1.5\text{ m}$).
+
 * **Wireless Channel Emulation**: Realistic packet drop ($0\%\dots 50\%$), latency queues ($10\dots 400\text{ ms}$), Gilbert-Elliott burst outages, and RF communication range cutoffs.
+
+The `sitl_fitted` values above are historical. The identification work found that an uneven first timestamp interval biased that fit; do not use those values as a validated hardware match. The correction and newer tracking model remain on the separate `hw-matched-identification` research branch.
 
 ---
 

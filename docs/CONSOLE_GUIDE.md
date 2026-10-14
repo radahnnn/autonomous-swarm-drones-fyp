@@ -11,7 +11,8 @@ python3 sitl/swarm_console.py --drones 5 --auto-launch   # take off immediately
 sitl/launch_console.sh --drones 5 --gazebo               # same, in its own terminal window
 ```
 Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`,
-`--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time).
+`--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time), and `--evidence-dir PATH`.
+Every run writes a dated `runs/console/` evidence folder; see [criteria and file format](RUN_EVIDENCE.md).
 
 ## Commands
 | Command | Action |
@@ -25,7 +26,7 @@ Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-dete
 | `q` | synchronized landing |
 
 ## Conventions (shared with launchers and Gazebo worlds)
-- Drone i = ArduPilot instance `-I<i>`, SYSID i+1, MAVLink on UDP 14552 + 10*i, Gazebo FDM port 9002 + 10*i.
+- Drone i = ArduPilot instance `-I<i>`, SYSID i+1. Existing MAVProxy-forwarded instances may be reached on UDP 14552 + 10*i; instances launched directly by this console expose TCP 5760 + 10*i. Gazebo FDM uses port 9002 + 10*i.
 - Gazebo: all instances share one home (the world origin); the world files spawn drones on their V slots
   (`cinewhoop_3drones.sdf`, `cinewhoop_5drones.sdf`). Other swarm sizes work standalone; Gazebo needs a matching world.
 - Standalone: each drone's home is its own V slot, so the swarm starts on the ground in formation.
@@ -37,7 +38,7 @@ Old 3/5-drone consoles took off automatically and used `t` = triangle, `x` = dia
 (or `--auto-launch`), `tri` = triangle, `x` = diamond, `o` = ring (was circle/pentagon). `t <id>` still means lift.
 
 ## Verification status
-Tested live in standalone SITL with 5 drones (auto-launch, takeoff, V/triangle/ring/line morphs, leader failure and re-election,
-revive and rejoin, synchronized landing). The Gazebo path (`--gazebo`) has not been run with this console yet: the Ubuntu laptop
-has no GPU and the 5-drone world ran at about 6% real time headless. 74+ unit tests cover the formation library, fleet layout
-and console logic without hardware.
+Tested live in standalone SITL with five drones (takeoff, formation changes, movement, square patrol, injected failure and
+re-election, revive and rejoin, confirmed landing). The consolidated demo suite passed 161 tests on 12 October 2026.
+The five-drone Gazebo world rendered on the NVIDIA GPU and SITL connected, but EKF readiness did not converge sufficiently
+for this console to take off. The new run-evidence output has not yet been evaluated in a post-instrumentation flight.
