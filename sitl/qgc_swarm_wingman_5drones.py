@@ -10,11 +10,12 @@ holding a perfect 5-drone Flying-V formation wherever Drone 1 flies!
 import math
 import sys
 import time
+from pathlib import Path
 import numpy as np
 from pymavlink import mavutil
 
 # Import CommonCoordinateFrame from swarm_drones_fyp
-sys.path.insert(0, "/home/drone/swarm_drones_fyp")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sitl.common_frame import CommonCoordinateFrame
 
 class SwarmWingmanDaemon5Drones:

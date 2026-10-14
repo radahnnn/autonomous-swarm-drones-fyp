@@ -40,6 +40,15 @@ from sitl.formation_library import STYLES, assign_slots, slots_for
 _TYPE_MASK_POS_YAW = 0b0000101111111000
 
 
+def _armed_state(conn):
+    """Return armed/disarmed from a fresh heartbeat, or None if telemetry is missing."""
+    heartbeat = conn.recv_match(type="HEARTBEAT", blocking=True, timeout=0.5)
+    if heartbeat is None:
+        return None
+    armed_flag = mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED
+    return bool(heartbeat.base_mode & armed_flag)
+
+
 class SwarmConsole:
     # Fixed swarm heading: 0 rad = North. Without a commanded yaw ArduCopter turns each drone
     # toward its own direction of travel, so the drones would end up facing different ways.
@@ -84,6 +93,7 @@ class SwarmConsole:
         self.centroid_pos = np.array([0.0, 0.0, -self.CRUISE_ALT])  # [North, East, Down]
         self.running = True
         self.lock = threading.Lock()
+        self.guidance_thread = None
 
         self._calculate_active_topology()
         self.current_offsets = self.target_offsets.copy()
@@ -159,7 +169,9 @@ class SwarmConsole:
         except Exception:
             pass
 
-        sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter")))
+        consolidated_sitl_bin = self.repo_root.parent.parent / "dependencies" / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
+        default_sitl_bin = consolidated_sitl_bin if consolidated_sitl_bin.exists() else Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
+        sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(default_sitl_bin)))
         if not sitl_bin.exists():
             raise FileNotFoundError(f"ArduCopter binary not found at: {sitl_bin} (set ARDUCOPTER_BIN)")
         params_file = str(self.repo_root / "sitl" / "swarm_params.parm")
@@ -532,6 +544,15 @@ class SwarmConsole:
             self.send_formation_setpoints()
             time.sleep(0.1)
 
+    def stop_guidance(self):
+        """Stop setpoint production and wait until it can no longer race LAND/cleanup."""
+        self.running = False
+        thread = self.guidance_thread
+        if thread is not None and thread is not threading.current_thread():
+            # The loop uses non-blocking telemetry reads and a 100 ms sleep, so it
+            # should promptly finish its current iteration before shutdown proceeds.
+            thread.join()
+
     def move(self, dn: float = 0.0, de: float = 0.0, d_alt: float = 0.0):
         with self.lock:
             self.centroid_pos[0] += dn
@@ -586,13 +607,28 @@ class SwarmConsole:
         print(" [w/s/a/d] Move  [u/j] Alt  [v/l/k/x/o/e/tri] Shapes  p Patrol  f <id> Fail  r <id> Revive  lift <id>  q Land")
         print("-" * 76)
 
-    def land_all(self):
+    def land_all(self, timeout: float = 180.0) -> bool:
         print("\n>> Synchronous LAND commanded for entire swarm...")
-        self.running = False
+        self.stop_guidance()
         for conn in self.connections:
             conn.set_mode(9)  # LAND
             conn.mav.command_long_send(conn.target_system, conn.target_component, mavutil.mavlink.MAV_CMD_NAV_LAND, 0, 0, 0, 0, 0, 0, 0, 0)
-        print(">> Synchronous landing in progress. Motors will disarm on touchdown.")
+        deadline = time.monotonic() + timeout
+        last_report = 0.0
+        while time.monotonic() < deadline:
+            states = [_armed_state(conn) for conn in self.connections]
+            if states and all(state is False for state in states):
+                print(">> Landing confirmed: all vehicles disarmed after touchdown.")
+                return True
+            armed = [str(i + 1) for i, state in enumerate(states) if state is True]
+            unknown = [str(i + 1) for i, state in enumerate(states) if state is None]
+            now = time.monotonic()
+            if now - last_report >= 5.0:
+                print(f">> Landing in progress; armed={','.join(armed) or 'none'}, telemetry-missing={','.join(unknown) or 'none'}.")
+                last_report = now
+            time.sleep(0.5)
+        print(">> LAND timeout: not all vehicles confirmed disarmed; stopping SITL after timeout.")
+        return False
 
 
 _SHAPE_ALIASES = {
@@ -684,7 +720,8 @@ def main():
         console.launch_sitl()
         console.connect_all()
         console.sync_frames()
-        threading.Thread(target=console.guidance_loop, daemon=True).start()
+        console.guidance_thread = threading.Thread(target=console.guidance_loop, daemon=True)
+        console.guidance_thread.start()
 
         _print_help(args.drones)
         if args.auto_launch:
@@ -707,6 +744,7 @@ def main():
         print("\n>> Interrupted by pilot. Shutting down...")
         console.land_all()
     finally:
+        console.stop_guidance()
         console.cleanup()
 
 
