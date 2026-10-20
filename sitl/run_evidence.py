@@ -22,7 +22,8 @@ def _utc():
 
 
 class RunEvidence:
-    def __init__(self, repo_root: Path, drones: int, mode: str, heartbeat_limit_s: float, output_root=None):
+    def __init__(self, repo_root: Path, drones: int, mode: str, heartbeat_limit_s: float, output_root=None,
+                 control_mode: str = "centralized"):
         root = Path(output_root) if output_root else repo_root / "runs" / "console"
         run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         self.directory = root / run_id
@@ -46,7 +47,8 @@ class RunEvidence:
         self.closed = False
         head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True)
-        self.event("run_start", mode=mode, drones=drones, git_head=head.stdout.strip() if head.returncode == 0 else None,
+        self.event("run_start", mode=mode, control_mode=control_mode, drones=drones,
+                   git_head=head.stdout.strip() if head.returncode == 0 else None,
                    working_tree_dirty=bool(status.stdout.strip()) if status.returncode == 0 else None,
                    criteria=self.criteria)
 
@@ -58,7 +60,8 @@ class RunEvidence:
             self.stream.write(json.dumps(row, allow_nan=False, separators=(",", ":")) + "\n")
             self.stream.flush()
 
-    def sample(self, positions, targets, active, fresh, heartbeat_age, formation, leader, settled):
+    def sample(self, positions, targets, active, fresh, heartbeat_age, formation, leader, settled,
+               sent_targets=None, controller_modes=None, controller_alphas=None):
         errors = [math.dist(positions[i], targets[i]) if settled and active[i] and fresh[i] and targets[i] is not None else None
                   for i in range(self.drones)]
         pairs = [math.dist(positions[i][:2], positions[j][:2]) for i in range(self.drones) for j in range(i + 1, self.drones)
@@ -67,7 +70,8 @@ class RunEvidence:
         ages = [heartbeat_age[i] for i in range(self.drones) if active[i] and heartbeat_age[i] is not None]
         self.event("sample", positions_ned=positions, targets_ned=targets, active=active, telemetry_fresh=fresh,
                    heartbeat_age_s=heartbeat_age, formation=formation, leader=leader, slot_error_m=errors,
-                   minimum_separation_m=separation, settled=settled)
+                   sent_setpoints_ned=sent_targets, controller_modes=controller_modes,
+                   controller_alphas=controller_alphas, minimum_separation_m=separation, settled=settled)
         with self.lock:
             self.samples += 1
             if all(active) and all(fresh) and all(age is not None for age in heartbeat_age):

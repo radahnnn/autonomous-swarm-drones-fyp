@@ -2,9 +2,9 @@
 """
 Swarm Flight Console: one pilot console for 1-10 ArduPilot SITL drones, standalone or in Gazebo.
 
-    python3 sitl/swarm_console.py --drones 5 --gazebo        # 3D Gazebo world (cinewhoop_5drones.sdf)
-    python3 sitl/swarm_console.py --drones 3 --standalone    # headless 2D SITL, fast arming
-    python3 sitl/swarm_console.py --drones 5 --auto-launch   # take off immediately
+    python3 -m sitl.swarm_console --drones 5 --gazebo        # 3D Gazebo world (cinewhoop_5drones.sdf)
+    python3 -m sitl.swarm_console --drones 3 --standalone    # headless 2D SITL, fast arming
+    python3 -m sitl.swarm_console --drones 5 --auto-launch   # take off immediately
 
 Replaces the former 3-drone, 5-drone and self-healing consoles. Features:
 - Any swarm size; formation slots come from sitl/formation_library.py, ports/homes from sitl/fleet.py.
@@ -35,6 +35,7 @@ from sitl.common_frame import CommonCoordinateFrame
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, MAX_DRONES, build_fleet
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, assign_slots, slots_for
+from sitl.live_hybrid import LiveHybridGuidance
 from sitl.run_evidence import RunEvidence
 
 # Position + yaw setpoint (velocity, acceleration and yaw-rate ignored)
@@ -58,13 +59,18 @@ class SwarmConsole:
     MORPH_STEPS = 45  # 4.5 s at the 10 Hz guidance rate
 
     def __init__(self, n: int = 5, use_gazebo: Optional[bool] = None, force_restart: bool = False,
-                 ekf_timeout: Optional[float] = None):
+                 ekf_timeout: Optional[float] = None, control_mode: str = "centralized"):
         self.n = n
         self.fleet = build_fleet(n)
         self.repo_root = Path(__file__).resolve().parent.parent
         self.frame = CommonCoordinateFrame(DATUM_LAT, DATUM_LON, DATUM_ALT)
         self.use_gazebo = use_gazebo
         self.force_restart = force_restart
+        self.control_mode = control_mode
+        self.hybrid = LiveHybridGuidance(n) if control_mode == "hybrid" else None
+        self.coordinator_enabled = True
+        self.rejoin_exclusions = set()
+        self.rejoin_staging = {}
 
         # Swarm state. busy[i]: a worker thread owns drone i's MAVLink connection and the
         # guidance thread must not read it (pymavlink connections are not thread-safe).
@@ -187,7 +193,7 @@ class SwarmConsole:
         else:
             print(f">> [2D STANDALONE] Launching {self.n} SITL quad instances...")
         for spec in self.fleet:
-            cmd = [str(sitl_bin), f"-I{spec.inst}"]
+            cmd = [str(sitl_bin), f"-I{spec.inst}", "--sysid", str(spec.inst + 1)]
             if is_gazebo:
                 cmd += ["--model", "JSON", "--home", spec.home_gazebo, "--sim-address", "127.0.0.1"]
             else:
@@ -216,19 +222,31 @@ class SwarmConsole:
         for spec in self.fleet:
             endpoint = f"tcp:127.0.0.1:{spec.tcp_port}" if self.use_tcp else f"udpin:127.0.0.1:{spec.port}"
             conn = None
-            for _ in range(60):
+            for attempt in range(10):
+                candidate = None
                 try:
-                    conn = mavutil.mavlink_connection(endpoint)
-                    if conn.wait_heartbeat(timeout=3.0):
+                    candidate = mavutil.mavlink_connection(endpoint)
+                    if candidate.wait_heartbeat(timeout=3.0):
+                        conn = candidate
                         print(f"  [ONLINE] {spec.label} connected on {endpoint} (SysID={conn.target_system})")
                         break
-                    conn = None
-                except Exception:
-                    conn = None
+                except Exception as exc:
+                    if attempt == 9:
+                        print(f"  [RETRY] {spec.label} link attempt 10/10 failed: {exc}")
+                finally:
+                    # A timed-out TCP candidate otherwise remains accepted by SITL.
+                    # Repeated retries fill ArduPilot's small listen backlog and turn
+                    # the original missing-heartbeat problem into Errno 110/connect hangs.
+                    if candidate is not None and candidate is not conn:
+                        try:
+                            candidate.close()
+                        except Exception:
+                            pass
+                if conn is None:
                     time.sleep(0.5)
             if not conn:
                 raise RuntimeError(
-                    f"Failed to connect to {spec.label} on {endpoint}. "
+                    f"Failed to receive a MAVLink heartbeat from {spec.label} on {endpoint} after 10 attempts. "
                     f"Start the SITL drones first (see sitl/launch_console.sh) or let this console launch them."
                 )
             self.connections.append(conn)
@@ -385,24 +403,64 @@ class SwarmConsole:
                 if not wait_ekf_ready(conn, label, wall_timeout=self.ekf_timeout):
                     print(f"!! [ERROR] Drone {drone_num}: EKF never converged. Liftoff aborted.")
                     return
-                if not arm_with_retry(conn, label, timeout=120.0, force_after=60.0):
-                    print(f"!! [ERROR] Drone {drone_num} failed to arm for liftoff. Check EKF status.")
-                    return
-
                 # NAV_TAKEOFF is only accepted while landed. If the drone is still in the air (revived
                 # mid-LAND) skip it and let the formation setpoints fly it up to its slot instead.
                 gp = conn.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=2.0)
-                cur_alt = gp.relative_alt / 1000.0 if gp is not None else 0.0
+                if gp is None:
+                    print(f"!! [ERROR] Drone {drone_num}: no position for rejoin. Liftoff aborted.")
+                    return
+                cur_alt = gp.relative_alt / 1000.0
+                if self.hybrid and cur_alt < 1.0:
+                    column = self.frame.gps_to_global_ned(gp.lat / 1e7, gp.lon / 1e7, cur_alt)
+                    with self.lock:
+                        self.last_pos[idx] = column
+                        self.last_pos_at[idx] = time.time()
+                        self.rejoin_exclusions.add(idx)
+                        peers = self._active_indices()
+                        if peers:
+                            slots = slots_for("ring", len(peers)) if len(peers) > 1 else np.array([[5.0, 0.0, 0.0]])
+                            if len(peers) > 1:
+                                slots[:, :2] *= 5.0 / np.linalg.norm(slots[0, :2])
+                            assignment = assign_slots(
+                                np.array([self.last_pos[j] - column for j in peers]), slots)
+                            for j, slot in zip(peers, assignment):
+                                stage = self.last_pos[j].copy()
+                                stage[:2] = column[:2] + slots[slot, :2]
+                                self.rejoin_staging[j] = stage
+                        self.last_target_change = time.time()
+                    if self.evidence:
+                        self.evidence.event("rejoin_column_reserved", drone=drone_num,
+                                            north_m=float(column[0]), east_m=float(column[1]))
+                    print(f">> Reserving Drone {drone_num}'s climb column; waiting for other drones to clear 4.2 m...")
+                    clear_since = None
+                    deadline = time.monotonic() + 35.0
+                    while time.monotonic() < deadline and self.running:
+                        with self.lock:
+                            peers = [self.last_pos[j].copy() for j in self._active_indices() if j != idx]
+                        clear = all(np.linalg.norm(p[:2] - column[:2]) >= 4.2 for p in peers)
+                        clear_since = time.monotonic() if clear and clear_since is None else clear_since if clear else None
+                        if clear_since is not None and time.monotonic() - clear_since >= 2.0:
+                            break
+                        time.sleep(0.2)
+                    else:
+                        print(f"!! [ERROR] Drone {drone_num}: climb column did not clear; liftoff aborted.")
+                        if self.evidence:
+                            self.evidence.event("rejoin_clearance_timeout", drone=drone_num)
+                        return
+                    if self.evidence:
+                        self.evidence.event("rejoin_clearance_ready", drone=drone_num)
+                if not arm_with_retry(conn, label, timeout=120.0, force_after=60.0):
+                    print(f"!! [ERROR] Drone {drone_num} failed to arm for liftoff. Check EKF status.")
+                    return
                 if cur_alt >= 1.0:
                     print(f">> Drone {drone_num} still airborne at {cur_alt:.1f}m; rejoining formation directly.")
                     self._rejoin(idx, gp)
                     print(f"\n* [REJOIN COMPLETE] Drone {drone_num} locked back into swarm!\n")
                     return
 
-                conn.mav.command_long_send(
-                    conn.target_system, conn.target_component, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
-                    0, 0, 0, 0, 0, 0, 0, float(target_alt),
-                )
+                if not takeoff_and_verify(conn, label, target_alt):
+                    print(f"!! [ERROR] Drone {drone_num} did not begin climbing. Not joining formation.")
+                    return
                 print(f">> [ASCENDING] Drone {drone_num} airborne! Climbing to cruising altitude...")
 
                 t_start, reached = time.time(), False
@@ -419,6 +477,10 @@ class SwarmConsole:
                 self._rejoin(idx, conn.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=2.0))
                 print(f"\n* [REJOIN COMPLETE] Drone {drone_num} reached altitude and locked back into swarm!\n")
             finally:
+                with self.lock:
+                    self.rejoin_exclusions.discard(idx)
+                    self.rejoin_staging.clear()
+                    self.last_target_change = time.time()
                 self.busy[idx] = False  # release the connection back to the guidance thread
 
         threading.Thread(target=_climb_worker, daemon=True).start()
@@ -530,11 +592,28 @@ class SwarmConsole:
             centroid = self.centroid_pos.copy()
             offsets = self.current_offsets.copy()
             active = [self._active(i) for i in range(self.n)]
-        targets = [None] * self.n
+            positions = [p.tolist() for p in self.last_pos]
+            fresh = [time.time() - t <= 1.0 for t in self.last_pos_at]
+            coordinator_enabled = self.coordinator_enabled
+            exclusions = tuple(self.rejoin_exclusions)
+            staging = {i: target.copy() for i, target in self.rejoin_staging.items()}
+        nominal_targets = [(centroid + offsets[i]).tolist() if active[i] else None for i in range(self.n)]
+        control_targets = nominal_targets.copy()
+        for i, target in staging.items():
+            if active[i]:
+                control_targets[i] = target.tolist()
+        sent_targets = control_targets.copy()
+        modes, alphas = [None] * self.n, [None] * self.n
+        if self.hybrid:
+            sent_targets, modes, alphas, transitions = self.hybrid.step(
+                positions, control_targets, active, fresh, coordinator_enabled, exclusions=exclusions)
+            if self.evidence:
+                for transition in transitions:
+                    self.evidence.event("hybrid_mode_change", **transition)
         for i, conn in enumerate(self.connections):
-            if not active[i]:
+            if not active[i] or sent_targets[i] is None:
                 continue
-            tgt_local = centroid + offsets[i] - self.frame_origins[i]
+            tgt_local = np.asarray(sent_targets[i]) - self.frame_origins[i]
             conn.mav.set_position_target_local_ned_send(
                 0, conn.target_system, conn.target_component,
                 mavutil.mavlink.MAV_FRAME_LOCAL_NED,
@@ -542,8 +621,7 @@ class SwarmConsole:
                 float(tgt_local[0]), float(tgt_local[1]), float(tgt_local[2]),
                 0, 0, 0, 0, 0, 0, self.FORMATION_YAW_RAD, 0,
             )
-            targets[i] = (centroid + offsets[i]).tolist()
-        return targets
+        return nominal_targets, sent_targets, modes, alphas
 
     def guidance_loop(self):
         """
@@ -582,7 +660,7 @@ class SwarmConsole:
                 if self.morph_steps_remaining > 0:
                     self.current_offsets += (self.target_offsets - self.current_offsets) / self.morph_steps_remaining
                     self.morph_steps_remaining -= 1
-            targets = self.send_formation_setpoints()
+            targets, sent_targets, modes, alphas = self.send_formation_setpoints()
             if self.evidence:
                 with self.lock:
                     positions = [p.tolist() for p in self.last_pos]
@@ -592,8 +670,9 @@ class SwarmConsole:
                             for i, t in enumerate(self.last_real_heartbeat)]
                     formation = self.current_formation_style
                     leader = self.current_leader_idx + 1
-                    settled = self.morph_steps_remaining == 0 and now - self.last_target_change >= 5.0
-                self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled)
+                    settled = not self.rejoin_exclusions and self.morph_steps_remaining == 0 and now - self.last_target_change >= 5.0
+                self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled,
+                                     sent_targets=sent_targets, controller_modes=modes, controller_alphas=alphas)
             time.sleep(0.1)
 
     def stop_guidance(self):
@@ -665,6 +744,8 @@ class SwarmConsole:
         print("-" * 76)
         print(f" [SWARM: {len(self._active_indices())}/{self.n} Online | Apex Leader: D{self.current_leader_idx + 1} | Shape: {self.current_formation_style.upper()}]")
         print(" [w/s/a/d] Move  [u/j] Alt  [v/l/k/x/o/e/tri] Shapes  p Patrol  f <id> Fail  r <id> Revive  lift <id>  q Land")
+        if self.hybrid:
+            print(f" [HYBRID] Coordinator {'ON' if self.coordinator_enabled else 'OFF'} | coord off / coord on (software outage injection)")
         print("-" * 76)
 
     def land_all(self, timeout: float = 180.0) -> bool:
@@ -754,6 +835,15 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
             print("Usage: lift <drone_id> or 'lift all'")
     elif action in ("status", "stat", "info"):
         console.print_status()
+    elif action == "coord":
+        if not console.hybrid or num not in ("on", "off"):
+            print("Use --control-mode hybrid, then 'coord off' or 'coord on'.")
+        else:
+            with console.lock:
+                console.coordinator_enabled = num == "on"
+            print(f">> Hybrid coordinator {'restored' if num == 'on' else 'suppressed'} (software outage injection).")
+            if console.evidence:
+                console.evidence.event("coordinator_link", enabled=console.coordinator_enabled)
     elif action in ("q", "exit", "land"):
         console.land_all()
         return False
@@ -770,6 +860,7 @@ def _print_help(n: int):
     print(" Formations (live morph):  v V  l Line  k Column  x Diamond  o Ring  e Echelon  tri Triangle")
     print(" Mission:  launch (arm+takeoff+form up)   p Square patrol   status   q Land")
     print(" Fault tolerance:  f <id> fail drone   r <id> revive + rejoin   lift <id> launch one drone")
+    print(" Hybrid mode: launch with --control-mode hybrid; then coord off / coord on to inject coordinator loss")
     print("=" * 76)
 
 
@@ -781,15 +872,19 @@ def main():
     parser.add_argument("--restart", action="store_true", help="kill existing SITL processes and start fresh")
     parser.add_argument("--ekf-timeout", type=float, default=None, help="seconds to wait for the EKF (default 300, 900 in Gazebo)")
     parser.add_argument("--auto-launch", action="store_true", help="take off and form up immediately")
+    parser.add_argument("--control-mode", choices=("centralized", "hybrid"), default="centralized",
+                        help="live guidance mode; hybrid is experimental host-side fallback")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
-    console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart, ekf_timeout=args.ekf_timeout)
+    console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart,
+                           ekf_timeout=args.ekf_timeout, control_mode=args.control_mode)
     mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
-    console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
+    console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout,
+                                   args.evidence_dir, control_mode=args.control_mode)
     print(f">> Run evidence: {console.evidence.directory}")
     try:
         console.launch_sitl()

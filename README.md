@@ -11,12 +11,12 @@
 This repository provides an autonomous swarm control framework enabling groups of multirotors to perform dynamic formation flying, smooth topology reconfiguration, and decentralized collision avoidance under lossy, delayed wireless communication constraints.
 
 ### Current Implementation & Validation Status
-* **Numerical simulation**: The research simulator contains centralized, decentralized, and hybrid control regimes. Its fallback behavior has not been integrated into the unified live console.
+* **Numerical simulation**: The research simulator contains centralized, decentralized, and hybrid control regimes. An experimental host-side hybrid adapter now exists in the unified console; its live five-drone run failed the separation and tracking criteria, so it is not the validated demo path. See [hybrid live guidance](docs/HYBRID_LIVE_GUIDANCE.md).
 * **ArduPilot standalone SITL**: A five-drone 2D run completed takeoff, formation changes, movement, patrol, injected failure and rejoin, and confirmed landing on 12 October 2026. The unified console accepts 1–10 drones; that range is not a claim of live validation at every size. See [console guide](docs/CONSOLE_GUIDE.md).
 * **Gazebo 3D**: The five-drone world rendered and all SITL links connected, but the EKF readiness gate blocked takeoff. No completed five-drone Gazebo flight has been demonstrated.
 * **Physical aircraft**: One quad is assembled and has not been flight-tested. Physical swarm communication and fallback remain unverified.
 * **Tests**: The consolidated demo checkout passed 161 tests on 12 October 2026. This count is not coverage or flight evidence. The local consolidation collection contains `VALIDATION_2026-10-12.md` with the run details.
-* **Run evidence**: The unified console now writes per-run commands, telemetry, link ages, separation, tracking error, and an outcome summary under `runs/console/`. The [criteria and limitations](docs/RUN_EVIDENCE.md) are specified before each new run; no post-instrumentation run is claimed here.
+* **Run evidence**: The unified console writes per-run commands, telemetry, link ages, separation, tracking error, and an outcome summary under `runs/console/`. Five-drone post-instrumentation runs on 14 October 2026 completed landing but did not pass all [criteria](docs/RUN_EVIDENCE.md). The 3D run rendered and linked but did not pass the EKF gate.
 
 ### Key Framework Capabilities
 * **Four Formation Geometries**: Line, V-Formation (Chevron), Circle, and Grid with dynamic reconfiguration.
