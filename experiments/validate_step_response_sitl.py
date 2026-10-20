@@ -289,9 +289,11 @@ def simulate_swarm_core_step(
     xs = []
     vxs = []
 
-    dt = times[1] - times[0] if len(times) > 1 else 0.05
-
-    for t in times:
+    # Treat each timestamp as the end of an integration interval. In
+    # particular, do not reuse the first (potentially unusually long) gap for
+    # the entire recording. The first sample is the initial condition.
+    for i, t in enumerate(times):
+        dt = float(times[i] - times[i - 1]) if i > 0 else 0.0
         if t < delay:
             # Prior to transport delay expiration, drone remains at initial state
             xs.append(0.0)
@@ -301,7 +303,8 @@ def simulate_swarm_core_step(
             v_err = -drone.velocity
             a_cmd = kp * p_err + kd * v_err
             drone.set_control_input(a_cmd)
-            drone.step(dt)
+            if dt > 0.0:
+                drone.step(dt)
             xs.append(drone.position[0])
             vxs.append(drone.velocity[0])
 

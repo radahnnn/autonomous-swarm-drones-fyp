@@ -49,6 +49,7 @@ def test_configuration_profile_lookup():
     assert "assumed_baseline" in PROFILES
     assert "sitl_default_quad" in PROFILES
     assert "sitl_fitted" in PROFILES
+    assert "sitl_corrected_s1" in PROFILES
 
     baseline = get_profile("assumed_baseline")
     assert isinstance(baseline, SwarmConfigProfile)
@@ -75,8 +76,11 @@ def test_configuration_profile_lookup():
 
     # Verify provenance metadata
     prov = sitl.get_provenance("translation_tau")
-    assert prov.provenance == "fitted from SITL"
+    assert prov.provenance == "historical timing-biased SITL fit"
     assert "experiments/validate_step_response_sitl.py" in prov.reference
+    corrected = get_profile("sitl_corrected_s1")
+    assert corrected.get("attitude_tau") == 0.21
+    assert corrected.get("drag_coeff") == 0.01
 
     # Error handling for invalid profile
     with pytest.raises(ValueError, match="Unknown configuration profile"):
@@ -463,5 +467,4 @@ def test_no_live_sitl_process_during_collection_or_tests():
         assert len(running_pids) == 0, f"Found running arducopter processes: {running_pids}"
     except FileNotFoundError:
         pass
-
 

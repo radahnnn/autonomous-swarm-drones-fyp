@@ -7,7 +7,8 @@ Defines explicit configuration profiles with complete parameter provenance:
 
 Profiles:
 1. "assumed_baseline": Fast multirotor attitude model (tau=0.18s, cd=0.20/s) with ideal sensors.
-2. "sitl_default_quad": Calibrated against ArduPilot default quad GUIDED mode step response (tau=0.992s, cd=0.637/s). (Alias: "sitl_fitted")
+2. "sitl_default_quad": Historical fit (tau=0.992s, cd=0.637/s) invalidated by an uneven-timestamp bug. (Alias: "sitl_fitted")
+3. "sitl_corrected_s1": Corrected first-order fit for a SITL setpoint-tracking sensitivity study; not physical airframe parameters.
 """
 
 from dataclasses import dataclass, field
@@ -315,8 +316,8 @@ def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmCo
         value=0.992,
         unit="s",
         meaning="SITL-calibrated lumped closed-loop translation time-constant lag for default quad",
-        provenance="fitted from SITL",
-        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Captures lumped outer position loop, inner rate PID, and vehicle inertia (Item 31).",
+        provenance="historical timing-biased SITL fit",
+        notes="Invalidated by uneven timestamp integration; retained to reproduce prior experiments, not as a calibrated parameter.",
         reference="experiments/validate_step_response_sitl.py",
     )
     # Alias attitude_tau for backward compatibility
@@ -325,8 +326,8 @@ def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmCo
         value=0.992,
         unit="s",
         meaning="Lumped translation time-constant lag (alias for translation_tau)",
-        provenance="fitted from SITL",
-        notes="Alias for translation_tau for backwards compatibility across simulation and adapter.",
+        provenance="historical timing-biased SITL fit",
+        notes="Alias for translation_tau; invalidated by uneven timestamp integration.",
         reference="experiments/validate_step_response_sitl.py",
     )
     params["drag_coeff"] = ParameterProvenance(
@@ -334,8 +335,8 @@ def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmCo
         value=0.637,
         unit="1/s",
         meaning="SITL-calibrated translational drag/braking deceleration coefficient for default quad",
-        provenance="fitted from SITL",
-        notes="Identified from ArduPilot SITL GUIDED mode 5.0m position step response on default quadcopter (RMSE = 0.1482m vs SITL telemetry). Reflects rotor drag and autopilot position controller braking in SITL.",
+        provenance="historical timing-biased SITL fit",
+        notes="Invalidated by uneven timestamp integration; this is not a physical rotor-drag measurement.",
         reference="experiments/validate_step_response_sitl.py",
     )
 
@@ -362,7 +363,33 @@ def _build_sitl_default_quad_profile(name: str = "sitl_default_quad") -> SwarmCo
 
     return SwarmConfigProfile(
         name=name,
-        description="SITL-calibrated closed-loop translation model for ArduPilot default quad (tau=0.992s, cd=0.637/s) and plain GPS noise (1.5m).",
+        description="Historical, timing-biased SITL fit (tau=0.992s, cd=0.637/s); retained only to reproduce earlier results.",
+        parameters=params,
+    )
+
+
+def _build_sitl_corrected_s1_profile() -> SwarmConfigProfile:
+    """Corrected S1 fit from the recorded SITL mission; lag/drag are effective model values."""
+    historical = _build_sitl_default_quad_profile()
+    params = dict(historical.parameters)
+    for key in ("translation_tau", "attitude_tau"):
+        params[key] = ParameterProvenance(
+            name=key, value=0.21, unit="s",
+            meaning="Effective first-order lag in the corrected S1 setpoint-tracking fit",
+            provenance="fitted from SITL after timestamp correction",
+            notes="Fit includes a separate 0.20 s transport delay; the numerical swarm engine does not represent that delay.",
+            reference="docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md",
+        )
+    params["drag_coeff"] = ParameterProvenance(
+        name="drag_coeff", value=0.01, unit="1/s",
+        meaning="Effective damping coefficient at the lower fit bound",
+        provenance="fitted from SITL after timestamp correction",
+        notes="Pinned to the lower bound and not independently identifiable as physical rotor drag.",
+        reference="docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md",
+    )
+    return SwarmConfigProfile(
+        name="sitl_corrected_s1",
+        description="Corrected S1 sensitivity profile (tau=0.21 s, damping=0.01/s; delay omitted by engine).",
         parameters=params,
     )
 
@@ -372,6 +399,7 @@ PROFILES: Dict[str, SwarmConfigProfile] = {
     "assumed_baseline": _build_assumed_baseline_profile(),
     "sitl_default_quad": _build_sitl_default_quad_profile("sitl_default_quad"),
     "sitl_fitted": _build_sitl_default_quad_profile("sitl_fitted"),  # Backward-compatible alias
+    "sitl_corrected_s1": _build_sitl_corrected_s1_profile(),
 }
 
 # Active profile global state
@@ -453,4 +481,3 @@ def build_controllers_from_profile(
         hybrid_ctrl.set_nominal_latency(float(profile.get("latency_mean")))
 
     return central_ctrl, decentral_ctrl, hybrid_ctrl
-
