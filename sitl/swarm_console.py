@@ -187,7 +187,7 @@ class SwarmConsole:
         else:
             print(f">> [2D STANDALONE] Launching {self.n} SITL quad instances...")
         for spec in self.fleet:
-            cmd = [str(sitl_bin), f"-I{spec.inst}"]
+            cmd = [str(sitl_bin), f"-I{spec.inst}", "--sysid", str(spec.inst + 1)]
             if is_gazebo:
                 cmd += ["--model", "JSON", "--home", spec.home_gazebo, "--sim-address", "127.0.0.1"]
             else:
@@ -216,19 +216,30 @@ class SwarmConsole:
         for spec in self.fleet:
             endpoint = f"tcp:127.0.0.1:{spec.tcp_port}" if self.use_tcp else f"udpin:127.0.0.1:{spec.port}"
             conn = None
-            for _ in range(60):
+            for attempt in range(10):
+                candidate = None
                 try:
-                    conn = mavutil.mavlink_connection(endpoint)
-                    if conn.wait_heartbeat(timeout=3.0):
+                    candidate = mavutil.mavlink_connection(endpoint)
+                    if candidate.wait_heartbeat(timeout=3.0):
+                        conn = candidate
                         print(f"  [ONLINE] {spec.label} connected on {endpoint} (SysID={conn.target_system})")
                         break
-                    conn = None
-                except Exception:
-                    conn = None
+                except Exception as exc:
+                    if attempt == 9:
+                        print(f"  [RETRY] {spec.label} link attempt 10/10 failed: {exc}")
+                finally:
+                    # Timed-out TCP clients must be closed: otherwise repeated retries
+                    # fill ArduPilot's small listen backlog and block later connections.
+                    if candidate is not None and candidate is not conn:
+                        try:
+                            candidate.close()
+                        except Exception:
+                            pass
+                if conn is None:
                     time.sleep(0.5)
             if not conn:
                 raise RuntimeError(
-                    f"Failed to connect to {spec.label} on {endpoint}. "
+                    f"Failed to receive a MAVLink heartbeat from {spec.label} on {endpoint} after 10 attempts. "
                     f"Start the SITL drones first (see sitl/launch_console.sh) or let this console launch them."
                 )
             self.connections.append(conn)

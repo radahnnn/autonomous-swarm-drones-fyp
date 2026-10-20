@@ -28,4 +28,9 @@ if [ ! -f "${WORLD_FILE}" ]; then
     exit 1
 fi
 
+if command -v ss >/dev/null 2>&1 && ss -H -lun | grep -Eq '127\.0\.0\.1:9002[[:space:]]'; then
+    echo "[ERROR] A Gazebo drone link already owns port 9002. Close the existing Gazebo world before starting another."
+    exit 1
+fi
+
 gz sim -v4 -r "${WORLD_FILE}"

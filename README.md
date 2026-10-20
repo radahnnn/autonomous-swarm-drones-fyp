@@ -14,7 +14,7 @@ The default `master` branch is the demo-oriented baseline. It includes:
 - A separate swarm simulator with centralized, decentralized, and hybrid control experiments, plus network loss and delay emulation.
 - ArduPilot/Gazebo and Matek H743 support files. Hardware configuration files are project artifacts and must not be treated as approval for real-aircraft flight.
 
-The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The unified console now records per-run commands and telemetry under `runs/console/`; see the [evidence criteria](docs/RUN_EVIDENCE.md). A five-drone standalone SITL demo was also shown in QGroundControl on 15 October 2026. That live demonstration showed connected, airborne simulated vehicles; its run did not produce a completed outcome summary.
+The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The unified console now records per-run commands and telemetry under `runs/console/`; see the [evidence criteria](docs/RUN_EVIDENCE.md). A five-drone standalone SITL demo was also shown in QGroundControl on 15 October 2026. On 20 October, a five-drone Gazebo 3D run completed takeoff, pilot-commanded movement and formation changes, failure/rejoin, and landing, with all recorded criteria passing; see the [3D validation record](docs/reports/GAZEBO_5DRONE_VALIDATION_2026-10-20.md).
 
 ## Branches and project state
 
@@ -28,13 +28,14 @@ The identification report compares several software models. An ArduPilot-like po
 
 The identification results are preliminary: one default SITL airframe, two repeats per step condition, no confidence intervals, and horizontal motion only. The study does not identify physical mass, thrust, or inertia and has not been validated against real-flight logs. See [identification report on the research branch](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/hw-matched-identification/docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md) for methods, raw-data locations, comparisons, and limitations.
 
-## Verification record (12–15 October 2026)
+## Verification record (12–20 October 2026)
 
 These are results from local consolidated copies on one development machine. The 12 October flight result predates the run-evidence instrumentation:
 
 - The consolidated demo copy's Python suite passed 161 tests; the identification copy's suite passed 168 tests. The identification count includes a local timing regression test. Two preserved checkpoint suites also passed 10 tests each.
 - A five-drone standalone SITL session completed takeoff, formation change, movement, square patrol, failure/re-election, revive/rejoin, and landing. The consolidated-copy landing fix waits for all vehicles to report disarmed before stopping SITL.
-- Gazebo rendered the five-drone world on the NVIDIA GPU and all five SITL instances connected. The console then remained at EKF flags `0xa7` (GPS fix 6), so the EKF readiness gate blocked flight. Gazebo rendering and connection were checked; Gazebo flight was not verified.
+- In the earlier Gazebo check, the five-drone world rendered on the NVIDIA GPU and all five SITL instances connected. The console then remained at EKF flags `0xa7` (GPS fix 6), so the EKF readiness gate blocked flight in that run.
+- On 20 October, after using one clean Gazebo server and allowing about 220 seconds for EKF convergence, all five drones took off and landed in a pilot-commanded 3D SITL run. The recorded minimum separation was 2.594 m and the 95th percentile settled slot error was 0.211 m. The run summary passed every recorded criterion. This validates that specific simulated run, not physical flight or every formation and failure scenario.
 - No physical-airframe flight was performed as part of these checks.
 - Later instrumented five-drone standalone runs on 14 October landed but did not pass all [recorded acceptance criteria](docs/RUN_EVIDENCE.md). The 15 October defense demonstration was visual evidence of a working 2D SITL display and control path, not a measured safety or tracking result.
 
