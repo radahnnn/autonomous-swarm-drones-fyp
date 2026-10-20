@@ -116,7 +116,10 @@ class SwarmSimulation:
 
         # Mission state and locked slot assignment
         self.current_formation = FormationType.LINE
-        self.formation_spacing = float(self.profile.get("nominal_spacing"))
+        nominal_spacing = float(self.profile.get("nominal_spacing"))
+        if self.control_mode == "decentralized":
+            nominal_spacing = float(self.profile.get("decentralized_nominal_spacing", nominal_spacing))
+        self.formation_spacing = nominal_spacing
         self.centroid_target = np.array([0.0, 0.0], dtype=np.float64)
         self.centroid_velocity = np.array([0.0, 0.0], dtype=np.float64)
         self.drone_slot_map: Dict[int, int] = {}

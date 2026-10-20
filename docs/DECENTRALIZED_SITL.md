@@ -9,6 +9,10 @@ python3 -m sitl.swarm_console --drones 5 --standalone --control-mode decentraliz
 Add `--auto-launch` to take off after all five SITL instances become ready. The default
 `--control-mode centralized` remains unchanged.
 
+In the pure Python `SwarmSimulation`, decentralized mode now defaults to 3.0 m formation spacing
+to provide a buffer above the 2.5 m project minimum. Centralized and hybrid defaults are unchanged;
+an explicit `set_formation(..., spacing=...)` still overrides the mode default.
+
 ## What “decentralized” means in this stage
 
 The console acts as a SITL transport harness. It keeps the MAVLink links and relays telemetry,
@@ -53,20 +57,21 @@ tested input boundary between agents.
   slots; all five landed/disarmed. No watchdog timeout. Summary: p95 settled slot error 0.277 m,
   minimum measured separation 4.139 m. Raw record: `runs/console/20261020T174629.974360Z/`.
 - Ten paired software-simulation trials used identical initial states and seeds within each pair,
-  the SITL-fitted dynamics profile, 10% packet loss, 50 ms mean channel latency, and the same
-  moving V mission. Results and confidence intervals are in
-  [the comparison report](reports/DECENTRALIZED_5DRONE_COMPARISON_2026-10-20.md).
-- Automated suite: 166 tests passed.
+  the SITL-fitted dynamics profile, 0.08 m GPS noise, 10% packet loss, 50 ms mean channel latency,
+  and the same moving V mission. Repeated at 2.5 m and 3.0 m spacing. Results are in
+  [the spacing and comparison report](reports/DECENTRALIZED_SPACING_TUNING_2026-10-20.md).
+- Automated suite: 167 tests passed.
 
-The paired comparison found higher decentralized tracking error and lower separation than the
-centralized controller. Neither mode had a simulated collision, but both had a minimum separation
-below the project's 2.5 m target in this software experiment. One successful SITL run does not
-prove general robustness; repeat across communication conditions and missions.
+With 2.5 m target spacing, neither controller consistently maintained the 2.5 m measured minimum.
+At 3.0 m target spacing, both controllers maintained at least 2.5 m in all 10 trials. Decentralized
+tracking error remained higher than centralized. This is a tested software-simulation setting, not
+a collision guarantee or a physical-flight result. The earlier comparison report used starting
+positions wider than the target formation and is superseded by the corrected matched-start report.
 
 ## Next build sequence
 
-1. Tune the decentralized separation/formation objective against the 2.5 m spacing target and
-   rerun paired trials; record failures and confidence intervals.
+1. Validate the 3.0 m decentralized default under more formations, GPS-noise levels, and missions;
+   retain failed runs and report confidence intervals.
 2. Expand SITL runs across loss, delay, stale data, directed peer cuts, and loss of a vehicle.
 3. Add collision-aware formation changes before enabling mid-flight morph commands.
 4. Define a versioned peer-message protocol and mission-goal handoff, including IDs, coordinate

@@ -40,6 +40,17 @@ def test_decentralized_simulation():
     assert summary["any_collision"] == 0.0
 
 
+def test_decentralized_mode_defaults_to_spacing_buffer_without_changing_centralized():
+    centralized = SwarmSimulation(create_non_overlapping_drones(2, seed=708), control_mode="centralized")
+    decentralized = SwarmSimulation(create_non_overlapping_drones(2, seed=708), control_mode="decentralized")
+
+    assert centralized.formation_spacing == 2.5
+    assert decentralized.formation_spacing == 3.0
+    # An explicit mission spacing still overrides the mode default.
+    decentralized.set_formation(FormationType.V_SHAPE, spacing=2.5)
+    assert decentralized.formation_spacing == 2.5
+
+
 def test_hybrid_fallback():
     drones = create_non_overlapping_drones(5, seed=202)
     sim = SwarmSimulation(drones, control_mode="hybrid", comm_range=15.0)
@@ -516,5 +527,4 @@ if __name__ == "__main__":
     test_per_drone_velocity_in_control_loop()
     test_set_coordinator_link_and_outage_equivalence()
     print("All simulation tests passed successfully!")
-
 

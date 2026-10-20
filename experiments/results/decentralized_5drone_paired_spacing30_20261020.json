@@ -1,0 +1,362 @@
+{
+  "title": "Paired 5-drone architecture comparison",
+  "trials": 10,
+  "seeds": [
+    20261020,
+    20261021,
+    20261022,
+    20261023,
+    20261024,
+    20261025,
+    20261026,
+    20261027,
+    20261028,
+    20261029
+  ],
+  "conditions": {
+    "same_initial_state_per_seed": true,
+    "dynamics_profile": "sitl_default_quad",
+    "mission": "hold 2s, move north 0.6m/s for 6s, hold 6s",
+    "formation_spacing_m": 3.0,
+    "packet_loss_probability": 0.1,
+    "mean_peer_and_coordinator_latency_s": 0.05,
+    "gps_noise_std_m": 0.08,
+    "dt_s": 0.05,
+    "steady_window_s": [
+      11.0,
+      14.0
+    ]
+  },
+  "metrics": {
+    "centralized": {
+      "steady_mean_error_m": {
+        "mean": 0.11076434041751464,
+        "ci95_low": 0.09157572016891863,
+        "ci95_high": 0.12995296066611065
+      },
+      "steady_p95_error_m": {
+        "mean": 0.14742887493335063,
+        "ci95_low": 0.1222021143411912,
+        "ci95_high": 0.17265563552551008
+      },
+      "mission_mean_error_m": {
+        "mean": 0.17916825857624943,
+        "ci95_low": 0.1633702416011369,
+        "ci95_high": 0.19496627555136198
+      },
+      "final_error_m": {
+        "mean": 0.12325679705676755,
+        "ci95_low": 0.10506951829511936,
+        "ci95_high": 0.14144407581841573
+      },
+      "minimum_separation_m": {
+        "mean": 2.784403618254937,
+        "ci95_low": 2.7212590570412294,
+        "ci95_high": 2.847548179468645
+      },
+      "collision_trials": 0
+    },
+    "decentralized": {
+      "steady_mean_error_m": {
+        "mean": 0.23565015214914906,
+        "ci95_low": 0.21749592818354269,
+        "ci95_high": 0.2538043761147554
+      },
+      "steady_p95_error_m": {
+        "mean": 0.4240911367519503,
+        "ci95_low": 0.40607386099173787,
+        "ci95_high": 0.44210841251216276
+      },
+      "mission_mean_error_m": {
+        "mean": 0.36494705339414235,
+        "ci95_low": 0.3498391610185294,
+        "ci95_high": 0.3800549457697553
+      },
+      "final_error_m": {
+        "mean": 0.3021755667676883,
+        "ci95_low": 0.2588747600304265,
+        "ci95_high": 0.34547637350495014
+      },
+      "minimum_separation_m": {
+        "mean": 2.7832729130665297,
+        "ci95_low": 2.7226435943843272,
+        "ci95_high": 2.843902231748732
+      },
+      "collision_trials": 0
+    }
+  },
+  "paired_delta_decentralized_minus_centralized": {
+    "steady_mean_error_m": {
+      "mean": 0.12488581173163442,
+      "ci95_low": 0.11490144717109234,
+      "ci95_high": 0.13487017629217649
+    },
+    "steady_p95_error_m": {
+      "mean": 0.27666226181859976,
+      "ci95_low": 0.24372649786171863,
+      "ci95_high": 0.3095980257754809
+    },
+    "mission_mean_error_m": {
+      "mean": 0.18577879481789292,
+      "ci95_low": 0.17650177798625183,
+      "ci95_high": 0.195055811649534
+    },
+    "final_error_m": {
+      "mean": 0.17891876971092072,
+      "ci95_low": 0.12443590433973459,
+      "ci95_high": 0.23340163508210685
+    },
+    "minimum_separation_m": {
+      "mean": -0.001130705188407699,
+      "ci95_low": -0.01228804585535862,
+      "ci95_high": 0.010026635478543223
+    }
+  },
+  "trial_results": [
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261020,
+        "steady_mean_error_m": 0.11099299860581295,
+        "steady_p95_error_m": 0.17328174705047808,
+        "mission_mean_error_m": 0.1986610807129841,
+        "final_error_m": 0.16753716053705606,
+        "minimum_separation_m": 2.6064833791782966,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261020,
+        "steady_mean_error_m": 0.21040841379405303,
+        "steady_p95_error_m": 0.4550129086773696,
+        "mission_mean_error_m": 0.3648848521513522,
+        "final_error_m": 0.22183396087627102,
+        "minimum_separation_m": 2.608674259500221,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261021,
+        "steady_mean_error_m": 0.07887529813560558,
+        "steady_p95_error_m": 0.11590352793208623,
+        "mission_mean_error_m": 0.1540100695551494,
+        "final_error_m": 0.1147444882633653,
+        "minimum_separation_m": 2.829245376205727,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261021,
+        "steady_mean_error_m": 0.20786878005828646,
+        "steady_p95_error_m": 0.4155856195846267,
+        "mission_mean_error_m": 0.3251513081934275,
+        "final_error_m": 0.25513791746330355,
+        "minimum_separation_m": 2.8292082784901975,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261022,
+        "steady_mean_error_m": 0.08365396975803126,
+        "steady_p95_error_m": 0.10887031308133811,
+        "mission_mean_error_m": 0.16553646610672204,
+        "final_error_m": 0.10426982394554926,
+        "minimum_separation_m": 2.7556840433131398,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261022,
+        "steady_mean_error_m": 0.2276042208861574,
+        "steady_p95_error_m": 0.4498282826042796,
+        "mission_mean_error_m": 0.3636136672979234,
+        "final_error_m": 0.28190736965050295,
+        "minimum_separation_m": 2.770797012687249,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261023,
+        "steady_mean_error_m": 0.14860830137049194,
+        "steady_p95_error_m": 0.21999313723805758,
+        "mission_mean_error_m": 0.2098753191686891,
+        "final_error_m": 0.10553832990491824,
+        "minimum_separation_m": 2.8164760015002814,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261023,
+        "steady_mean_error_m": 0.2715877958317275,
+        "steady_p95_error_m": 0.4083817909654743,
+        "mission_mean_error_m": 0.40250549833141014,
+        "final_error_m": 0.40835297348904165,
+        "minimum_separation_m": 2.8021441324838916,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261024,
+        "steady_mean_error_m": 0.08984257030018891,
+        "steady_p95_error_m": 0.14208766856012467,
+        "mission_mean_error_m": 0.16065799679508885,
+        "final_error_m": 0.1391818352993304,
+        "minimum_separation_m": 2.8755410772624423,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261024,
+        "steady_mean_error_m": 0.20979764097893566,
+        "steady_p95_error_m": 0.4379972979810023,
+        "mission_mean_error_m": 0.35406580026143086,
+        "final_error_m": 0.24698580457859198,
+        "minimum_separation_m": 2.84591396726343,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261025,
+        "steady_mean_error_m": 0.10511198574631866,
+        "steady_p95_error_m": 0.13583795777147498,
+        "mission_mean_error_m": 0.16113175530047286,
+        "final_error_m": 0.08658593966745931,
+        "minimum_separation_m": 2.7659844442313255,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261025,
+        "steady_mean_error_m": 0.2416409961455997,
+        "steady_p95_error_m": 0.3734780510895344,
+        "mission_mean_error_m": 0.3546946563801467,
+        "final_error_m": 0.35384208921378335,
+        "minimum_separation_m": 2.7638269433575413,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261026,
+        "steady_mean_error_m": 0.10036926832241533,
+        "steady_p95_error_m": 0.1137629071391332,
+        "mission_mean_error_m": 0.166983111882911,
+        "final_error_m": 0.0992628666019888,
+        "minimum_separation_m": 2.828669478824155,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261026,
+        "steady_mean_error_m": 0.2435387929693106,
+        "steady_p95_error_m": 0.42140093179571575,
+        "mission_mean_error_m": 0.3707090995500183,
+        "final_error_m": 0.3264523956970713,
+        "minimum_separation_m": 2.8562235893655132,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261027,
+        "steady_mean_error_m": 0.13177998275902514,
+        "steady_p95_error_m": 0.1481889765694009,
+        "mission_mean_error_m": 0.19684257182962836,
+        "final_error_m": 0.13127078087513436,
+        "minimum_separation_m": 2.8283095572406465,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261027,
+        "steady_mean_error_m": 0.2570842563224082,
+        "steady_p95_error_m": 0.4500274607785583,
+        "mission_mean_error_m": 0.3670581094659404,
+        "final_error_m": 0.3102786715716954,
+        "minimum_separation_m": 2.8281870991202696,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261028,
+        "steady_mean_error_m": 0.1009901477305304,
+        "steady_p95_error_m": 0.13318444300251994,
+        "mission_mean_error_m": 0.16747589360292545,
+        "final_error_m": 0.13308171765759408,
+        "minimum_separation_m": 2.872711726829989,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261028,
+        "steady_mean_error_m": 0.2144814755965054,
+        "steady_p95_error_m": 0.4234408253257671,
+        "mission_mean_error_m": 0.3558685347121863,
+        "final_error_m": 0.25292305913251373,
+        "minimum_separation_m": 2.861726344540139,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    },
+    {
+      "centralized": {
+        "mode": "centralized",
+        "seed": 20261029,
+        "steady_mean_error_m": 0.15741888144672625,
+        "steady_p95_error_m": 0.18317807098889277,
+        "mission_mean_error_m": 0.2105083208079232,
+        "final_error_m": 0.15109502781527995,
+        "minimum_separation_m": 2.664931097963369,
+        "any_collision": false,
+        "steady_samples": 60
+      },
+      "decentralized": {
+        "mode": "decentralized",
+        "seed": 20261029,
+        "steady_mean_error_m": 0.27248914890850656,
+        "steady_p95_error_m": 0.4057581987171754,
+        "mission_mean_error_m": 0.39091900759758785,
+        "final_error_m": 0.36404142600410794,
+        "minimum_separation_m": 2.6660275038568426,
+        "any_collision": false,
+        "steady_samples": 60
+      }
+    }
+  ],
+  "limitations": [
+    "Software point-mass simulation only; not SITL or physical flight.",
+    "10 repeated seeds are preliminary and do not characterize all radio conditions.",
+    "Collision checks use simulated states at discrete time steps."
+  ]
+}

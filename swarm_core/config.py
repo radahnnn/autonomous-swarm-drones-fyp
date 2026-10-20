@@ -124,6 +124,14 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
             notes="Provides safe formation clearance while fitting in 20x20m flight volumes.",
             is_hard_boundary=False,
         ),
+        "decentralized_nominal_spacing": ParameterProvenance(
+            name="decentralized_nominal_spacing",
+            value=3.00,
+            unit="m",
+            meaning="Default nominal formation spacing for the decentralized controller",
+            provenance="tuned in paired five-drone software simulation",
+            notes="Selected to keep measured minimum spacing above 2.5m in 10 matched V-formation trials. Other formations and hardware are not validated.",
+        ),
         "comm_radius": ParameterProvenance(
             name="comm_radius",
             value=12.0,
@@ -453,4 +461,3 @@ def build_controllers_from_profile(
         hybrid_ctrl.set_nominal_latency(float(profile.get("latency_mean")))
 
     return central_ctrl, decentral_ctrl, hybrid_ctrl
-

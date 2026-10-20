@@ -1,5 +1,9 @@
 # Five-drone decentralized progress and comparison — 2026-10-20
 
+> **Superseded:** The initial paired experiment below started from a wider V than its target
+> formation. A corrected matched-start comparison and spacing tuning are in
+> [DECENTRALIZED_SPACING_TUNING_2026-10-20.md](DECENTRALIZED_SPACING_TUNING_2026-10-20.md).
+
 ## Scope
 
 This records the first five-drone decentralized SITL validation, the correction to its settling

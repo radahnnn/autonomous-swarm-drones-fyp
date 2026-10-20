@@ -14,7 +14,7 @@ from scipy.stats import t
 
 from simulator.engine import SwarmSimulation
 from swarm_core.drone import Drone
-from swarm_core.formations import FormationType
+from swarm_core.formations import FormationGenerator, FormationType
 
 
 N_DRONES = 5
@@ -29,16 +29,17 @@ LATENCY_S = 0.05
 PROFILE = "sitl_default_quad"
 
 
-def _initial_positions(seed):
+def _initial_positions(seed, spacing=2.5):
     rng = np.random.default_rng(seed)
-    # Jitter around the same initial V geometry while retaining safe clearance.
-    offsets = np.array([[0.0, 0.0], [-3.0, -3.0], [-3.0, 3.0],
-                        [-6.0, -6.0], [-6.0, 6.0]])
+    # Start near the actual target V geometry, not a different, wider formation.
+    offsets = FormationGenerator.get_formation_offsets(
+        FormationType.V_SHAPE, N_DRONES, spacing=spacing
+    )
     return offsets + rng.normal(0.0, 0.12, size=offsets.shape)
 
 
-def run_trial(mode, seed):
-    positions = _initial_positions(seed)
+def run_trial(mode, seed, decentralized_params=None, formation_spacing=2.5):
+    positions = _initial_positions(seed, spacing=formation_spacing)
     drones = [Drone(i, positions[i], profile=PROFILE) for i in range(N_DRONES)]
     sim = SwarmSimulation(
         drones, control_mode=mode, comm_range=12.0,
@@ -46,7 +47,10 @@ def run_trial(mode, seed):
         dt=DT, gps_noise_std=0.08, gps_common_mode_fraction=0.60,
         seed=seed, profile=PROFILE,
     )
-    sim.set_formation(FormationType.V_SHAPE, centroid=np.zeros(2))
+    if mode == "decentralized" and decentralized_params:
+        for name, value in decentralized_params.items():
+            setattr(sim.decentral_ctrl, name, float(value))
+    sim.set_formation(FormationType.V_SHAPE, centroid=np.zeros(2), spacing=formation_spacing)
     steps = int(DURATION_S / DT)
     for step in range(steps):
         now = step * DT
@@ -86,6 +90,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--trials", type=int, default=10)
     parser.add_argument("--seed", type=int, default=20261020)
+    parser.add_argument("--spacing", type=float, default=3.0,
+                        help="shared V-formation target spacing in meters (default 3m buffer)")
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
     if args.trials < 2:
@@ -94,7 +100,8 @@ def main():
     trials = []
     for index in range(args.trials):
         seed = args.seed + index
-        pair = {mode: run_trial(mode, seed) for mode in ("centralized", "decentralized")}
+        pair = {mode: run_trial(mode, seed, formation_spacing=args.spacing)
+                for mode in ("centralized", "decentralized")}
         trials.append(pair)
         print(f"trial {index + 1}/{args.trials} seed={seed}: "
               f"central={pair['centralized']['steady_mean_error_m']:.3f}m, "
@@ -120,6 +127,7 @@ def main():
             "same_initial_state_per_seed": True,
             "dynamics_profile": PROFILE,
             "mission": "hold 2s, move north 0.6m/s for 6s, hold 6s",
+            "formation_spacing_m": args.spacing,
             "packet_loss_probability": PACKET_LOSS,
             "mean_peer_and_coordinator_latency_s": LATENCY_S,
             "gps_noise_std_m": 0.08,
