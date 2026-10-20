@@ -592,6 +592,7 @@ class SwarmConsole:
             offsets = self.current_offsets.copy()
             active = [self._active(i) for i in range(self.n)]
             positions = [p.tolist() for p in self.last_pos]
+            sample_times = self.last_pos_at.copy()
             fresh = [time.time() - t <= 1.0 for t in self.last_pos_at]
             coordinator_enabled = self.coordinator_enabled
             exclusions = tuple(self.rejoin_exclusions)
@@ -605,7 +606,8 @@ class SwarmConsole:
         modes, alphas = [None] * self.n, [None] * self.n
         if self.hybrid:
             sent_targets, modes, alphas, transitions = self.hybrid.step(
-                positions, control_targets, active, fresh, coordinator_enabled, exclusions=exclusions)
+                positions, control_targets, active, fresh, coordinator_enabled,
+                exclusions=exclusions, sample_times=sample_times)
             if self.evidence:
                 for transition in transitions:
                     self.evidence.event("hybrid_mode_change", **transition)

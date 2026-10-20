@@ -30,6 +30,7 @@ class LiveHybridGuidance:
                              attitude_tau=0.2, drag_coeff=0.0, measurement_noise_std=0.0)
                        for i in range(count)]
         self.last_position = [None] * count
+        self.last_sample_time = [None] * count
         self.velocity = [np.zeros(2) for _ in range(count)]
         self.last_time = None
         self.sequence = 0
@@ -70,18 +71,22 @@ class LiveHybridGuidance:
             result = self._limit(result, self.MAX_SPEED)
         return result
 
-    def step(self, positions, nominal_targets, active, fresh, coordinator_enabled, exclusions=(), now=None):
+    def step(self, positions, nominal_targets, active, fresh, coordinator_enabled,
+             exclusions=(), sample_times=None, now=None):
         now = time.monotonic() if now is None else now
         dt = 0.1 if self.last_time is None else min(0.25, max(0.02, now - self.last_time))
         self.last_time = now
         self.sequence += 1
         pos = [np.asarray(p, dtype=float) for p in positions]
         for i in range(self.count):
-            if fresh[i]:
-                if self.last_position[i] is not None:
-                    measured = (pos[i][:2] - self.last_position[i]) / dt
+            sample_time = sample_times[i] if sample_times is not None else now
+            if fresh[i] and (self.last_sample_time[i] is None or sample_time > self.last_sample_time[i]):
+                if self.last_position[i] is not None and self.last_sample_time[i] is not None:
+                    sample_dt = sample_time - self.last_sample_time[i]
+                    measured = (pos[i][:2] - self.last_position[i]) / sample_dt
                     self.velocity[i] = self._limit(0.7 * self.velocity[i] + 0.3 * measured, 3.0)
                 self.last_position[i] = pos[i][:2].copy()
+                self.last_sample_time[i] = sample_time
 
         outputs = [None] * self.count
         transitions = []
@@ -108,10 +113,23 @@ class LiveHybridGuidance:
                 measured_position=pos[i][:2], measured_velocity=self.velocity[i],
                 use_velocity_feedforward=False, drag_coeff=0.0,
             )
-            proposed = self._limit(self.velocity[i] + np.asarray(accel) * dt, self.MAX_SPEED)
+            alpha = self.controller.get_alpha(i)
+            # The ArduPilot position loop tracks a position target directly. Converting the
+            # research acceleration output into a 0.7 s waypoint created a persistent slot
+            # offset and, in the previous live run, a large excursion after rejoin.
+            # Retain the research controller for fallback state/mode transitions, but use
+            # a bounded position-loop command for the live flight interface.
+            if coordinator_enabled:
+                desired = target[:2]
+            else:
+                desired = self.controller.last_known_target.get(i, pos[i][:2])
+            central_velocity = self._limit((desired - pos[i][:2]) * 0.8, self.MAX_SPEED)
+            fallback_velocity = self._limit(self.velocity[i] + np.asarray(accel) * dt, self.MAX_SPEED)
+            proposed = alpha * central_velocity + (1.0 - alpha) * fallback_velocity
             safe = self._safety_filter(i, proposed, pos, fresh, self.velocity, exclusions)
             output = pos[i].copy()
-            output[:2] += safe * self.LOOKAHEAD_S
+            output[:2] = (desired if alpha >= 0.999 and np.allclose(safe, proposed, atol=1e-3)
+                          else pos[i][:2] + safe * self.LOOKAHEAD_S)
             output[2] = target[2] if coordinator_enabled else pos[i][2]
             outputs[i] = output.tolist()
             mode = self.controller.get_drone_mode(i).value

@@ -1,0 +1,31 @@
+{
+  "outcome": "landed",
+  "finished_utc": "2026-10-20T15:54:57.509817+00:00",
+  "drones": 5,
+  "samples": 1469,
+  "full_fleet_samples": 1082,
+  "watchdog_timeouts": 0,
+  "settled_slot_error_observations": 4997,
+  "p95_settled_slot_error_m": 0.7499766734192557,
+  "minimum_separation_m": 2.6679357184499612,
+  "maximum_heartbeat_age_s": 0.991,
+  "maximum_airborne": 5,
+  "criteria": {
+    "connected_drones": "All requested vehicles connect and become EKF ready",
+    "landing": "All requested vehicles report disarmed after LAND",
+    "minimum_separation_m": 2.5,
+    "p95_settled_slot_error_m": 1.0,
+    "maximum_heartbeat_age_s": 3.5
+  },
+  "checks": {
+    "connected_and_ekf_ready": true,
+    "all_airborne_observed": true,
+    "full_fleet_telemetry_observed": true,
+    "landing_confirmed": true,
+    "separation_at_least_2_5m": true,
+    "p95_slot_error_at_most_1m": true,
+    "heartbeat_age_within_limit": true,
+    "no_unexpected_watchdog_timeout": true
+  },
+  "pass": true
+}
