@@ -583,7 +583,7 @@ class SwarmConsole:
         commanded = targets
         if self.decentralized_guidance is not None:
             commanded = self.decentralized_guidance.step(
-                positions, sample_times, targets, local_slots, active, fresh,
+                positions, sample_times, centroid, local_slots, active, fresh,
             )
         for i, conn in enumerate(self.connections):
             if not active[i] or commanded[i] is None:

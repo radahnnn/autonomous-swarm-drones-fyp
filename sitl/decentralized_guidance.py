@@ -118,23 +118,24 @@ class DecentralizedGuidance:
                     frontier.append(peer)
         return graph
 
-    def step(self, positions, sample_times, nominal_targets, offsets, active, fresh,
+    def step(self, positions, sample_times, mission_goal, offsets, active, fresh,
              now=None):
         """Compute independent targets using only each active agent's 1-hop peers.
 
-        `nominal_targets` carry the pilot's shared high-level mission goal plus each
-        drone's configured slot. No centralized per-drone control output is produced.
+        Each agent combines the shared high-level goal with its own configured slot.
+        No centralized per-drone position target is supplied to the agents.
         """
         now = time.monotonic() if now is None else now
         dt = 0.1 if self.last_time is None else min(0.25, max(0.02, now - self.last_time))
         self.last_time = now
         pos = [np.asarray(p, dtype=float) for p in positions]
         slots = [np.asarray(o, dtype=float) for o in offsets]
+        goal = np.asarray(mission_goal, dtype=float)
         graph = self._one_hop_graph(slots, active)
         outputs = [None] * self.count
 
         for i in range(self.count):
-            if not active[i] or not fresh[i] or nominal_targets[i] is None:
+            if not active[i] or not fresh[i]:
                 continue
             neighbors = [
                 {"id": j, "position": pos[j][:2],
@@ -145,11 +146,11 @@ class DecentralizedGuidance:
                 j: slots[i][:2] - slots[j][:2] for j in sorted(graph.get(i, ()))
             }
             horizontal = self.agents[i].command(
-                pos[i], sample_times[i], nominal_targets[i], neighbors,
+                pos[i], sample_times[i], goal[:2] + slots[i][:2], neighbors,
                 desired_offsets, dt,
             )
             output = pos[i].copy()
             output[:2] = horizontal
-            output[2] = float(nominal_targets[i][2])
+            output[2] = float(goal[2] + slots[i][2])
             outputs[i] = output.tolist()
         return outputs
