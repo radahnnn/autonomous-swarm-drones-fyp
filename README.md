@@ -4,6 +4,22 @@ Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor:
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
+## Experimental branch: decentralized and hybrid SITL
+
+This branch (`work/decentralized-sitl-20261020`) adds per-agent decentralized/hybrid guidance,
+reserved-slot recovery safeguards, and optional separate controller processes. The stable demo
+branch remains separate. Read the [hardening report](docs/reports/HYBRID_HARDENING_2026-10-20.md)
+for implementation limits, preserved failed/passing SITL runs, and the 90-trial software comparison.
+In the burst-loss/outage comparison, centralized passed 8/10, decentralized 10/10, and hybrid 9/10;
+hybrid still violated the 2.5 m spacing criterion in one seed. This is not a hardware result.
+
+```bash
+python3 -m sitl.swarm_console --drones 5 --standalone --control-mode hybrid --agent-runtime process
+```
+
+The console still owns transport and mission distribution; separate processes are not independent
+onboard deployment. See [the protocol](docs/AGENT_PROTOCOL.md) and [console guide](docs/CONSOLE_GUIDE.md).
+
 ## Current implementation
 
 The default `master` branch is the demo-oriented baseline. It includes:
@@ -21,6 +37,7 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The
 | Branch or tag | Purpose | State |
 |---|---|---|
 | `master` | Standalone 2D demo baseline and run evidence | The earlier `demo-ready-2026-10-12` tag remains at `2620f585`; `demo-2d-verified-2026-10-12` marks the consolidated five-drone demo checkpoint. |
+| `work/decentralized-sitl-20261020` | Experimental per-agent control, hybrid recovery and process isolation | Changes and evidence committed separately from the stable demo. |
 | `hw-matched-identification` | SITL position-controller identification study | Kept separate from the demo branch. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
 | `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved locally as a historical savepoint; not part of the current GitHub demo baseline. |
 
@@ -41,7 +58,7 @@ These are results from local consolidated copies on one development machine. The
 
 ## Work kept separate
 
-Experimental host-side hybrid guidance and presentation drafts remain uncommitted in the local demo working copy. The live hybrid runs did not pass the recorded acceptance criteria, so they are not part of this demo baseline. The uneven-timestamp timing correction and regression test also remain uncommitted in the identification working copy. Physical-aircraft communication and flight tests remain future work.
+Earlier experimental work and presentation drafts in the demo working copy are historical artifacts. The current experimental implementation is committed on the separate branch named above, with both failed and passing evidence retained. It has not been merged into the stable demo baseline. The uneven-timestamp timing correction and regression test also remain uncommitted in the identification working copy. Physical-aircraft communication and flight tests remain future work.
 
 ## Quick start
 

@@ -112,3 +112,34 @@ validation, and the center/launch lock fixes were added while it was running and
 by that process**. Those later changes have regression coverage; a final-source run is recorded separately.
 The full suite passed 184 tests before the additional center/launch regression; focused tests cover that
 last fix. The stored pytest output includes environment-only Matplotlib warnings.
+
+## Final-source verification
+
+Implementation commit `72908e5`; [source hashes](../evidence/2026-10-20/final-source.json).
+The final full suite passed **185 tests** in 10.53 s, including the center/launch lock regression;
+[stored output](../evidence/2026-10-20/pytest-final-185-pass.txt).
+
+Live run [20261020T183623.662628Z](../evidence/2026-10-20/20261020T183623.662628Z/summary.json):
+five separate hybrid processes, seed 43, 10% loss and 50 ms latency. Takeoff, coordinator outage,
+center-command rejection during outage, restored centralized mode, then `f 3`, `r 3`, and immediate
+`q` to test recovery cancellation. Recovery stopped before arming/takeoff; all five subsequently
+reported disarmed. The cancellation currently prints the generic EKF/liftoff-aborted message;
+that line in this check was caused by the requested cancellation, not a diagnosed EKF fault.
+
+Recorded criteria pass: **True**. Minimum active-pair separation 4.185 m;
+p95 settled slot error 0.400 m; watchdog timeouts 0.
+All-fresh-vehicle minimum horizontal separation (offline scan): 4.185 m.
+This final run validates the cancellation path, not an additional complete landed rejoin.
+Both live sessions ended and their owned SITL/controller processes were closed.
+
+## Recommended next work
+
+1. Diagnose hybrid seed 20261023 and centralized seeds 20261022/20261023 under burst loss.
+   Record transition trajectories, message age and per-agent switching before tuning; use held-out
+   seeds for the next comparison. Do not hide the current spacing failures.
+2. Add obstacle-aware rejoin paths if the mission must continue moving while a vehicle is absent;
+   the present conservative policy freezes mission changes during recovery.
+3. Run end-to-end automatic heartbeat recovery and the experimental modes in Gazebo before making
+   those claims. Keep physical flight approval and real radio tests as separate milestones.
+4. Move MAVLink ownership and peer transport into independent agents, with clock handling and
+   authenticated network messages. Current separate processes still depend on the host harness.

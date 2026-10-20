@@ -1,0 +1,12 @@
+{
+  "source_commit": "72908e57226772ded7667727b0bc95495f0ed396",
+  "files": {
+    "sitl/swarm_console.py": "b2f8347eab37450d78f458c8fe9d93f2d735a6f580434a10d81f7c7d35f5190e",
+    "sitl/decentralized_guidance.py": "fb871dd31f1a2a5bfa488d73be64ed65b61119458c7b36012259a68c5d425f40",
+    "sitl/agent_process.py": "5cdd2164f0c05877b830a090643513efb83e37306a079410f95ef4b4ec7636f8",
+    "sitl/peer_state_bus.py": "d6732fc72586c4e59eec8a879c8a19dbff72086437114dfe3f40bf991447b500",
+    "sitl/flight_prep.py": "b72c57356a7d73b027a946a772c4456ce234b88b5ee8c2e8805035d168755572",
+    "swarm_core/controllers/hybrid.py": "d537451ae3c89fd8694f151801af7c6c1d8fa03a64376843b314709dd94bd97c",
+    "swarm_core/controllers/decentralized.py": "b7e3f34889b2b8c909bf1e5f5ee3ae45c0bca4b7731ae23b02d1394988891e85"
+  }
+}
