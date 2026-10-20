@@ -37,7 +37,7 @@ def is_armed(conn) -> bool:
     return bool(hb and (hb.base_mode & _ARMED))
 
 
-def arm_with_retry(conn, label: str, timeout: float = 180.0, force_after: float = 90.0) -> bool:
+def arm_with_retry(conn, label: str, timeout: float = 180.0, force_after: float = 90.0, cancelled=None) -> bool:
     """
     Put the vehicle in GUIDED and arm it, retrying until the heartbeat reports ARMED.
     A normal arm is retried first (it succeeds as soon as the EKF has a position
@@ -48,6 +48,8 @@ def arm_with_retry(conn, label: str, timeout: float = 180.0, force_after: float 
     last_reason = ""
     last_print = 0.0
     while time.time() - t0 < timeout:
+        if cancelled is not None and cancelled():
+            return False
         conn.set_mode(GUIDED_MODE)
         force = (time.time() - t0) >= force_after
         conn.mav.command_long_send(
@@ -57,6 +59,8 @@ def arm_with_retry(conn, label: str, timeout: float = 180.0, force_after: float 
         )
         t_poll = time.time()
         while time.time() - t_poll < 2.0:
+            if cancelled is not None and cancelled():
+                return False
             latest = _drain(conn, budget=0.3)
             st = latest.get("STATUSTEXT")
             if st is not None and "arm" in st.text.lower():
@@ -117,7 +121,7 @@ def request_message_interval(conn, msg_id: int, hz: float) -> None:
     )
 
 
-def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 3) -> bool:
+def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 3, cancelled=None) -> bool:
     """
     Block until the EKF reports a converged absolute position (and GPS has a 3D fix)
     in `stable` consecutive EKF_STATUS_REPORT messages. Progress is driven by the
@@ -132,6 +136,8 @@ def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 
     fix = 0
     flags = 0
     while time.time() - t0 < wall_timeout:
+        if cancelled is not None and cancelled():
+            return False
         m = conn.recv_match(type=["EKF_STATUS_REPORT", "GPS_RAW_INT"], blocking=True, timeout=1.0)
         if m is not None:
             if m.get_type() == "GPS_RAW_INT":

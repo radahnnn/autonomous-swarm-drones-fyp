@@ -18,8 +18,8 @@ python3 -m sitl.swarm_console --drones 5 --standalone --control-mode hybrid --au
 In flight, `coord off` drops central waypoint heartbeats; each local controller blends into a
 peer-based fallback that holds its last assigned slot. `coord on` restores heartbeats, then the
 per-agent supervisor waits for healthy packets and its dwell period before blending back. This
-hybrid path is new and requires end-to-end SITL validation before it should be presented as
-verified or relied on.
+hybrid path has the specific standalone validation evidence listed below. It remains experimental;
+those runs do not establish broad reliability or physical-flight readiness.
 
 In the pure Python `SwarmSimulation`, decentralized mode now defaults to 3.0 m formation spacing
 to provide a buffer above the 2.5 m project minimum. Centralized and hybrid defaults are unchanged;
@@ -58,7 +58,7 @@ tested input boundary between agents.
 - A failed drone is commanded to land and its slot is reserved while it descends. The remaining
   agents hold their current slots and rebuild their one-hop graph. An operator can request `r <id>`;
   after that, the console checks EKF,
-  rearms and lifts the vehicle, then eases it toward its reserved slot while other agents retain
+  rearms and lifts the vehicle, then tracks its reserved slot while other agents retain
   theirs. This is a staged SITL recovery path, not an autonomous hardware recovery claim.
 - Optional `--auto-recover` makes one recovery attempt after a heartbeat-timeout fault only after
   the heartbeat is stable for 3 seconds and the aircraft is confirmed disarmed. Operator-injected
@@ -129,3 +129,12 @@ positions wider than the target formation and is superseded by the corrected mat
 The new paths now pass the recorded tests and the two listed standalone SITL runs. This is evidence
 for these specific simulated conditions only; do not treat it as multi-run reliability, Gazebo
 validation, hardware validation, or a safety guarantee.
+
+## Follow-up hardening
+
+See [the hardening report](reports/HYBRID_HARDENING_2026-10-20.md). Mission updates now stop
+during a reserved-slot recovery, and hybrid outage handling freezes altitude as well as horizontal
+goals/slots. Rejoin uses a conservative corridor check. `--agent-runtime process` adds separate
+controller workers using the [versioned IPC protocol](AGENT_PROTOCOL.md). This partially implements
+the process/protocol steps above; independent onboard flight-controller ownership and real radio
+transport are still future work. Existing live results above describe their original source state.

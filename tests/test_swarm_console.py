@@ -203,3 +203,89 @@ def test_land_all_waits_for_every_vehicle_to_disarm(monkeypatch):
     assert c.land_all(timeout=1.0) is True
     for conn in c.connections:
         conn.mav.command_long_send.assert_called_once()
+
+
+def test_repeated_faults_reserve_slots_and_block_movement():
+    c = _console(5)
+    before = c.centroid_pos.copy()
+    c.inject_failure(3)
+    slots = c.target_offsets.copy()
+    c.move(10,10,5)
+    c.set_formation_style('line')
+    np.testing.assert_array_equal(c.centroid_pos, before)
+    np.testing.assert_array_equal(c.target_offsets, slots)
+    c.inject_failure(4)
+    c.move(2)
+    np.testing.assert_array_equal(c.centroid_pos, before)
+
+
+def test_landing_prevents_rejoin():
+    c = _console(5)
+    c.inject_failure(3)
+    c.landing_requested=True
+    c._rejoin(2,None)
+    assert not c._active(2)
+
+
+def test_rejoin_corridor_rejects_crossing_and_stale_telemetry():
+    c=_console(3)
+    c.last_pos=[np.array([0.,0.,-5.]),np.array([3.,0.,-5.]),np.array([0.,6.,-5.])]
+    c.centroid_pos=np.array([0.,0.,-5.])
+    c.target_offsets=np.array([[6.,0.,0.],[3.,0.,0.],[0.,6.,0.]])
+    c.last_pos_at=[10.]*3
+    assert not c._rejoin_corridor_clear(0,10.)
+    c.target_offsets[0]=np.zeros(3)
+    assert c._rejoin_corridor_clear(0,10.)
+    assert not c._rejoin_corridor_clear(0,12.)
+
+
+def test_recovery_arming_can_be_cancelled_without_commands():
+    from sitl.flight_prep import arm_with_retry
+    conn=MagicMock()
+    assert not arm_with_retry(conn,'test',cancelled=lambda:True)
+    conn.set_mode.assert_not_called()
+    conn.mav.command_long_send.assert_not_called()
+
+
+def test_stale_position_triggers_land_even_with_healthy_heartbeat():
+    c=_console(3)
+    c.last_heartbeat=[10.]*3
+    c.last_pos_at=[10.,7.,10.]
+    c._check_watchdogs(10.)
+    assert c.failure_causes == [None,'telemetry_timeout',None]
+    assert not c._active(1)
+    c.connections[1].set_mode.assert_called_with(9)
+
+
+def test_auto_recovery_requires_continuous_disarmed_fresh_heartbeats():
+    c=_console(3)
+    c.auto_recover=True
+    c.simulated_faults[1]=True
+    c.failure_causes[1]='heartbeat_timeout'
+    c.last_armed_state[1]=False
+    c.revive_drone=MagicMock()
+    for now in [10.,11.]:
+        c.last_real_heartbeat[1]=now
+        c._consider_auto_recovery(now)
+    c.last_armed_state[1]=True
+    c.last_real_heartbeat[1]=12.
+    c._consider_auto_recovery(12.)
+    assert c.recovery_stable_since[1] is None
+    c.last_armed_state[1]=False
+    for now in [13.,14.,15.]:
+        c.last_real_heartbeat[1]=now
+        c._consider_auto_recovery(now)
+    c.revive_drone.assert_not_called()
+    c.last_real_heartbeat[1]=16.
+    c._consider_auto_recovery(16.)
+    c.revive_drone.assert_called_once_with(2,auto_liftoff=True)
+
+
+def test_center_and_launch_cannot_bypass_recovery_lock():
+    c=_console(3)
+    c.centroid_pos[0]=7.
+    c.inject_failure(2)
+    handle_command(c,'center')
+    assert c.centroid_pos[0] == 7.
+    c.launch_swarm()
+    assert not any(c.busy)

@@ -62,6 +62,21 @@ Wait for all five EKFs to report ready before typing `launch`. The successful ru
 EKF ready on this laptop. Starting a second Gazebo world on the same ports disrupts the sensor link; if a prior
 SITL session has ended, restart Gazebo before trying again.
 
-The new hybrid console path and staged decentralized rejoin code have not yet been revalidated after their latest
-changes. Treat them as experimental until fresh 2D SITL run evidence is recorded. Neither experimental mode is a
-hardware result; the peer bus and coordinator outage controls run inside this one-host SITL process.
+The experimental hybrid and decentralized paths passed the specific standalone runs listed in
+[the decentralized guide](DECENTRALIZED_SITL.md). Those runs are not Gazebo or hardware validation.
+See [the hardening report](reports/HYBRID_HARDENING_2026-10-20.md) for subsequent changes and new evidence.
+
+## Experimental recovery and process controls
+
+- `--agent-runtime process`: one controller process per drone, still on this host.
+- `status`: mode/blend, fresh peer count, telemetry age, recovery state and horizontal separation.
+- `coord off` / `coord on`: simulated coordinator heartbeat loss/restore in hybrid mode.
+- Movement and formation changes are blocked during a fault or recovery. Hybrid mission changes
+  are also blocked while the coordinator is disconnected. Local/hybrid in-flight morphs remain disabled.
+- Rejoin requires fresh fleet positions and a clear straight horizontal corridor with 2.5 m clearance;
+  only one recovery runs at a time. This screening is not a collision-free trajectory guarantee.
+- `--auto-recover` remains opt-in and only applies to heartbeat-loss faults after stable fresh
+  heartbeats and confirmed disarm. Operator-injected faults require an explicit rejoin.
+- Controller process failure requests LAND; restart the session to restore that controller.
+
+Protocol and limitations: [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md).

@@ -113,10 +113,20 @@ class DecentralizedGuidance:
     def __init__(self, count: int, safe_radius: float = 3.0,
                  peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
                  peer_seed: Optional[int] = None, control_mode: str = "decentralized",
-                 peer_burst_loss: bool = False):
+                 peer_burst_loss: bool = False, agent_runtime: str = "local"):
+        self.agent_errors = {}
         self.count = count
         self.control_mode = control_mode
-        self.agents = [LocalDroneAgent(i, safe_radius=safe_radius,
+        self.agent_runtime = agent_runtime
+        agent_class = LocalDroneAgent
+        if agent_runtime == "process":
+            from sitl.agent_process import ProcessDroneAgent
+            agent_class = ProcessDroneAgent
+        elif agent_runtime != "local":
+            raise ValueError("agent_runtime must be local or process")
+        self.cached_goal = None
+        self.cached_slots = None
+        self.agents = [agent_class(i, safe_radius=safe_radius,
                                        hybrid=control_mode == "hybrid") for i in range(count)]
         self.last_time: Optional[float] = None
         self.peer_bus = PeerStateBus(
@@ -167,7 +177,7 @@ class DecentralizedGuidance:
         """Compute independent targets using only each active agent's 1-hop peers.
 
         Each agent combines the shared high-level goal with its own configured slot.
-        No centralized per-drone position target is supplied to the agents.
+        Hybrid agents receive supervisory targets only while the coordinator is connected.
         """
         now = time.time() if now is None else now
         dt = 0.1 if self.last_time is None else min(0.25, max(0.02, now - self.last_time))
@@ -175,6 +185,15 @@ class DecentralizedGuidance:
         pos = [np.asarray(p, dtype=float) for p in positions]
         slots = [np.asarray(o, dtype=float) for o in offsets]
         goal = np.asarray(mission_goal, dtype=float)
+        if self.control_mode == "hybrid":
+            if coordinator_connected:
+                self.cached_goal = goal.copy()
+                self.cached_slots = [slot.copy() for slot in slots]
+            elif self.cached_goal is None:
+                return [None] * self.count
+            else:
+                goal = self.cached_goal.copy()
+                slots = [slot.copy() for slot in self.cached_slots]
         graph = self._one_hop_graph(slots, active)
         self.peer_bus.set_graph(graph)
         outputs = [None] * self.count
@@ -193,12 +212,23 @@ class DecentralizedGuidance:
             desired_offsets = {
                 j: slots[i][:2] - slots[j][:2] for j in sorted(graph.get(i, ()))
             }
-            horizontal = self.agents[i].command(
-                pos[i], sample_times[i], goal[:2] + slots[i][:2], neighbors,
-                desired_offsets, dt, coordinator_connected=coordinator_connected, now=now,
-            )
+            if i in self.agent_errors:
+                continue
+            try:
+                horizontal = self.agents[i].command(
+                    pos[i], sample_times[i], goal[:2] + slots[i][:2], neighbors,
+                    desired_offsets, dt, coordinator_connected=coordinator_connected, now=now,
+                )
+            except (RuntimeError, ValueError, OSError) as exc:
+                self.agent_errors[i] = str(exc)
+                continue
             output = pos[i].copy()
             output[:2] = horizontal
             output[2] = float(goal[2] + slots[i][2])
             outputs[i] = output.tolist()
         return outputs
+
+    def close(self):
+        for agent in self.agents:
+            if hasattr(agent, "close"):
+                agent.close()

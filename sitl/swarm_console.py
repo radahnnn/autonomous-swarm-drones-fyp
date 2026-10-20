@@ -65,7 +65,7 @@ class SwarmConsole:
                  ekf_timeout: Optional[float] = None, control_mode: str = "centralized",
                  peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
                  peer_seed: Optional[int] = None, peer_block: Optional[str] = None,
-                 peer_burst_loss: bool = False, auto_recover: bool = False):
+                 peer_burst_loss: bool = False, auto_recover: bool = False, agent_runtime: str = "local"):
         if control_mode not in ("centralized", "decentralized", "hybrid"):
             raise ValueError("control_mode must be 'centralized', 'decentralized', or 'hybrid'")
         self.n = n
@@ -73,7 +73,7 @@ class SwarmConsole:
         self.decentralized_guidance = (
             DecentralizedGuidance(n, peer_loss=peer_loss, peer_latency_ms=peer_latency_ms,
                                  peer_seed=peer_seed, control_mode=control_mode,
-                                 peer_burst_loss=peer_burst_loss)
+                                 peer_burst_loss=peer_burst_loss, agent_runtime=agent_runtime)
             if control_mode in ("decentralized", "hybrid") else None
         )
         self.coordinator_connected = True
@@ -127,6 +127,8 @@ class SwarmConsole:
         self.guidance_thread = None
         self.evidence = None
         self.landed = False
+        self.landing_requested = False
+        self.recovery_workers = []
         self.last_target_change = time.time()
         self.settled_motion = SettledMotionDetector()
 
@@ -228,6 +230,8 @@ class SwarmConsole:
         time.sleep(2.5)
 
     def cleanup(self):
+        if self.decentralized_guidance is not None:
+            self.decentralized_guidance.close()
         if self.procs:
             print("\n>> Shutting down SITL processes...")
             for p in self.procs:
@@ -318,6 +322,8 @@ class SwarmConsole:
     # ------------------------------------------------------------------ launch / liftoff
     def launch_swarm(self, target_alt: Optional[float] = None, wait: bool = False):
         """'launch': arm, take off and form up every grounded, healthy drone together."""
+        if self._mission_change_blocked():
+            return
         target_alt = self.CRUISE_ALT if target_alt is None else target_alt
         with self.lock:
             idxs = [i for i in range(self.n) if not self.is_airborne[i] and not self.simulated_faults[i] and not self.busy[i]]
@@ -401,9 +407,28 @@ class SwarmConsole:
             self.current_offsets[idx] = cur_pos - self.centroid_pos
         self.last_target_change = time.time()
 
+    def _rejoin_corridor_clear(self, idx, now):
+        """Conservative horizontal straight-line screen, not a trajectory planner."""
+        if any(not 0 <= now - stamp <= 1.0 for stamp in self.last_pos_at):
+            return False
+        start = self.last_pos[idx][:2]
+        end = (self.centroid_pos + self.target_offsets[idx])[:2]
+        segment = end - start
+        length2 = float(segment @ segment)
+        for j in range(self.n):
+            if j == idx:
+                continue
+            point = self.last_pos[j][:2]
+            fraction = float(np.clip((point-start) @ segment / length2, 0, 1)) if length2 > 1e-10 else 0.
+            if np.linalg.norm(point - (start + fraction * segment)) < 2.5:
+                return False
+        return True
+
     def liftoff_drone(self, drone_num: int, target_alt: Optional[float] = None, quiet_if_busy: bool = False):
         """Asynchronously arms and climbs one drone to altitude so it can (re)join the swarm."""
         if not self._valid_id(drone_num):
+            return
+        if self.landing_requested:
             return
         idx = drone_num - 1
         target_alt = self.CRUISE_ALT if target_alt is None else target_alt
@@ -417,6 +442,12 @@ class SwarmConsole:
                 if not quiet_if_busy:
                     print(f">> Drone {drone_num} already has a liftoff in progress.")
                 return
+            if any(self.busy) or not self._rejoin_corridor_clear(idx, time.time()):
+                print(">> Rejoin deferred: need fresh fleet positions and a clear 2.5 m horizontal corridor; one recovery at a time.")
+                return
+            if self.decentralized_guidance and idx in self.decentralized_guidance.agent_errors:
+                print(">> Agent process failed; restart the session before rejoining this vehicle.")
+                return
             self.busy[idx] = True
         if self.evidence:
             self.evidence.event("liftoff_requested", drone=drone_num, target_alt_m=target_alt)
@@ -425,13 +456,20 @@ class SwarmConsole:
             conn, label = self.connections[idx], self.fleet[idx].label
             try:
                 print(f"\n>> [LIFTOFF] Arming and initiating climb for Drone {drone_num} to {target_alt:.1f}m...")
-                if not wait_ekf_ready(conn, label, wall_timeout=self.ekf_timeout):
+                if not wait_ekf_ready(conn, label, wall_timeout=self.ekf_timeout,
+                                      cancelled=lambda: self.landing_requested):
                     print(f"!! [ERROR] Drone {drone_num}: EKF never converged. Liftoff aborted.")
                     return
-                if not arm_with_retry(conn, label, timeout=120.0, force_after=60.0):
+                if self.landing_requested:
+                    return
+                if not arm_with_retry(conn, label, timeout=120.0, force_after=float("inf"),
+                                      cancelled=lambda: self.landing_requested):
                     print(f"!! [ERROR] Drone {drone_num} failed to arm for liftoff. Check EKF status.")
                     return
 
+                if self.landing_requested:
+                    conn.set_mode(9)
+                    return
                 # NAV_TAKEOFF is only accepted while landed. If the drone is still in the air (revived
                 # mid-LAND) skip it and let the formation setpoints fly it up to its slot instead.
                 gp = conn.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout=2.0)
@@ -449,7 +487,7 @@ class SwarmConsole:
                 print(f">> [ASCENDING] Drone {drone_num} airborne! Climbing to cruising altitude...")
 
                 t_start, reached = time.time(), False
-                while time.time() - t_start < 180.0:  # generous wall budget for slow Gazebo RTF
+                while not self.landing_requested and time.time() - t_start < 180.0:  # generous wall budget for slow Gazebo RTF
                     m = conn.recv_match(type=["GLOBAL_POSITION_INT", "LOCAL_POSITION_NED"], blocking=True, timeout=0.5)
                     if m:
                         alt = m.relative_alt / 1000.0 if m.get_type() == "GLOBAL_POSITION_INT" else -m.z
@@ -464,9 +502,13 @@ class SwarmConsole:
             finally:
                 self.busy[idx] = False  # release the connection back to the guidance thread
 
-        threading.Thread(target=_climb_worker, daemon=True).start()
+        worker = threading.Thread(target=_climb_worker, daemon=True)
+        self.recovery_workers.append(worker)
+        worker.start()
 
     def _rejoin(self, idx: int, gp):
+        if self.landing_requested:
+            return
         cur_pos = None
         if gp is not None:
             cur_pos = self.frame.gps_to_global_ned(gp.lat / 1e7, gp.lon / 1e7, gp.relative_alt / 1000.0)
@@ -576,7 +618,9 @@ class SwarmConsole:
         if style not in STYLES:
             print(f">> Unknown style '{style}'. Valid: {list(STYLES)}")
             return
-        if self.control_mode == "decentralized" and self._active_indices():
+        if self._mission_change_blocked():
+            return
+        if self.control_mode in ("decentralized", "hybrid") and self._active_indices():
             print(">> Mid-flight formation morphs are disabled in decentralized mode until collision-safe paths are validated.")
             return
         with self.lock:
@@ -605,6 +649,14 @@ class SwarmConsole:
                 positions, sample_times, centroid, local_slots, active, fresh,
                 coordinator_connected=(self.control_mode != "hybrid" or self.coordinator_connected),
             )
+        if self.decentralized_guidance is not None:
+            for idx, error in self.decentralized_guidance.agent_errors.items():
+                if self._active(idx):
+                    print(f">> Agent {idx+1} failed: {error}; requesting LAND.")
+                    self.inject_failure(idx + 1, cause="agent_error")
+                    if self.evidence:
+                        self.evidence.event("agent_error", drone=idx+1, error=error)
+                    commanded[idx] = None
         for i, conn in enumerate(self.connections):
             if not active[i] or commanded[i] is None:
                 continue
@@ -647,12 +699,7 @@ class SwarmConsole:
 
             now = time.time()
             self._consider_auto_recovery(now)
-            for i in range(self.n):
-                with self.lock:
-                    watched = self._active(i)
-                if watched and not self.busy[i] and now - self.last_heartbeat[i] > self.hb_timeout:
-                    print(f"\n[TIMEOUT] Drone {i + 1} silent for >{self.hb_timeout:.0f}s! Triggering dynamic failover...")
-                    self.inject_failure(i + 1, cause="heartbeat_timeout")
+            self._check_watchdogs(now)
 
             with self.lock:
                 if self.morph_steps_remaining > 0:
@@ -674,9 +721,21 @@ class SwarmConsole:
                 self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled)
             time.sleep(0.1)
 
+    def _check_watchdogs(self, now):
+        for i in range(self.n):
+            with self.lock:
+                watched = self._active(i) and not self.busy[i]
+            if not watched:
+                continue
+            if now - self.last_heartbeat[i] > self.hb_timeout:
+                self.inject_failure(i + 1, cause="heartbeat_timeout")
+            elif not 0 <= now - self.last_pos_at[i] <= 2.0:
+                print(f"\n[STALE POSITION] Drone {i+1}: requesting LAND; automatic rejoin disabled.")
+                self.inject_failure(i + 1, cause="telemetry_timeout")
+
     def _consider_auto_recovery(self, now: float):
         """Auto-rejoin only heartbeat-loss failures after stable link and confirmed disarm."""
-        if not self.auto_recover:
+        if not self.auto_recover or self.landing_requested:
             return
         for i in range(self.n):
             eligible = (
@@ -712,7 +771,18 @@ class SwarmConsole:
             # should promptly finish its current iteration before shutdown proceeds.
             thread.join()
 
+    def _mission_change_blocked(self):
+        if self.landing_requested or any(self.simulated_faults) or any(self.busy):
+            print(">> Mission held: finish recovery before moving or changing formation.")
+            return True
+        if self.control_mode == "hybrid" and not self.coordinator_connected:
+            print(">> Coordinator disconnected: holding the last received mission.")
+            return True
+        return False
+
     def move(self, dn: float = 0.0, de: float = 0.0, d_alt: float = 0.0):
+        if self._mission_change_blocked():
+            return False
         with self.lock:
             self.centroid_pos[0] += dn
             self.centroid_pos[1] += de
@@ -735,7 +805,9 @@ class SwarmConsole:
         ]
         for dn, de, name in legs:
             print(f" -> Commanding: {name}...")
-            self.move(dn, de)
+            if self.move(dn, de) is False:
+                print(">> Patrol stopped: mission change was blocked.")
+                return
             for _ in range(6):
                 time.sleep(1.0)
                 self.print_status_line()
@@ -771,10 +843,22 @@ class SwarmConsole:
                 hybrid = agent.hybrid_controller
                 role = (f"{hybrid.get_drone_mode(i).value} a={hybrid.get_alpha(i):.2f}"
                         if is_active else "INACTIVE")
+            elif self.control_mode == "decentralized":
+                role = "LOCAL AGENT" if is_active else "INACTIVE"
             else:
                 role = "APEX LEADER" if i == self.current_leader_idx and is_active else ("WINGMAN" if is_active else "INACTIVE")
             p = positions[i]
             print(f"  Drone {i + 1}: [{status:10s}] Role: {role:11s} | N={p[0]:5.1f}m, E={p[1]:5.1f}m, Alt={-p[2]:4.1f}m")
+        now = time.time()
+        fresh_ids = [i for i in range(self.n) if 0 <= now - self.last_pos_at[i] <= 1.0]
+        separation = min((np.linalg.norm(positions[i][:2] - positions[j][:2])
+                          for i in fresh_ids for j in fresh_ids if i < j), default=None)
+        print(f" Fresh telemetry: {len(fresh_ids)}/{self.n}; all-visible horizontal separation: {separation}")
+        for i in range(self.n):
+            peers = (len(self.decentralized_guidance.peer_bus.neighbors(i, now))
+                     if self.decentralized_guidance else 0)
+            recovery = "climbing" if self.busy[i] else ("slot reserved" if self.simulated_faults[i] else "none")
+            print(f" D{i+1}: peers={peers}, telemetry age={now-self.last_pos_at[i]:.2f}s, recovery={recovery}")
         print("=" * 72 + "\n")
 
     def print_menu_bar(self):
@@ -796,7 +880,10 @@ class SwarmConsole:
         print("\n>> Synchronous LAND commanded for entire swarm...")
         if self.evidence:
             self.evidence.event("land_command", drones=self.n)
+        self.landing_requested = True
         self.stop_guidance()
+        for worker in self.recovery_workers:
+            worker.join()
         for conn in self.connections:
             conn.set_mode(9)  # LAND
             conn.mav.command_long_send(conn.target_system, conn.target_component, mavutil.mavlink.MAV_CMD_NAV_LAND, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -856,6 +943,8 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
     elif action in ("j", "down"):
         console.move(d_alt=-(val if val is not None else 2.0))
     elif action in ("c", "center"):
+        if console._mission_change_blocked():
+            return True
         with console.lock:
             console.centroid_pos = np.array([0.0, 0.0, -console.CRUISE_ALT])
             console.last_target_change = time.time()
@@ -940,6 +1029,8 @@ def main():
                         help="decentralized SITL only: reproducible peer-channel random seed")
     parser.add_argument("--peer-burst-loss", action="store_true",
                         help="decentralized/hybrid SITL only: add bursty Gilbert-Elliott packet loss")
+    parser.add_argument("--agent-runtime", choices=("local", "process"), default="local",
+                        help="run each experimental controller in its own process")
     parser.add_argument("--auto-recover", action="store_true",
                         help="after heartbeat loss, rejoin only when the link is stable 3s and disarm is confirmed")
     parser.add_argument("--peer-block", type=str, default=None,
@@ -950,13 +1041,15 @@ def main():
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     if not 0.0 <= args.peer_loss <= 1.0 or args.peer_latency_ms < 0:
         parser.error("--peer-loss must be 0..1 and --peer-latency-ms must be non-negative")
+    if args.agent_runtime == "process" and args.control_mode == "centralized":
+        parser.error("--agent-runtime process requires decentralized or hybrid control")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
     console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart,
                            ekf_timeout=args.ekf_timeout, control_mode=args.control_mode,
                            peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
                            peer_seed=args.peer_seed, peer_block=args.peer_block,
-                           peer_burst_loss=args.peer_burst_loss, auto_recover=args.auto_recover)
+                           peer_burst_loss=args.peer_burst_loss, auto_recover=args.auto_recover, agent_runtime=args.agent_runtime)
     mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
     console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
     console.evidence.event("control_mode", mode=args.control_mode,
@@ -966,7 +1059,7 @@ def main():
                            peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
                            peer_seed=args.peer_seed, peer_block=args.peer_block,
                            peer_burst_loss=args.peer_burst_loss,
-                           auto_recover=args.auto_recover)
+                           auto_recover=args.auto_recover, agent_runtime=args.agent_runtime)
     print(f">> Run evidence: {console.evidence.directory}")
     try:
         console.launch_sitl()

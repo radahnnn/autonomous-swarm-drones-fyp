@@ -1,0 +1,1187 @@
+{
+  "scope": "Pure Python engine; not console/SITL or hardware validation",
+  "dynamics": "assumed_baseline; avoids invalid old fitted profile",
+  "conditions": {
+    "drones": 5,
+    "spacing_m": 3,
+    "dt_s": 0.05,
+    "duration_s": 30,
+    "packet_loss": 0.1,
+    "latency_mean_s": 0.05,
+    "gps_noise_std_m": 0.08,
+    "mission": "hold 2s, north .4m/s until 20s, hold to 30s",
+    "outages_s": [
+      [
+        5,
+        8
+      ],
+      [
+        15,
+        18
+      ]
+    ],
+    "seed_start": 20261020,
+    "trials_per_cell": 10
+  },
+  "criteria": {
+    "minimum_separation_m": 2.5,
+    "steady_p95_error_m": 1
+  },
+  "caveats": [
+    "Identical seeds/configuration, not guaranteed identical delivered packets: distances affect transport.",
+    "All modes use centrally supplied goals; decentralized refers to local control.",
+    "Engine controllers differ from SITL adapter; no reliability claim beyond these trials."
+  ],
+  "summary": {
+    "nominal_impaired": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.11973616417529605,
+          "low": 0.09013314725468698,
+          "high": 0.1493391810959051
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13500890392378292,
+          "low": 0.10489410665503865,
+          "high": 0.1651237011925272
+        },
+        "minimum_separation_m": {
+          "mean": 2.781640867566696,
+          "low": 2.7161381159508826,
+          "high": 2.8471436191825097
+        },
+        "passes": 10
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.1290965493016571,
+          "low": 0.10716688066455503,
+          "high": 0.15102621793875914
+        },
+        "steady_p95_error_m": {
+          "mean": 0.1645888849226041,
+          "low": 0.12881230639309815,
+          "high": 0.20036546345211004
+        },
+        "minimum_separation_m": {
+          "mean": 2.7840137248388723,
+          "low": 2.7208306870456784,
+          "high": 2.8471967626320662
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.11973616417529605,
+          "low": 0.09013314725468698,
+          "high": 0.1493391810959051
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13500890392378292,
+          "low": 0.10489410665503865,
+          "high": 0.1651237011925272
+        },
+        "minimum_separation_m": {
+          "mean": 2.781640867566696,
+          "low": 2.7161381159508826,
+          "high": 2.8471436191825097
+        },
+        "passes": 10
+      }
+    },
+    "repeated_outage": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.11971430469083413,
+          "low": 0.09011514039596843,
+          "high": 0.14931346898569983
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13497392589365936,
+          "low": 0.10488785251205696,
+          "high": 0.16505999927526177
+        },
+        "minimum_separation_m": {
+          "mean": 2.774123231962547,
+          "low": 2.711498491859019,
+          "high": 2.8367479720660747
+        },
+        "passes": 10
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.17810879542938976,
+          "low": 0.15694183578002457,
+          "high": 0.19927575507875495
+        },
+        "steady_p95_error_m": {
+          "mean": 0.2693839931464022,
+          "low": 0.24191061443825748,
+          "high": 0.29685737185454697
+        },
+        "minimum_separation_m": {
+          "mean": 2.7834189203492987,
+          "low": 2.720439987416278,
+          "high": 2.8463978532823195
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.11968578861416672,
+          "low": 0.0900921183336037,
+          "high": 0.14927945889472974
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13493025007320686,
+          "low": 0.10488138011174385,
+          "high": 0.16497912003466986
+        },
+        "minimum_separation_m": {
+          "mean": 2.7792981214908563,
+          "low": 2.7146910520872134,
+          "high": 2.8439051908944992
+        },
+        "passes": 10
+      }
+    },
+    "burst_repeated_outage": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.11970733953842264,
+          "low": 0.09010822221539258,
+          "high": 0.1493064568614527
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13496437467991568,
+          "low": 0.10487810591114863,
+          "high": 0.16505064344868273
+        },
+        "minimum_separation_m": {
+          "mean": 2.6343978062487556,
+          "low": 2.5321365031693666,
+          "high": 2.7366591093281447
+        },
+        "passes": 8
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.17455913585750485,
+          "low": 0.15424599260532482,
+          "high": 0.19487227910968488
+        },
+        "steady_p95_error_m": {
+          "mean": 0.26980039423946,
+          "low": 0.24439220588993102,
+          "high": 0.295208582588989
+        },
+        "minimum_separation_m": {
+          "mean": 2.7586385071143296,
+          "low": 2.6950144667251914,
+          "high": 2.8222625475034677
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.11983886660642037,
+          "low": 0.09131315331799131,
+          "high": 0.14836457989484944
+        },
+        "steady_p95_error_m": {
+          "mean": 0.13621400437188275,
+          "low": 0.10704428294486049,
+          "high": 0.165383725798905
+        },
+        "minimum_separation_m": {
+          "mean": 2.6622856301716245,
+          "low": 2.5897981041407836,
+          "high": 2.7347731562024653
+        },
+        "passes": 9
+      }
+    }
+  },
+  "results": [
+    {
+      "seed": 20261020,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.14786684349669377,
+      "steady_p95_error_m": 0.15877797247240186,
+      "minimum_separation_m": 2.5971643857979014,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.14363884100785823,
+      "steady_p95_error_m": 0.20632157361790449,
+      "minimum_separation_m": 2.605343514340256,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.14786684349669377,
+      "steady_p95_error_m": 0.15877797247240186,
+      "minimum_separation_m": 2.5971643857979014,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261021,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.050753331689268995,
+      "steady_p95_error_m": 0.05678653372343304,
+      "minimum_separation_m": 2.824466299184516,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.07714489736879027,
+      "steady_p95_error_m": 0.09859256814619825,
+      "minimum_separation_m": 2.824094214836329,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.050753331689268995,
+      "steady_p95_error_m": 0.05678653372343304,
+      "minimum_separation_m": 2.824466299184516,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261022,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10356263833950732,
+      "steady_p95_error_m": 0.11262063735063485,
+      "minimum_separation_m": 2.742340114948123,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11739908330721359,
+      "steady_p95_error_m": 0.12455222297623855,
+      "minimum_separation_m": 2.7697536830214653,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10356263833950732,
+      "steady_p95_error_m": 0.11262063735063485,
+      "minimum_separation_m": 2.742340114948123,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261023,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1249370439401441,
+      "steady_p95_error_m": 0.1493802380066403,
+      "minimum_separation_m": 2.8182705176074716,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.15136944439386318,
+      "steady_p95_error_m": 0.22077228100923033,
+      "minimum_separation_m": 2.7921590837497514,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1249370439401441,
+      "steady_p95_error_m": 0.1493802380066403,
+      "minimum_separation_m": 2.8182705176074716,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261024,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.09627892368821983,
+      "steady_p95_error_m": 0.108960651903231,
+      "minimum_separation_m": 2.871048875774708,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11056342219823025,
+      "steady_p95_error_m": 0.11883646391037403,
+      "minimum_separation_m": 2.864720216993805,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.09627892368821983,
+      "steady_p95_error_m": 0.108960651903231,
+      "minimum_separation_m": 2.871048875774708,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261025,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1077701103902686,
+      "steady_p95_error_m": 0.13140425791050042,
+      "minimum_separation_m": 2.7658657551807546,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11334790983784777,
+      "steady_p95_error_m": 0.16779034525254685,
+      "minimum_separation_m": 2.7602700858699416,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1077701103902686,
+      "steady_p95_error_m": 0.13140425791050042,
+      "minimum_separation_m": 2.7658657551807546,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261026,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.09096569315935156,
+      "steady_p95_error_m": 0.10789402820305394,
+      "minimum_separation_m": 2.824728313444606,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11053475417934193,
+      "steady_p95_error_m": 0.12074922008233765,
+      "minimum_separation_m": 2.853632226325766,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.09096569315935156,
+      "steady_p95_error_m": 0.10789402820305394,
+      "minimum_separation_m": 2.824728313444606,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261027,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1875279968913345,
+      "steady_p95_error_m": 0.19874380571743763,
+      "minimum_separation_m": 2.828235478533826,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.16208430119435474,
+      "steady_p95_error_m": 0.2200832637993547,
+      "minimum_separation_m": 2.82779363061496,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1875279968913345,
+      "steady_p95_error_m": 0.19874380571743763,
+      "minimum_separation_m": 2.828235478533826,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261028,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10998256073945976,
+      "steady_p95_error_m": 0.13510882960307047,
+      "minimum_separation_m": 2.88227485391869,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.12243881593554956,
+      "steady_p95_error_m": 0.14057384529996578,
+      "minimum_separation_m": 2.876638604658733,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10998256073945976,
+      "steady_p95_error_m": 0.13510882960307047,
+      "minimum_separation_m": 2.88227485391869,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261029,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1777164994187119,
+      "steady_p95_error_m": 0.19041208434742576,
+      "minimum_separation_m": 2.6620140812763653,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.18244402359352135,
+      "steady_p95_error_m": 0.2276170651318901,
+      "minimum_separation_m": 2.6657319879777157,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1777164994187119,
+      "steady_p95_error_m": 0.19041208434742576,
+      "minimum_separation_m": 2.6620140812763653,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261020,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.14780452914687922,
+      "steady_p95_error_m": 0.15875622898674144,
+      "minimum_separation_m": 2.5971643857979014,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17414198035324702,
+      "steady_p95_error_m": 0.23885576341988057,
+      "minimum_separation_m": 2.605343514340256,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.14771846446137743,
+      "steady_p95_error_m": 0.15872619785244352,
+      "minimum_separation_m": 2.5971643857979014,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261021,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.05071769071208894,
+      "steady_p95_error_m": 0.056781477208652856,
+      "minimum_separation_m": 2.8134164524846232,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.14390838026382902,
+      "steady_p95_error_m": 0.23458469287237027,
+      "minimum_separation_m": 2.8182482663017288,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.050673198448604094,
+      "steady_p95_error_m": 0.05677493581726491,
+      "minimum_separation_m": 2.8182575507780503,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261022,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10352254306831318,
+      "steady_p95_error_m": 0.1126127859621777,
+      "minimum_separation_m": 2.742340114948123,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17656531652654603,
+      "steady_p95_error_m": 0.25060915289973346,
+      "minimum_separation_m": 2.7697536830214653,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10348473457113698,
+      "steady_p95_error_m": 0.1126072315471665,
+      "minimum_separation_m": 2.742340114948123,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261023,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.12502667297998726,
+      "steady_p95_error_m": 0.14938296081293323,
+      "minimum_separation_m": 2.8182705176074716,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.22071331801110336,
+      "steady_p95_error_m": 0.34798931262875926,
+      "minimum_separation_m": 2.7921590837497514,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.12512185167851875,
+      "steady_p95_error_m": 0.14938590289358833,
+      "minimum_separation_m": 2.8182705176074716,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261024,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.096262612909941,
+      "steady_p95_error_m": 0.10896023490392799,
+      "minimum_separation_m": 2.8704400858231494,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.16573024936188202,
+      "steady_p95_error_m": 0.2439650342834316,
+      "minimum_separation_m": 2.8646892781544477,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.0962429618241688,
+      "steady_p95_error_m": 0.10895977625535734,
+      "minimum_separation_m": 2.8711333047917433,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261025,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10775348288925306,
+      "steady_p95_error_m": 0.13136015783163227,
+      "minimum_separation_m": 2.7658657551807546,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17147738483601493,
+      "steady_p95_error_m": 0.2691946021615405,
+      "minimum_separation_m": 2.7602700858699416,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10773551817452369,
+      "steady_p95_error_m": 0.13131244845595438,
+      "minimum_separation_m": 2.7658657551807546,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261026,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.09092346978241198,
+      "steady_p95_error_m": 0.10787065752337344,
+      "minimum_separation_m": 2.824728313444606,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.15950122130115785,
+      "steady_p95_error_m": 0.23260931484088998,
+      "minimum_separation_m": 2.853561068803989,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.09087271824314687,
+      "steady_p95_error_m": 0.10784207768862794,
+      "minimum_separation_m": 2.809662019957495,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261027,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.18743948329706106,
+      "steady_p95_error_m": 0.1984730957284111,
+      "minimum_separation_m": 2.779866360122917,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.1470579890199297,
+      "steady_p95_error_m": 0.281866269855762,
+      "minimum_separation_m": 2.82779363061496,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.18733077573717286,
+      "steady_p95_error_m": 0.19812228009682512,
+      "minimum_separation_m": 2.828235478533826,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261028,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10997156537985432,
+      "steady_p95_error_m": 0.13510939101167568,
+      "minimum_separation_m": 2.86712625293956,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.18643895160199553,
+      "steady_p95_error_m": 0.2757342064889067,
+      "minimum_separation_m": 2.876638604658733,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10995022014133539,
+      "steady_p95_error_m": 0.13511006468562203,
+      "minimum_separation_m": 2.880038006036835,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261029,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17772099674255132,
+      "steady_p95_error_m": 0.19043226896706786,
+      "minimum_separation_m": 2.6620140812763653,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.23555316301819196,
+      "steady_p95_error_m": 0.3184315820127476,
+      "minimum_separation_m": 2.6657319879777157,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.1777274428616823,
+      "steady_p95_error_m": 0.19046158543921843,
+      "minimum_separation_m": 2.6620140812763653,
+      "pass_criteria": true,
+      "switches": 20
+    },
+    {
+      "seed": 20261020,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.14776759992348767,
+      "steady_p95_error_m": 0.15874197845312787,
+      "minimum_separation_m": 2.6040109428001705,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17023288229607794,
+      "steady_p95_error_m": 0.24141978865968405,
+      "minimum_separation_m": 2.610553297010802,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.14674121270028165,
+      "steady_p95_error_m": 0.15850053339226491,
+      "minimum_separation_m": 2.595626765863714,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261021,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.050713389175777904,
+      "steady_p95_error_m": 0.05678020690637859,
+      "minimum_separation_m": 2.765858075359314,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1422427940007259,
+      "steady_p95_error_m": 0.2262036637311158,
+      "minimum_separation_m": 2.815075932199816,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.05355682393739234,
+      "steady_p95_error_m": 0.06068559010785331,
+      "minimum_separation_m": 2.7856029451967608,
+      "pass_criteria": true,
+      "switches": 39
+    },
+    {
+      "seed": 20261022,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1035050971233245,
+      "steady_p95_error_m": 0.11261150630446927,
+      "minimum_separation_m": 2.4290220430079628,
+      "pass_criteria": false,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17870287580556674,
+      "steady_p95_error_m": 0.2619214657448066,
+      "minimum_separation_m": 2.762165903792328,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10474446508438666,
+      "steady_p95_error_m": 0.11295058571065426,
+      "minimum_separation_m": 2.6435606028352043,
+      "pass_criteria": true,
+      "switches": 43
+    },
+    {
+      "seed": 20261023,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1250452095865793,
+      "steady_p95_error_m": 0.14938354803231518,
+      "minimum_separation_m": 2.4318342289407027,
+      "pass_criteria": false,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.20791625078371223,
+      "steady_p95_error_m": 0.33221282170062216,
+      "minimum_separation_m": 2.695415213744353,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12515758708319727,
+      "steady_p95_error_m": 0.14838489636752408,
+      "minimum_separation_m": 2.453672553225243,
+      "pass_criteria": false,
+      "switches": 39
+    },
+    {
+      "seed": 20261024,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.0962628028129234,
+      "steady_p95_error_m": 0.10896025971264486,
+      "minimum_separation_m": 2.5064780676032448,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1807745534415805,
+      "steady_p95_error_m": 0.2737125555569786,
+      "minimum_separation_m": 2.8082598184779473,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.0973226205074698,
+      "steady_p95_error_m": 0.10900242104960758,
+      "minimum_separation_m": 2.6084508755438045,
+      "pass_criteria": true,
+      "switches": 34
+    },
+    {
+      "seed": 20261025,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10771754999890909,
+      "steady_p95_error_m": 0.13126763567839536,
+      "minimum_separation_m": 2.6192591395596243,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.14890411211708657,
+      "steady_p95_error_m": 0.23777893023021515,
+      "minimum_separation_m": 2.703915320428799,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10643011279589869,
+      "steady_p95_error_m": 0.1328603639229719,
+      "minimum_separation_m": 2.7101709637875753,
+      "pass_criteria": true,
+      "switches": 32
+    },
+    {
+      "seed": 20261026,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.09093667552785574,
+      "steady_p95_error_m": 0.10788045799524791,
+      "minimum_separation_m": 2.7643985875372254,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17966675909159566,
+      "steady_p95_error_m": 0.2601693627812036,
+      "minimum_separation_m": 2.836951442010402,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.09307367246088205,
+      "steady_p95_error_m": 0.11164515334659007,
+      "minimum_separation_m": 2.6380028777493774,
+      "pass_criteria": true,
+      "switches": 36
+    },
+    {
+      "seed": 20261027,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.18744220087548227,
+      "steady_p95_error_m": 0.1984787303571227,
+      "minimum_separation_m": 2.7403145072911776,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.13531977646649898,
+      "steady_p95_error_m": 0.28047198003391427,
+      "minimum_separation_m": 2.82779363061496,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1843520454359525,
+      "steady_p95_error_m": 0.19828134873227854,
+      "minimum_separation_m": 2.739772753758161,
+      "pass_criteria": true,
+      "switches": 36
+    },
+    {
+      "seed": 20261028,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10996172610704293,
+      "steady_p95_error_m": 0.1351093899286212,
+      "minimum_separation_m": 2.8276827848518025,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17434492312799169,
+      "steady_p95_error_m": 0.25703986598124173,
+      "minimum_separation_m": 2.876389711780362,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10994507619778425,
+      "steady_p95_error_m": 0.14022873001973152,
+      "minimum_separation_m": 2.7928762782200693,
+      "pass_criteria": true,
+      "switches": 33
+    },
+    {
+      "seed": 20261029,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17772114425284335,
+      "steady_p95_error_m": 0.19043003343083392,
+      "minimum_separation_m": 2.655119685536334,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.22748643144421224,
+      "steady_p95_error_m": 0.32707350797481816,
+      "minimum_separation_m": 2.649864801083526,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17706504986095858,
+      "steady_p95_error_m": 0.18960042106935146,
+      "minimum_separation_m": 2.655119685536334,
+      "pass_criteria": true,
+      "switches": 39
+    }
+  ],
+  "paired_differences": {
+    "nominal_impaired": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.009360385126361052,
+          "low": -0.0017509240745991524,
+          "high": 0.02047169432732126
+        },
+        "minimum_separation_m": {
+          "mean": 0.0023728572721760433,
+          "low": -0.009300662174830727,
+          "high": 0.014046376719182813
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.0,
+          "low": 0.0,
+          "high": 0.0
+        },
+        "minimum_separation_m": {
+          "mean": 0.0,
+          "low": 0.0,
+          "high": 0.0
+        }
+      }
+    },
+    "repeated_outage": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.058394490738555606,
+          "low": 0.02999757146457892,
+          "high": 0.0867914100125323
+        },
+        "minimum_separation_m": {
+          "mean": 0.009295688386751743,
+          "low": -0.005703130187428258,
+          "high": 0.024294506960931744
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": -2.8516076667418205e-05,
+          "low": -6.794559970708762e-05,
+          "high": 1.0913446372251216e-05
+        },
+        "minimum_separation_m": {
+          "mean": 0.005174889528309423,
+          "low": -0.006722423141569727,
+          "high": 0.017072202198188575
+        }
+      }
+    },
+    "burst_repeated_outage": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.05485179631908223,
+          "low": 0.023427108154408294,
+          "high": 0.08627648448375616
+        },
+        "minimum_separation_m": {
+          "mean": 0.12424070086557366,
+          "low": 0.03434613233185496,
+          "high": 0.21413526939929237
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.00013152706799776163,
+          "low": -0.001126668071009127,
+          "high": 0.0013897222070046503
+        },
+        "minimum_separation_m": {
+          "mean": 0.027887823922868503,
+          "low": -0.03743140795102231,
+          "high": 0.09320705579675931
+        }
+      }
+    }
+  }
+}

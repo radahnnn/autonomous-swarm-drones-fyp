@@ -20,6 +20,8 @@ class PeerStateBus:
                  seed: Optional[int] = None, burst_loss: bool = False):
         self.count = int(count)
         self.timeout_s = float(timeout_s)
+        if not np.isfinite(self.timeout_s) or self.timeout_s <= 0:
+            raise ValueError("timeout_s must be finite and positive")
         self.channel = WirelessChannel(
             comm_range=comm_range, packet_loss_rate=packet_loss_rate,
             latency_mean=latency_mean, latency_std=latency_std, seed=seed,
@@ -55,6 +57,10 @@ class PeerStateBus:
                 continue
             state_time = float(source_times[sender])
             # Do not stamp old telemetry as new just because the relay is ticking.
+            if (not np.isfinite(state_time) or not np.all(np.isfinite(positions[sender]))
+                    or not np.all(np.isfinite(velocities[sender]))):
+                self.rejected_stale_source += 1
+                continue
             if state_time < 0 or state_time > now + 1e-4 or now - state_time > self.timeout_s:
                 self.rejected_stale_source += 1
                 continue
