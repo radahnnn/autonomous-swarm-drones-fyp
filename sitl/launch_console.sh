@@ -11,7 +11,7 @@ source "${SCRIPT_DIR}/consolidated_env.sh"
 VENV_ACTIVATE="${VENV_ACTIVATE:-}"
 export DISPLAY="${DISPLAY:-:0}"
 
-RUN="source '${SCRIPT_DIR}/consolidated_env.sh'; [ -f '${VENV_ACTIVATE}' ] && source '${VENV_ACTIVATE}'; cd '${PROJECT_DIR}'; python3 sitl/swarm_console.py $*; echo; echo 'Console closed. Press Enter to exit.'; read"
+RUN="source '${SCRIPT_DIR}/consolidated_env.sh'; [ -f '${VENV_ACTIVATE}' ] && source '${VENV_ACTIVATE}'; cd '${PROJECT_DIR}'; python3 -m sitl.swarm_console $*; echo; echo 'Console closed. Press Enter to exit.'; read"
 
 if command -v gnome-terminal >/dev/null 2>&1; then
     gnome-terminal --title="Swarm Flight Console" -- bash -c "${RUN}"

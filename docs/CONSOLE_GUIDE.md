@@ -5,10 +5,10 @@ and `self_healing_swarm_console.py`. Code: `sitl/swarm_console.py`; formation sl
 ports, homes and labels: `sitl/fleet.py`; arming/takeoff helpers: `sitl/flight_prep.py`.
 
 ```bash
-python3 sitl/swarm_console.py --drones 5 --gazebo        # 3D (needs cinewhoop_5drones.sdf running)
-python3 sitl/swarm_console.py --drones 3 --standalone    # headless 2D SITL, fast arming
-python3 sitl/swarm_console.py --drones 5 --auto-launch   # take off immediately
-sitl/launch_console.sh --drones 5 --gazebo               # same, in its own terminal window
+python3 -m sitl.swarm_console --drones 5 --gazebo        # 3D (needs cinewhoop_5drones.sdf running)
+python3 -m sitl.swarm_console --drones 3 --standalone    # headless 2D SITL, fast arming
+python3 -m sitl.swarm_console --drones 5 --auto-launch   # take off immediately
+bash sitl/launch_console.sh --drones 5 --gazebo          # same, in its own terminal window
 ```
 Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`,
 `--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time), and `--evidence-dir PATH`.
@@ -41,4 +41,4 @@ Old 3/5-drone consoles took off automatically and used `t` = triangle, `x` = dia
 Tested live in standalone SITL with five drones (takeoff, formation changes, movement, square patrol, injected failure and
 re-election, revive and rejoin, confirmed landing). The consolidated demo suite passed 161 tests on 12 October 2026.
 The five-drone Gazebo world rendered on the NVIDIA GPU and SITL connected, but EKF readiness did not converge sufficiently
-for this console to take off. The new run-evidence output has not yet been evaluated in a post-instrumentation flight.
+for this console to take off. Later instrumented standalone runs on 14 October landed but failed at least one recorded acceptance criterion; the 15 October defense demonstrated five vehicles in QGroundControl without a completed run summary.

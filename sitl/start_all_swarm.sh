@@ -116,7 +116,7 @@ DISPLAY=:1 start_daemon console xterm -geometry 102x36+360+70 \
     -e bash -c "
         source '${VENV_ACTIVATE}'
         cd '${PROJECT_DIR}'
-        python3 -u sitl/swarm_console.py --drones 5 ${CONSOLE_FLAG} 2>&1 | tee -a '${RUN_DIR}/console.log'
+        python3 -u -m sitl.swarm_console --drones 5 ${CONSOLE_FLAG} 2>&1 | tee -a '${RUN_DIR}/console.log'
         echo ''
         echo \"Console exited (code \${PIPESTATUS[0]}). Full log: ${RUN_DIR}/console.log\"
         echo 'Press Enter to close this window...'
