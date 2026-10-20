@@ -27,9 +27,12 @@ simulated failure, the harness updates the active peer graph. Each controller re
 own state and one-hop peer states.
 
 The software still runs on one computer. The harness centrally prepares slot configuration and
-peer links, and broadcasts the mission goal. This does not yet run code on each flight controller,
-prove a drone-to-drone radio link, or establish physical-flight safety. Treat it as an emulation
-of local per-drone control logic in SITL.
+peer links, and broadcasts the mission goal. Peer state passes through `PeerStateBus`, which
+emulates one-hop messages with configurable delay, loss, stale-data expiry, and directed link
+blocking. The harness still observes all MAVLink telemetry and runs all agents in one process.
+This does not run code on each flight controller, prove a drone-to-drone radio link, or establish
+physical-flight safety. Treat it as an emulation of local per-drone control logic in SITL, with a
+tested input boundary between agents.
 
 ## Stage 1 limits
 
@@ -37,20 +40,40 @@ of local per-drone control logic in SITL.
 - A failed drone is commanded to land. The remaining agents keep their existing slots and rebuild
   their one-hop graph. Automatic revive and rejoin are not included in this stage.
 - The control output is horizontal. The console still distributes the common altitude goal.
+- Peer topology and relative slots are provisioned by the SITL harness; agents do not discover
+  neighbors or agree on a mission goal through peer consensus.
 - The potential-field separation term is not a hard collision constraint. A run must be assessed
   against the project's measured spacing and tracking criteria; no safety guarantee is implied.
 - Gazebo and physical aircraft are not validated by the implementation itself.
 
-## Build sequence
+## Validation completed on 2026-10-20
 
-1. Validate launch, position tracking, movement and landing in standalone SITL with three drones.
-2. Compare centralized and decentralized using the same initial positions, mission commands,
-   safety limits and randomized conditions. Record all failures, not only successful runs.
-3. Add delayed and missing one-hop peer data tests and verify the remaining swarm after one lost
-   link or vehicle.
-4. Add collision-aware formation changes before enabling mid-flight morph commands.
-5. Only after those stages, move the local agent runtime to separate onboard processes and test
-   the actual inter-drone message transport.
+- Five-drone standalone SITL: 4 m north move, 10% random one-hop loss, 100 ms mean peer latency,
+  one directed peer link blocked, and Drone 3 injected as failed. The remaining four held their
+  slots; all five landed/disarmed. No watchdog timeout. Summary: p95 settled slot error 0.277 m,
+  minimum measured separation 4.139 m. Raw record: `runs/console/20261020T174629.974360Z/`.
+- Ten paired software-simulation trials used identical initial states and seeds within each pair,
+  the SITL-fitted dynamics profile, 10% packet loss, 50 ms mean channel latency, and the same
+  moving V mission. Results and confidence intervals are in
+  [the comparison report](reports/DECENTRALIZED_5DRONE_COMPARISON_2026-10-20.md).
+- Automated suite: 166 tests passed.
+
+The paired comparison found higher decentralized tracking error and lower separation than the
+centralized controller. Neither mode had a simulated collision, but both had a minimum separation
+below the project's 2.5 m target in this software experiment. One successful SITL run does not
+prove general robustness; repeat across communication conditions and missions.
+
+## Next build sequence
+
+1. Tune the decentralized separation/formation objective against the 2.5 m spacing target and
+   rerun paired trials; record failures and confidence intervals.
+2. Expand SITL runs across loss, delay, stale data, directed peer cuts, and loss of a vehicle.
+3. Add collision-aware formation changes before enabling mid-flight morph commands.
+4. Define a versioned peer-message protocol and mission-goal handoff, including IDs, coordinate
+   frame, units, timestamps, sequence numbers, and stale-message behavior.
+5. Only after software validation, package the local agent as an onboard process per vehicle and
+   test a real peer transport and approved flight-controller interface on the bench, followed by
+   controlled flight tests. The onboard runtime and hardware communication path do not exist yet.
 
 Do not describe this stage as a validated hybrid system. Hybrid mode will combine a proven
 mission-level coordinator with these separately validated local controllers later.

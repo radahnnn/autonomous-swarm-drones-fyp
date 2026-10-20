@@ -38,7 +38,7 @@ from sitl.decentralized_guidance import DecentralizedGuidance
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, MAX_DRONES, build_fleet
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, assign_slots, slots_for
-from sitl.run_evidence import RunEvidence
+from sitl.run_evidence import RunEvidence, SettledMotionDetector
 
 # Position + yaw setpoint (velocity, acceleration and yaw-rate ignored)
 _TYPE_MASK_POS_YAW = 0b0000101111111000
@@ -61,12 +61,24 @@ class SwarmConsole:
     MORPH_STEPS = 45  # 4.5 s at the 10 Hz guidance rate
 
     def __init__(self, n: int = 5, use_gazebo: Optional[bool] = None, force_restart: bool = False,
-                 ekf_timeout: Optional[float] = None, control_mode: str = "centralized"):
+                 ekf_timeout: Optional[float] = None, control_mode: str = "centralized",
+                 peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
+                 peer_seed: Optional[int] = None, peer_block: Optional[str] = None):
         if control_mode not in ("centralized", "decentralized"):
             raise ValueError("control_mode must be 'centralized' or 'decentralized'")
         self.n = n
         self.control_mode = control_mode
-        self.decentralized_guidance = DecentralizedGuidance(n) if control_mode == "decentralized" else None
+        self.decentralized_guidance = (
+            DecentralizedGuidance(n, peer_loss=peer_loss, peer_latency_ms=peer_latency_ms,
+                                 peer_seed=peer_seed)
+            if control_mode == "decentralized" else None
+        )
+        if self.decentralized_guidance is not None and peer_block:
+            try:
+                sender, recipient = (int(value) - 1 for value in peer_block.split(":"))
+                self.decentralized_guidance.peer_bus.block_link(sender, recipient)
+            except (ValueError, TypeError):
+                raise ValueError("peer_block must be a directed link like '1:2' (1-indexed drone IDs)")
         self.fleet = build_fleet(n)
         self.repo_root = Path(__file__).resolve().parent.parent
         self.frame = CommonCoordinateFrame(DATUM_LAT, DATUM_LON, DATUM_ALT)
@@ -107,6 +119,7 @@ class SwarmConsole:
         self.evidence = None
         self.landed = False
         self.last_target_change = time.time()
+        self.settled_motion = SettledMotionDetector()
 
         self._calculate_active_topology()
         self.current_offsets = self.target_offsets.copy()
@@ -645,7 +658,9 @@ class SwarmConsole:
                             for i, t in enumerate(self.last_real_heartbeat)]
                     formation = self.current_formation_style
                     leader = self.current_leader_idx + 1
-                    settled = self.morph_steps_remaining == 0 and now - self.last_target_change >= 5.0
+                    settled = (self.morph_steps_remaining == 0 and self.settled_motion.update(
+                        now, self.last_target_change, positions, self.last_pos_at, active, fresh
+                    ))
                 self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled)
             time.sleep(0.1)
 
@@ -849,18 +864,32 @@ def main():
     parser.add_argument("--auto-launch", action="store_true", help="take off and form up immediately")
     parser.add_argument("--control-mode", choices=("centralized", "decentralized"), default="centralized",
                         help="decentralized is a separate experimental per-agent SITL mode")
+    parser.add_argument("--peer-loss", type=float, default=0.0,
+                        help="decentralized SITL only: independent one-hop packet loss probability (0-1)")
+    parser.add_argument("--peer-latency-ms", type=float, default=30.0,
+                        help="decentralized SITL only: mean one-hop peer-message latency in milliseconds")
+    parser.add_argument("--peer-seed", type=int, default=None,
+                        help="decentralized SITL only: reproducible peer-channel random seed")
+    parser.add_argument("--peer-block", type=str, default=None,
+                        help="decentralized SITL only: drop one directed link, e.g. 2:4")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
+    if not 0.0 <= args.peer_loss <= 1.0 or args.peer_latency_ms < 0:
+        parser.error("--peer-loss must be 0..1 and --peer-latency-ms must be non-negative")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
     console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart,
-                           ekf_timeout=args.ekf_timeout, control_mode=args.control_mode)
+                           ekf_timeout=args.ekf_timeout, control_mode=args.control_mode,
+                           peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
+                           peer_seed=args.peer_seed, peer_block=args.peer_block)
     mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
     console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
     console.evidence.event("control_mode", mode=args.control_mode,
-                           architecture="host-emulated per-agent 1-hop guidance")
+                           architecture="host-emulated per-agent 1-hop guidance over impaired peer bus",
+                           peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
+                           peer_seed=args.peer_seed, peer_block=args.peer_block)
     print(f">> Run evidence: {console.evidence.directory}")
     try:
         console.launch_sitl()
@@ -895,6 +924,13 @@ def main():
         raise
     finally:
         console.stop_guidance()
+        if console.decentralized_guidance is not None:
+            channel = console.decentralized_guidance.peer_bus.channel
+            console.evidence.event("peer_bus_summary", transmitted=channel.total_transmitted,
+                                   delivered=channel.total_delivered,
+                                   dropped_loss=channel.total_dropped_loss,
+                                   dropped_range=channel.total_dropped_range,
+                                   blocked_links=sorted(console.decentralized_guidance.peer_bus.blocked_links))
         try:
             console.cleanup()
         finally:

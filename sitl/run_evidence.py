@@ -17,6 +17,56 @@ CRITERIA = {
 }
 
 
+class SettledMotionDetector:
+    """Mark a tracking sample settled only after the fleet has stopped moving.
+
+    The error itself is deliberately not used to decide settled status, so a
+    stationary but inaccurate formation still fails the tracking-error check.
+    """
+
+    def __init__(self, speed_threshold_m_s: float = 0.15,
+                 dwell_s: float = 1.5, command_quiet_s: float = 2.0):
+        self.speed_threshold_m_s = float(speed_threshold_m_s)
+        self.dwell_s = float(dwell_s)
+        self.command_quiet_s = float(command_quiet_s)
+        self.previous = {}
+        self.low_motion_since = None
+        self.last_command_time = None
+
+    def update(self, now: float, last_command_time: float, positions,
+               sample_times, active, fresh) -> bool:
+        if self.last_command_time is not None and last_command_time != self.last_command_time:
+            self.low_motion_since = None
+        self.last_command_time = last_command_time
+        speeds = []
+        valid = True
+        for i, enabled in enumerate(active):
+            if not enabled:
+                continue
+            if not fresh[i] or sample_times[i] <= 0:
+                valid = False
+                break
+            previous = self.previous.get(i)
+            current_time = float(sample_times[i])
+            current_position = positions[i]
+            if previous is None or current_time <= previous[0]:
+                speed = float("inf")
+            else:
+                dt = current_time - previous[0]
+                speed = math.dist(current_position, previous[1]) / dt
+            self.previous[i] = (current_time, list(current_position))
+            speeds.append(speed)
+
+        is_low_motion = (valid and speeds and now - last_command_time >= self.command_quiet_s
+                         and max(speeds) <= self.speed_threshold_m_s)
+        if is_low_motion:
+            if self.low_motion_since is None:
+                self.low_motion_since = now
+            return now - self.low_motion_since >= self.dwell_s
+        self.low_motion_since = None
+        return False
+
+
 def _utc():
     return datetime.now(timezone.utc).isoformat()
 

@@ -13,6 +13,7 @@ import numpy as np
 
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.drone import Drone
+from sitl.peer_state_bus import PeerStateBus
 
 
 def _limit(vector: np.ndarray, maximum: float) -> np.ndarray:
@@ -45,16 +46,8 @@ class LocalDroneAgent:
     def command(self, position, sample_time: float, goal, neighbor_states,
                 desired_offsets: Dict[int, np.ndarray], dt: float) -> np.ndarray:
         """Return a short-horizon local position target in the shared N/E frame."""
+        self.update_local_state(position, sample_time)
         pos = np.asarray(position, dtype=float)[:2]
-        if self.last_sample_time is None or sample_time > self.last_sample_time:
-            if self.last_position is not None and self.last_sample_time is not None:
-                sample_dt = sample_time - self.last_sample_time
-                if sample_dt > 1e-4:
-                    measured = (pos - self.last_position) / sample_dt
-                    self.velocity = _limit(0.7 * self.velocity + 0.3 * measured, 3.0)
-            self.last_position = pos.copy()
-            self.last_sample_time = sample_time
-
         accel = self.controller.compute_drone_control(
             self.drone,
             neighbor_states=neighbor_states,
@@ -71,16 +64,36 @@ class LocalDroneAgent:
         )
         return pos + velocity_command * self.LOOKAHEAD_S
 
+    def update_local_state(self, position, sample_time: float) -> None:
+        """Update this agent's velocity estimate using only its own telemetry history."""
+        pos = np.asarray(position, dtype=float)[:2]
+        if self.last_sample_time is None or sample_time > self.last_sample_time:
+            if self.last_position is not None and self.last_sample_time is not None:
+                sample_dt = sample_time - self.last_sample_time
+                if sample_dt > 1e-4:
+                    measured = (pos - self.last_position) / sample_dt
+                    self.velocity = _limit(0.7 * self.velocity + 0.3 * measured, 3.0)
+            self.last_position = pos.copy()
+            self.last_sample_time = sample_time
+
 
 class DecentralizedGuidance:
     """Host-side SITL harness connecting isolated local-agent controller inputs."""
 
     NEIGHBOR_RADIUS = 5.0
 
-    def __init__(self, count: int, safe_radius: float = 3.0):
+    def __init__(self, count: int, safe_radius: float = 3.0,
+                 peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
+                 peer_seed: Optional[int] = None):
         self.count = count
         self.agents = [LocalDroneAgent(i, safe_radius=safe_radius) for i in range(count)]
         self.last_time: Optional[float] = None
+        self.peer_bus = PeerStateBus(
+            count, packet_loss_rate=peer_loss,
+            latency_mean=max(0.0, peer_latency_ms / 1000.0),
+            latency_std=0.005 if peer_latency_ms > 0 else 0.0,
+            seed=peer_seed,
+        )
 
     @staticmethod
     def _one_hop_graph(offsets: List[np.ndarray], active: List[bool]):
@@ -132,16 +145,19 @@ class DecentralizedGuidance:
         slots = [np.asarray(o, dtype=float) for o in offsets]
         goal = np.asarray(mission_goal, dtype=float)
         graph = self._one_hop_graph(slots, active)
+        self.peer_bus.set_graph(graph)
         outputs = [None] * self.count
+
+        # Update each agent's own estimate before publishing across the emulated peer links.
+        for i in range(self.count):
+            if active[i] and fresh[i]:
+                self.agents[i].update_local_state(pos[i], sample_times[i])
+        self.peer_bus.publish(pos, [agent.velocity for agent in self.agents], active, now)
 
         for i in range(self.count):
             if not active[i] or not fresh[i]:
                 continue
-            neighbors = [
-                {"id": j, "position": pos[j][:2],
-                 "velocity": self.agents[j].velocity.copy()}
-                for j in sorted(graph.get(i, ())) if fresh[j]
-            ]
+            neighbors = [n for n in self.peer_bus.neighbors(i, now) if fresh[n["id"]]]
             desired_offsets = {
                 j: slots[i][:2] - slots[j][:2] for j in sorted(graph.get(i, ()))
             }
