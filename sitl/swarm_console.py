@@ -234,9 +234,8 @@ class SwarmConsole:
                     if attempt == 9:
                         print(f"  [RETRY] {spec.label} link attempt 10/10 failed: {exc}")
                 finally:
-                    # A timed-out TCP candidate otherwise remains accepted by SITL.
-                    # Repeated retries fill ArduPilot's small listen backlog and turn
-                    # the original missing-heartbeat problem into Errno 110/connect hangs.
+                    # Timed-out TCP clients must be closed: otherwise retries fill
+                    # ArduPilot's small listen backlog and block later connections.
                     if candidate is not None and candidate is not conn:
                         try:
                             candidate.close()

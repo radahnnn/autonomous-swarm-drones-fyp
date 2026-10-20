@@ -8,7 +8,7 @@ ports, homes and labels: `sitl/fleet.py`; arming/takeoff helpers: `sitl/flight_p
 python3 -m sitl.swarm_console --drones 5 --gazebo        # 3D (needs cinewhoop_5drones.sdf running)
 python3 -m sitl.swarm_console --drones 3 --standalone    # headless 2D SITL, fast arming
 python3 -m sitl.swarm_console --drones 5 --auto-launch   # take off immediately
-sitl/launch_console.sh --drones 5 --gazebo               # same, in its own terminal window
+bash sitl/launch_console.sh --drones 5 --gazebo          # same, in its own terminal window
 ```
 Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`,
 `--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time), `--evidence-dir PATH`,
@@ -41,7 +41,20 @@ Old 3/5-drone consoles took off automatically and used `t` = triangle, `x` = dia
 ## Verification status
 Tested live in standalone SITL with five drones (takeoff, formation changes, movement, square patrol, injected failure and
 re-election, revive and rejoin, confirmed landing). The consolidated demo suite passed 161 tests on 12 October 2026.
-On 14 October 2026, the five-drone Gazebo world rendered on the NVIDIA GPU and all five SITL links connected, but EKF
-readiness did not converge sufficiently for this console to take off. Five-drone standalone runs produced evidence and
-landed, but both centralized failure/rejoin and experimental hybrid runs failed at least one logged acceptance criterion.
-The earlier 12 October demo run remains the observed functional 2D route; use the default centralized mode for a demo.
+On 14 October, earlier instrumented five-drone standalone runs landed but missed at least one acceptance criterion,
+including the experimental host-side hybrid run. The 15 October defense showed five vehicles in QGroundControl without
+a completed outcome summary. The live hybrid path remains experimental; see [live hybrid guidance](HYBRID_LIVE_GUIDANCE.md).
+
+On 20 October, a five-drone Gazebo 3D run in centralized mode completed takeoff, movement, V/line changes, an injected
+failure and revive, and confirmed landing. Its [recorded criteria passed](reports/GAZEBO_5DRONE_VALIDATION_2026-10-20.md).
+For a repeat run, close the prior Gazebo world and console, then start one world and one console:
+
+```bash
+bash sitl/launch_gazebo_5drones.sh
+# In another terminal, from the repository root:
+python3 -m sitl.swarm_console --drones 5 --gazebo --ekf-timeout 900
+```
+
+Wait for all five EKFs to report ready before typing `launch`. The successful run took about 220 seconds to reach
+EKF ready on this laptop. Starting a second Gazebo world on the same ports disrupts the sensor link; if a prior
+SITL session has ended, restart Gazebo before trying again.
