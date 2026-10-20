@@ -95,16 +95,47 @@ def test_topology_assigns_every_active_drone_a_distinct_slot():
     assert {tuple(r[:2]) for r in slots_for("v", 5)} == rows
 
 
-def test_failure_promotes_new_leader_and_reconfigures():
+def test_failure_promotes_leader_but_reserves_failed_slot_until_rejoin():
     c = _console(5)
     leader = c.current_leader_idx
     c.inject_failure(leader + 1)
     assert not c.is_airborne[leader] and c.simulated_faults[leader]
     assert c.current_leader_idx != leader and c._active(c.current_leader_idx)
-    assert np.all(c.target_offsets[leader] == 0.0)
-    live = {tuple(c.target_offsets[i][:2]) for i in c._active_indices()}
-    assert live == {tuple(r[:2]) for r in slots_for("v", 4)}
+    assert np.allclose(c.target_offsets, c.current_offsets)
+    assert np.allclose(c.target_offsets[leader], c.current_offsets[leader])
     c.connections[leader].set_mode.assert_called_with(9)  # failed drone told to LAND
+
+
+def test_auto_recovery_waits_for_stable_link_and_confirmed_disarm():
+    c = _console(3, airborne=False)
+    c.auto_recover = True
+    c.simulated_faults[1] = True
+    c.failure_causes[1] = "heartbeat_timeout"
+    c.last_real_heartbeat[1] = 9.5
+    c.last_armed_state[1] = False
+    c.recovery_stable_since[1] = 6.0
+    c.revive_drone = MagicMock()
+
+    c._consider_auto_recovery(10.0)
+
+    c.revive_drone.assert_called_once_with(2, auto_liftoff=True)
+    assert c.recovery_attempted[1]
+
+
+def test_auto_recovery_does_not_relaunch_operator_failed_or_armed_drone():
+    c = _console(3, airborne=False)
+    c.auto_recover = True
+    c.simulated_faults[1] = True
+    c.failure_causes[1] = "operator"
+    c.last_real_heartbeat[1] = 10.0
+    c.last_armed_state[1] = False
+    c.recovery_stable_since[1] = 1.0
+    c.revive_drone = MagicMock()
+
+    c._consider_auto_recovery(10.0)
+
+    c.revive_drone.assert_not_called()
+    assert c.recovery_stable_since[1] is None
 
 
 def test_failure_of_unknown_drone_is_rejected_without_error(capsys):

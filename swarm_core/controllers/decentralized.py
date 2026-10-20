@@ -74,12 +74,15 @@ class DecentralizedController:
                 accel -= self.k_align * vel
             return accel
 
-        deg = max(1, len(neighbor_states))
+        effective_degree = 0.0
         f_sep = np.zeros(drone.dim, dtype=np.float64)
         f_align = np.zeros(drone.dim, dtype=np.float64)
         f_form = np.zeros(drone.dim, dtype=np.float64)
 
         for n_state in neighbor_states:
+            confidence = float(np.clip(n_state.get("confidence", 1.0), 0.0, 1.0))
+            if confidence <= 0.0:
+                continue
             n_id = n_state["id"]
             p_j = n_state["position"]
             v_j = n_state["velocity"]
@@ -90,25 +93,28 @@ class DecentralizedController:
             # 1. Separation force (strictly local collision avoidance)
             if 1e-4 < dist < self.safe_radius:
                 repulse = self.k_sep * (1.0 / dist - 1.0 / self.safe_radius) / (dist**2)
-                f_sep += repulse * (diff / dist)
+                f_sep += confidence * repulse * (diff / dist)
 
             # 2. Velocity consensus (Laplacian alignment matching: dot{v}_i = - sum (v_i - v_j))
-            f_align -= self.k_align * (vel - v_j)
+            f_align -= confidence * self.k_align * (vel - v_j)
 
             # 3. Formation cohesion / relative displacement consensus
             if desired_offsets is not None and n_id in desired_offsets:
                 desired_delta = desired_offsets[n_id]  # p_i - p_j should equal desired_delta
                 displacement_error = diff - desired_delta
-                f_form -= self.k_form * displacement_error
+                f_form -= confidence * self.k_form * displacement_error
             else:
                 # Default flocking cohesion (gentle attraction to prevent swarm dispersion)
                 if dist > self.safe_radius * 1.5:
-                    f_form -= (self.k_form * 0.4) * (diff / dist) * (dist - self.safe_radius * 1.5)
+                    f_form -= confidence * (self.k_form * 0.4) * (diff / dist) * (dist - self.safe_radius * 1.5)
+
+            effective_degree += confidence
 
         # Degree normalisation across all perceived neighbors
-        f_sep = f_sep / deg
-        f_align = f_align / deg
-        f_form = f_form / deg
+        normalizer = max(1.0, effective_degree)
+        f_sep = f_sep / normalizer
+        f_align = f_align / normalizer
+        f_form = f_form / normalizer
 
         # 4. Optional navigational feedback & feedforward drag compensation
         f_goal = np.zeros(drone.dim, dtype=np.float64)

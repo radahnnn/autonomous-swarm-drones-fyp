@@ -12,6 +12,10 @@ bash sitl/launch_console.sh --drones 5 --gazebo          # same, in its own term
 ```
 Options: `-n/--drones 1..10` (default 5), `--gazebo` / `--standalone` (auto-detected if omitted), `--restart`, `--auto-launch`,
 `--ekf-timeout SECONDS` (default 300; 900 in Gazebo, which can run at only 5-30% real time), and `--evidence-dir PATH`.
+Experimental agent modes: `--control-mode decentralized` or `--control-mode hybrid`; peer impairments can be set with
+`--peer-loss 0.1`, `--peer-latency-ms 100`, `--peer-burst-loss`, `--peer-seed 42`, and `--peer-block 2:4`.
+`--auto-recover` enables one automatic rejoin attempt after a heartbeat-timeout failure, only after 3 seconds of
+stable heartbeats and confirmed disarm; otherwise use `r <id>` to request recovery manually.
 Every run writes a dated `runs/console/` evidence folder; see [criteria and file format](RUN_EVIDENCE.md).
 
 ## Commands
@@ -21,7 +25,8 @@ Every run writes a dated `runs/console/` evidence folder; see [criteria and file
 | `w s a d u j [metres]` | move North / South / West / East / up / down (e.g. `w 10`); `c` returns to centre |
 | `v l k x o e tri` | morph to V, line, column, diamond, ring, echelon, triangle (Hungarian slot assignment) |
 | `p` | square patrol demo |
-| `f <id>` / `r <id>` / `lift <id>` | fail a drone (leader re-election + reconfiguration) / revive and rejoin / launch one drone |
+| `f <id>` / `r <id>` / `lift <id>` | land a drone to simulate failure while reserving its slot / recover and rejoin / launch one drone |
+| `coord off` / `coord on` | hybrid mode only: simulate loss and restoration of coordinator heartbeats |
 | `status` | role and position table |
 | `q` | synchronized landing |
 
@@ -56,3 +61,7 @@ python3 -m sitl.swarm_console --drones 5 --gazebo --ekf-timeout 900
 Wait for all five EKFs to report ready before typing `launch`. The successful run took about 220 seconds to reach
 EKF ready on this laptop. Starting a second Gazebo world on the same ports disrupts the sensor link; if a prior
 SITL session has ended, restart Gazebo before trying again.
+
+The new hybrid console path and staged decentralized rejoin code have not yet been revalidated after their latest
+changes. Treat them as experimental until fresh 2D SITL run evidence is recorded. Neither experimental mode is a
+hardware result; the peer bus and coordinator outage controls run inside this one-host SITL process.

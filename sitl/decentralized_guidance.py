@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from swarm_core.controllers.decentralized import DecentralizedController
+from swarm_core.controllers.hybrid import HybridController
 from swarm_core.drone import Drone
 from sitl.peer_state_bus import PeerStateBus
 
@@ -28,12 +29,17 @@ class LocalDroneAgent:
     MAX_ACCEL = 2.5
     LOOKAHEAD_S = 0.7
 
-    def __init__(self, drone_id: int, safe_radius: float = 3.0):
+    def __init__(self, drone_id: int, safe_radius: float = 3.0, hybrid: bool = False):
         self.drone_id = drone_id
         self.controller = DecentralizedController(
             k_sep=7.0, k_align=1.6, k_form=1.4, k_goal=0.8,
             safe_radius=safe_radius,
         )
+        self.hybrid_controller = (
+            HybridController(decentral_controller=self.controller, fallback_strategy="hold_target")
+            if hybrid else None
+        )
+        self.coordinator_sequence = 0
         self.drone = Drone(
             drone_id, np.zeros(2), max_speed=self.MAX_SPEED,
             max_accel=self.MAX_ACCEL, attitude_tau=0.2,
@@ -44,20 +50,42 @@ class LocalDroneAgent:
         self.velocity = np.zeros(2, dtype=float)
 
     def command(self, position, sample_time: float, goal, neighbor_states,
-                desired_offsets: Dict[int, np.ndarray], dt: float) -> np.ndarray:
+                desired_offsets: Dict[int, np.ndarray], dt: float,
+                coordinator_connected: bool = True, now: Optional[float] = None) -> np.ndarray:
         """Return a short-horizon local position target in the shared N/E frame."""
         self.update_local_state(position, sample_time)
         pos = np.asarray(position, dtype=float)[:2]
-        accel = self.controller.compute_drone_control(
-            self.drone,
-            neighbor_states=neighbor_states,
-            desired_offsets=desired_offsets,
-            goal_pos=np.asarray(goal, dtype=float)[:2],
-            measured_position=pos,
-            measured_velocity=self.velocity,
-            use_velocity_feedforward=False,
-            drag_coeff=0.0,
-        )
+        goal = np.asarray(goal, dtype=float)[:2]
+        now = time.time() if now is None else now
+        if self.hybrid_controller is not None:
+            if coordinator_connected:
+                self.coordinator_sequence += 1
+                self.hybrid_controller.process_coordinator_heartbeat(
+                    self.drone_id, now, now, self.coordinator_sequence,
+                    target_pos=goal, target_velocity=np.zeros(2, dtype=float),
+                    desired_offsets=desired_offsets,
+                )
+            accel = self.hybrid_controller.compute_hybrid_control(
+                self.drone, current_time=now, dt=dt,
+                neighbor_states=neighbor_states,
+                desired_neighbor_offsets=desired_offsets,
+                target_velocity=np.zeros(2, dtype=float),
+                use_velocity_feedforward=False, drag_coeff=0.0,
+                measured_position=pos, measured_velocity=self.velocity,
+            )
+        else:
+            accel = self.controller.compute_drone_control(
+                self.drone,
+                neighbor_states=neighbor_states,
+                desired_offsets=desired_offsets,
+                goal_pos=goal,
+                goal_vel=np.zeros(2, dtype=float),
+                measured_position=pos,
+                measured_velocity=self.velocity,
+                use_velocity_feedforward=False,
+                drag_coeff=0.0,
+            )
+        accel = _limit(np.asarray(accel, dtype=float), self.MAX_ACCEL)
         self.drone.set_control_input(accel)
         velocity_command = _limit(
             self.velocity + self.drone.commanded_accel * dt, self.MAX_SPEED
@@ -84,15 +112,18 @@ class DecentralizedGuidance:
 
     def __init__(self, count: int, safe_radius: float = 3.0,
                  peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
-                 peer_seed: Optional[int] = None):
+                 peer_seed: Optional[int] = None, control_mode: str = "decentralized",
+                 peer_burst_loss: bool = False):
         self.count = count
-        self.agents = [LocalDroneAgent(i, safe_radius=safe_radius) for i in range(count)]
+        self.control_mode = control_mode
+        self.agents = [LocalDroneAgent(i, safe_radius=safe_radius,
+                                       hybrid=control_mode == "hybrid") for i in range(count)]
         self.last_time: Optional[float] = None
         self.peer_bus = PeerStateBus(
             count, packet_loss_rate=peer_loss,
             latency_mean=max(0.0, peer_latency_ms / 1000.0),
             latency_std=0.005 if peer_latency_ms > 0 else 0.0,
-            seed=peer_seed,
+            seed=peer_seed, burst_loss=peer_burst_loss,
         )
 
     @staticmethod
@@ -132,13 +163,13 @@ class DecentralizedGuidance:
         return graph
 
     def step(self, positions, sample_times, mission_goal, offsets, active, fresh,
-             now=None):
+             now=None, coordinator_connected=True):
         """Compute independent targets using only each active agent's 1-hop peers.
 
         Each agent combines the shared high-level goal with its own configured slot.
         No centralized per-drone position target is supplied to the agents.
         """
-        now = time.monotonic() if now is None else now
+        now = time.time() if now is None else now
         dt = 0.1 if self.last_time is None else min(0.25, max(0.02, now - self.last_time))
         self.last_time = now
         pos = [np.asarray(p, dtype=float) for p in positions]
@@ -152,18 +183,19 @@ class DecentralizedGuidance:
         for i in range(self.count):
             if active[i] and fresh[i]:
                 self.agents[i].update_local_state(pos[i], sample_times[i])
-        self.peer_bus.publish(pos, [agent.velocity for agent in self.agents], active, now)
+        self.peer_bus.publish(pos, [agent.velocity for agent in self.agents], active, now,
+                              source_times=sample_times)
 
         for i in range(self.count):
             if not active[i] or not fresh[i]:
                 continue
-            neighbors = [n for n in self.peer_bus.neighbors(i, now) if fresh[n["id"]]]
+            neighbors = self.peer_bus.neighbors(i, now)
             desired_offsets = {
                 j: slots[i][:2] - slots[j][:2] for j in sorted(graph.get(i, ()))
             }
             horizontal = self.agents[i].command(
                 pos[i], sample_times[i], goal[:2] + slots[i][:2], neighbors,
-                desired_offsets, dt,
+                desired_offsets, dt, coordinator_connected=coordinator_connected, now=now,
             )
             output = pos[i].copy()
             output[:2] = horizontal

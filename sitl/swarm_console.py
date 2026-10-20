@@ -13,8 +13,9 @@ Replaces the former 3-drone, 5-drone and self-healing consoles. Features:
 - Centralized mode: live formation morphing with Hungarian slot assignment.
 - Decentralized mode: per-agent guidance using only configured one-hop peer state; see
   docs/DECENTRALIZED_SITL.md for the current experimental limits.
-- Fault tolerance: heartbeat watchdog, `fail <id>` injection, leader re-election, topology
-  reconfiguration for the remaining drones, `revive <id>` / `lift <id>` to rejoin.
+- Hybrid mode: centralized waypoint supervision with local peer guidance as a fallback.
+- Fault handling: heartbeat watchdog, `fail <id>` injection, reserved failed slots during landing,
+  leader bookkeeping, and `revive <id>` / `lift <id>` staged rejoin.
 - Square patrol demo (`p`), synchronized landing (`q`).
 """
 
@@ -63,16 +64,24 @@ class SwarmConsole:
     def __init__(self, n: int = 5, use_gazebo: Optional[bool] = None, force_restart: bool = False,
                  ekf_timeout: Optional[float] = None, control_mode: str = "centralized",
                  peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
-                 peer_seed: Optional[int] = None, peer_block: Optional[str] = None):
-        if control_mode not in ("centralized", "decentralized"):
-            raise ValueError("control_mode must be 'centralized' or 'decentralized'")
+                 peer_seed: Optional[int] = None, peer_block: Optional[str] = None,
+                 peer_burst_loss: bool = False, auto_recover: bool = False):
+        if control_mode not in ("centralized", "decentralized", "hybrid"):
+            raise ValueError("control_mode must be 'centralized', 'decentralized', or 'hybrid'")
         self.n = n
         self.control_mode = control_mode
         self.decentralized_guidance = (
             DecentralizedGuidance(n, peer_loss=peer_loss, peer_latency_ms=peer_latency_ms,
-                                 peer_seed=peer_seed)
-            if control_mode == "decentralized" else None
+                                 peer_seed=peer_seed, control_mode=control_mode,
+                                 peer_burst_loss=peer_burst_loss)
+            if control_mode in ("decentralized", "hybrid") else None
         )
+        self.coordinator_connected = True
+        self.auto_recover = bool(auto_recover)
+        self.failure_causes = [None] * n
+        self.recovery_stable_since = [None] * n
+        self.recovery_attempted = [False] * n
+        self.last_armed_state = [None] * n
         if self.decentralized_guidance is not None and peer_block:
             try:
                 sender, recipient = (int(value) - 1 for value in peer_block.split(":"))
@@ -379,6 +388,9 @@ class SwarmConsole:
     def _mark_airborne(self, idx: int, cur_pos: Optional[np.ndarray]):
         """Caller holds self.lock. Start the drone's morph from where it really is, not from the centroid."""
         self.simulated_faults[idx] = False
+        self.failure_causes[idx] = None
+        self.recovery_stable_since[idx] = None
+        self.recovery_attempted[idx] = False
         self.drone_health[idx] = True
         self.is_airborne[idx] = True
         self.last_heartbeat[idx] = time.time()
@@ -391,9 +403,6 @@ class SwarmConsole:
 
     def liftoff_drone(self, drone_num: int, target_alt: Optional[float] = None, quiet_if_busy: bool = False):
         """Asynchronously arms and climbs one drone to altitude so it can (re)join the swarm."""
-        if self.control_mode == "decentralized":
-            print(">> Individual liftoff/rejoin is not part of the first decentralized SITL stage.")
-            return
         if not self._valid_id(drone_num):
             return
         idx = drone_num - 1
@@ -463,7 +472,8 @@ class SwarmConsole:
             cur_pos = self.frame.gps_to_global_ned(gp.lat / 1e7, gp.lon / 1e7, gp.relative_alt / 1000.0)
         with self.lock:
             self._mark_airborne(idx, cur_pos)
-            self._calculate_active_topology()
+            # Failure handling reserves the absent aircraft's slot. Keep that
+            # allocation through rejoin so other vehicles do not cross into it.
             self.morph_steps_remaining = self.MORPH_STEPS
 
     # ------------------------------------------------------------------ formation geometry & fault tolerance
@@ -505,6 +515,9 @@ class SwarmConsole:
                 print(f">> Drone {drone_num} is already disconnected.")
                 return
             self.simulated_faults[idx] = True
+            self.failure_causes[idx] = cause
+            self.recovery_stable_since[idx] = None
+            self.recovery_attempted[idx] = False
             self.drone_health[idx] = False
             self.is_airborne[idx] = False
             try:
@@ -518,22 +531,21 @@ class SwarmConsole:
             print(f" [FAULT INJECTION] Drone {drone_num} signal lost / disconnected! Commanded LAND.")
             if self.control_mode == "decentralized":
                 print(" [LOCAL PEER GRAPH] Decentralized guidance does not require a swarm leader.")
-            elif idx == old_leader:
+            elif idx == old_leader and self.control_mode == "centralized":
                 if active:
                     self.current_leader_idx = active[0]
                     print(f" [ELECTION ALGORITHM] Leader lost! Dynamically promoting Drone {active[0] + 1} to APEX LEADER!")
                 else:
                     print(" [ALERT] All drones in swarm have been lost.")
-            elif self.control_mode != "decentralized":
+            elif self.control_mode == "centralized":
                 print(f" [SWARM FAULT TOLERANCE] Follower Drone {drone_num} lost. Maintaining active formation.")
-            if self.control_mode == "decentralized":
-                # Keep each remaining agent's pre-failure slot. The local peer graph
-                # reconnects over active agents; no central slot reassignment occurs.
-                self.target_offsets = self.current_offsets.copy()
-                self.morph_steps_remaining = 0
             else:
-                self._calculate_active_topology()
-                self.morph_steps_remaining = self.MORPH_STEPS
+                print(f" [LOCAL RESPONSE] Drone {drone_num} is offline; active agents retain their assigned slots.")
+            # Reserve every occupied/failed slot while the LAND sequence runs.
+            # Reassigning into the failed vehicle's space before touchdown can
+            # cause the landing aircraft and a healthy follower to converge.
+            self.target_offsets = self.current_offsets.copy()
+            self.morph_steps_remaining = 0
             self.last_target_change = time.time()
             if self.evidence:
                 if cause == "heartbeat_timeout":
@@ -542,17 +554,11 @@ class SwarmConsole:
                                     new_leader=(None if self.control_mode == "decentralized"
                                                 else self.current_leader_idx + 1),
                                     remaining=[i + 1 for i in active])
-            if self.control_mode == "decentralized":
-                print(f" [LOCAL RESPONSE] {len(active)} remaining agents continue with their fixed slots.")
-            else:
-                print(f" [SELF-HEALING] Reconfiguring remaining {len(active)} drones into optimal topology...")
+            print(f" [SAFE RESPONSE] {len(active)} remaining agents hold their slots; Drone {drone_num}'s slot stays reserved.")
             print("!" * 70 + "\n")
 
     def revive_drone(self, drone_num: int, auto_liftoff: bool = True):
         """Restores a failed drone and triggers automatic re-arm + liftoff."""
-        if self.control_mode == "decentralized":
-            print(">> Drone rejoin is not part of the first decentralized SITL stage.")
-            return
         if not self._valid_id(drone_num):
             return
         print(f"\n>> [REVIVING] Telemetry link restored for Drone {drone_num}!")
@@ -597,6 +603,7 @@ class SwarmConsole:
         if self.decentralized_guidance is not None:
             commanded = self.decentralized_guidance.step(
                 positions, sample_times, centroid, local_slots, active, fresh,
+                coordinator_connected=(self.control_mode != "hybrid" or self.coordinator_connected),
             )
         for i, conn in enumerate(self.connections):
             if not active[i] or commanded[i] is None:
@@ -632,11 +639,14 @@ class SwarmConsole:
                     if mtype == "HEARTBEAT":
                         self.last_heartbeat[i] = time.time()
                         self.last_real_heartbeat[i] = self.last_heartbeat[i]
+                        armed_flag = mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED
+                        self.last_armed_state[i] = bool(msg.base_mode & armed_flag)
                     elif mtype == "GLOBAL_POSITION_INT":
                         self.last_pos[i] = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lon / 1e7, msg.relative_alt / 1000.0)
                         self.last_pos_at[i] = time.time()
 
             now = time.time()
+            self._consider_auto_recovery(now)
             for i in range(self.n):
                 with self.lock:
                     watched = self._active(i)
@@ -663,6 +673,35 @@ class SwarmConsole:
                     ))
                 self.evidence.sample(positions, targets, active, fresh, ages, formation, leader, settled)
             time.sleep(0.1)
+
+    def _consider_auto_recovery(self, now: float):
+        """Auto-rejoin only heartbeat-loss failures after stable link and confirmed disarm."""
+        if not self.auto_recover:
+            return
+        for i in range(self.n):
+            eligible = (
+                self.simulated_faults[i]
+                and self.failure_causes[i] == "heartbeat_timeout"
+                and not self.recovery_attempted[i]
+                and not self.busy[i]
+                and self.last_armed_state[i] is False
+                and 0.0 <= now - self.last_real_heartbeat[i] <= 1.0
+            )
+            if not eligible:
+                self.recovery_stable_since[i] = None
+                continue
+            if self.recovery_stable_since[i] is None:
+                self.recovery_stable_since[i] = now
+                continue
+            if now - self.recovery_stable_since[i] < 3.0:
+                continue
+            self.recovery_attempted[i] = True
+            if self.evidence:
+                self.evidence.event("auto_recovery_eligible", drone=i + 1,
+                                    stable_link_s=round(now - self.recovery_stable_since[i], 2),
+                                    disarmed=True)
+            print(f"\n[AUTO RECOVERY] Drone {i + 1} link is stable and disarmed; starting EKF-gated staged rejoin.")
+            self.revive_drone(i + 1, auto_liftoff=True)
 
     def stop_guidance(self):
         """Stop setpoint production and wait until it can no longer race LAND/cleanup."""
@@ -719,6 +758,7 @@ class SwarmConsole:
             active_count = len(self._active_indices())
         print("\n" + "=" * 72)
         leadership = ("Distributed agents" if self.control_mode == "decentralized"
+                      else "Hybrid supervisor" if self.control_mode == "hybrid"
                       else f"Apex Leader: Drone {self.current_leader_idx + 1}")
         print(f" SWARM: {active_count}/{self.n} Drones Airborne | {leadership}")
         print(f" Formation: {self.current_formation_style.upper()} | Origin: ({self.centroid_pos[0]:.1f}N, {self.centroid_pos[1]:.1f}E, {-self.centroid_pos[2]:.1f}m)")
@@ -726,7 +766,13 @@ class SwarmConsole:
         for i in range(self.n):
             is_active = self._active(i)
             status = "AIRBORNE" if is_active else ("GROUNDED" if not self.simulated_faults[i] else "LOST/FAILED")
-            role = "APEX LEADER" if i == self.current_leader_idx and is_active else ("WINGMAN" if is_active else "INACTIVE")
+            if self.control_mode == "hybrid" and self.decentralized_guidance is not None:
+                agent = self.decentralized_guidance.agents[i]
+                hybrid = agent.hybrid_controller
+                role = (f"{hybrid.get_drone_mode(i).value} a={hybrid.get_alpha(i):.2f}"
+                        if is_active else "INACTIVE")
+            else:
+                role = "APEX LEADER" if i == self.current_leader_idx and is_active else ("WINGMAN" if is_active else "INACTIVE")
             p = positions[i]
             print(f"  Drone {i + 1}: [{status:10s}] Role: {role:11s} | N={p[0]:5.1f}m, E={p[1]:5.1f}m, Alt={-p[2]:4.1f}m")
         print("=" * 72 + "\n")
@@ -734,10 +780,14 @@ class SwarmConsole:
     def print_menu_bar(self):
         print("-" * 76)
         leadership = ("Distributed" if self.control_mode == "decentralized"
+                      else "Hybrid" if self.control_mode == "hybrid"
                       else f"Apex Leader: D{self.current_leader_idx + 1}")
-        print(f" [SWARM: {len(self._active_indices())}/{self.n} Online | {leadership} | Shape: {self.current_formation_style.upper()}]")
+        link = f" | Coordinator: {'UP' if self.coordinator_connected else 'LOST'}" if self.control_mode == "hybrid" else ""
+        print(f" [SWARM: {len(self._active_indices())}/{self.n} Online | {leadership}{link} | Shape: {self.current_formation_style.upper()}]")
         if self.control_mode == "decentralized":
-            print(" [w/s/a/d] Move  [u/j] Alt  p Patrol  f <id> Fail  status  q Land")
+            print(" [w/s/a/d] Move  [u/j] Alt  p Patrol  f <id> Fail  r <id> Rejoin  status  q Land")
+        elif self.control_mode == "hybrid":
+            print(" [w/s/a/d] Move  coord off/on  p Patrol  f <id> Fail  r <id> Rejoin  status  q Land")
         else:
             print(" [w/s/a/d] Move  [u/j] Alt  [v/l/k/x/o/e/tri] Shapes  p Patrol  f <id> Fail  r <id> Revive  lift <id>  q Land")
         print("-" * 76)
@@ -829,6 +879,21 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
             print("Usage: lift <drone_id> or 'lift all'")
     elif action in ("status", "stat", "info"):
         console.print_status()
+    elif action in ("coord", "coordinator"):
+        if console.control_mode != "hybrid":
+            print(">> Coordinator link switching is available in hybrid mode.")
+        elif num in ("off", "lost", "down"):
+            console.coordinator_connected = False
+            print(">> Coordinator link cut; agents will use local peer guidance and hold their last slots.")
+            if console.evidence:
+                console.evidence.event("coordinator_link", connected=False)
+        elif num in ("on", "up", "restore"):
+            console.coordinator_connected = True
+            print(">> Coordinator link restored; hybrid recovery uses heartbeat hysteresis and a gradual blend.")
+            if console.evidence:
+                console.evidence.event("coordinator_link", connected=True)
+        else:
+            print("Usage: coord off | coord on")
     elif action in ("q", "exit", "land"):
         console.land_all()
         return False
@@ -844,11 +909,14 @@ def _print_help(n: int, control_mode: str = "centralized"):
     print(" Movement (optional step size, e.g. 'w 10'):  w North  s South  a West  d East  u Climb  j Descend  c Center")
     print(" Formations:  v V  l Line  k Column  x Diamond  o Ring  e Echelon  tri Triangle")
     if control_mode == "decentralized":
-        print(" Decentralized stage: choose the shape before takeoff; mid-flight morph/rejoin are disabled.")
+        print(" Decentralized stage: choose the shape before takeoff; rejoin is staged into the reserved slot.")
         print(" Each local controller uses its own state and one-hop peer states (SITL host emulation).")
+    elif control_mode == "hybrid":
+        print(" Hybrid stage: central waypoints with per-agent peer-guidance fallback on coordinator loss.")
+        print(" Use 'coord off' / 'coord on' to demonstrate fallback and hysteretic recovery.")
     print(" Mission:  launch (arm+takeoff+form up)   p Square patrol   status   q Land")
-    if control_mode == "decentralized":
-        print(" Fault test: f <id> fail one drone; automatic rejoin is not included yet.")
+    if control_mode in ("decentralized", "hybrid"):
+        print(" Fault test: f <id> land one drone; r <id> performs a staged recover and rejoin.")
     else:
         print(" Fault tolerance:  f <id> fail drone   r <id> revive + rejoin   lift <id> launch one drone")
     print("=" * 76)
@@ -862,14 +930,18 @@ def main():
     parser.add_argument("--restart", action="store_true", help="kill existing SITL processes and start fresh")
     parser.add_argument("--ekf-timeout", type=float, default=None, help="seconds to wait for the EKF (default 300, 900 in Gazebo)")
     parser.add_argument("--auto-launch", action="store_true", help="take off and form up immediately")
-    parser.add_argument("--control-mode", choices=("centralized", "decentralized"), default="centralized",
-                        help="decentralized is a separate experimental per-agent SITL mode")
+    parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"), default="centralized",
+                        help="decentralized and hybrid are experimental per-agent SITL modes")
     parser.add_argument("--peer-loss", type=float, default=0.0,
                         help="decentralized SITL only: independent one-hop packet loss probability (0-1)")
     parser.add_argument("--peer-latency-ms", type=float, default=30.0,
                         help="decentralized SITL only: mean one-hop peer-message latency in milliseconds")
     parser.add_argument("--peer-seed", type=int, default=None,
                         help="decentralized SITL only: reproducible peer-channel random seed")
+    parser.add_argument("--peer-burst-loss", action="store_true",
+                        help="decentralized/hybrid SITL only: add bursty Gilbert-Elliott packet loss")
+    parser.add_argument("--auto-recover", action="store_true",
+                        help="after heartbeat loss, rejoin only when the link is stable 3s and disarm is confirmed")
     parser.add_argument("--peer-block", type=str, default=None,
                         help="decentralized SITL only: drop one directed link, e.g. 2:4")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
@@ -883,13 +955,18 @@ def main():
     console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart,
                            ekf_timeout=args.ekf_timeout, control_mode=args.control_mode,
                            peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
-                           peer_seed=args.peer_seed, peer_block=args.peer_block)
+                           peer_seed=args.peer_seed, peer_block=args.peer_block,
+                           peer_burst_loss=args.peer_burst_loss, auto_recover=args.auto_recover)
     mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
     console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
     console.evidence.event("control_mode", mode=args.control_mode,
-                           architecture="host-emulated per-agent 1-hop guidance over impaired peer bus",
+                           architecture=("hybrid supervisory waypoints with local peer fallback"
+                                         if args.control_mode == "hybrid" else
+                                         "host-emulated per-agent 1-hop guidance over impaired peer bus"),
                            peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
-                           peer_seed=args.peer_seed, peer_block=args.peer_block)
+                           peer_seed=args.peer_seed, peer_block=args.peer_block,
+                           peer_burst_loss=args.peer_burst_loss,
+                           auto_recover=args.auto_recover)
     print(f">> Run evidence: {console.evidence.directory}")
     try:
         console.launch_sitl()
@@ -930,7 +1007,17 @@ def main():
                                    delivered=channel.total_delivered,
                                    dropped_loss=channel.total_dropped_loss,
                                    dropped_range=channel.total_dropped_range,
+                                   dropped_stale_source=console.decentralized_guidance.peer_bus.rejected_stale_source,
+                                   rejected_out_of_order=console.decentralized_guidance.peer_bus.rejected_out_of_order,
                                    blocked_links=sorted(console.decentralized_guidance.peer_bus.blocked_links))
+            if console.control_mode == "hybrid":
+                console.evidence.event("hybrid_summary", coordinator_connected=console.coordinator_connected,
+                                       agents=[{
+                                           "drone": i + 1,
+                                           "mode": agent.hybrid_controller.get_drone_mode(i).value,
+                                           "alpha": agent.hybrid_controller.get_alpha(i),
+                                           "mode_switches": agent.hybrid_controller.switch_counts.get(i, 0),
+                                       } for i, agent in enumerate(console.decentralized_guidance.agents)])
         try:
             console.cleanup()
         finally:

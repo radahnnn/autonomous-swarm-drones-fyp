@@ -17,16 +17,20 @@ class PeerStateBus:
     def __init__(self, count: int, comm_range: float = 5.0,
                  packet_loss_rate: float = 0.0, latency_mean: float = 0.03,
                  latency_std: float = 0.005, timeout_s: float = 0.5,
-                 seed: Optional[int] = None):
+                 seed: Optional[int] = None, burst_loss: bool = False):
         self.count = int(count)
         self.timeout_s = float(timeout_s)
         self.channel = WirelessChannel(
             comm_range=comm_range, packet_loss_rate=packet_loss_rate,
             latency_mean=latency_mean, latency_std=latency_std, seed=seed,
+            use_gilbert_elliott=burst_loss,
         )
         self.graph: Dict[int, Set[int]] = {i: set() for i in range(count)}
         self.blocked_links: Set[Tuple[int, int]] = set()
         self.latest: List[Dict[int, dict]] = [dict() for _ in range(count)]
+        self.sequence = [0] * self.count
+        self.rejected_out_of_order = 0
+        self.rejected_stale_source = 0
 
     def set_graph(self, graph: Dict[int, Iterable[int]]) -> None:
         self.graph = {i: set(graph.get(i, ())) for i in range(self.count)}
@@ -42,13 +46,22 @@ class PeerStateBus:
             self.blocked_links.discard(key)
 
     def publish(self, positions: List[np.ndarray], velocities: List[np.ndarray],
-                active: List[bool], now: float) -> None:
+                active: List[bool], now: float,
+                source_times: Optional[List[float]] = None) -> None:
         """Broadcast each active peer's latest state to configured one-hop neighbors."""
+        source_times = source_times if source_times is not None else [now] * self.count
         for sender in range(self.count):
             if not active[sender]:
                 continue
+            state_time = float(source_times[sender])
+            # Do not stamp old telemetry as new just because the relay is ticking.
+            if state_time < 0 or state_time > now + 1e-4 or now - state_time > self.timeout_s:
+                self.rejected_stale_source += 1
+                continue
+            self.sequence[sender] += 1
             payload = {"position": np.asarray(positions[sender][:2], dtype=float).tolist(),
-                       "velocity": np.asarray(velocities[sender][:2], dtype=float).tolist()}
+                       "velocity": np.asarray(velocities[sender][:2], dtype=float).tolist(),
+                       "state_time": state_time, "sequence": self.sequence[sender]}
             for recipient in sorted(self.graph.get(sender, ())):
                 if not active[recipient] or (sender, recipient) in self.blocked_links:
                     continue
@@ -59,10 +72,16 @@ class PeerStateBus:
 
         for recipient in range(self.count):
             for packet in self.channel.receive(recipient, now):
+                previous = self.latest[recipient].get(packet.sender_id)
+                sequence = int(packet.payload["sequence"])
+                if previous is not None and sequence <= previous["sequence"]:
+                    self.rejected_out_of_order += 1
+                    continue
                 self.latest[recipient][packet.sender_id] = {
                     "position": np.asarray(packet.payload["position"], dtype=float),
                     "velocity": np.asarray(packet.payload["velocity"], dtype=float),
-                    "timestamp": packet.sent_time,
+                    "timestamp": float(packet.payload["state_time"]),
+                    "sequence": sequence,
                 }
 
     def neighbors(self, receiver: int, now: float) -> List[dict]:
@@ -80,5 +99,6 @@ class PeerStateBus:
                 "position": packet["position"] + packet["velocity"] * age,
                 "velocity": packet["velocity"].copy(),
                 "age": age,
+                "confidence": max(0.0, 1.0 - age / self.timeout_s),
             })
         return result
