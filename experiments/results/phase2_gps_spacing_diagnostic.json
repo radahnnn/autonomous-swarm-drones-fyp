@@ -1,0 +1,2616 @@
+{
+  "scope": "five-drone Phase 2 numerical moving V-to-line trial; corrected S1 only",
+  "initial_layout": "3 m V formation with 0.04 m deterministic jitter",
+  "mission": "12 s; 0.85 m/s target; V-to-line morph at 5 s",
+  "gates": {
+    "minimum_separation_m": 2.5,
+    "steady_error_m": 1.0
+  },
+  "interpretation": "Sensitivity diagnostic only; not physical-flight validation.",
+  "seeds": [
+    100,
+    123,
+    146,
+    169,
+    192,
+    215,
+    238,
+    261,
+    284,
+    307,
+    330,
+    353,
+    376,
+    399,
+    422,
+    445,
+    468,
+    491,
+    514,
+    537
+  ],
+  "summary": [
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.2884716442636766,
+      "worst_min_separation_m": 2.213384122026121,
+      "mean_final_error_m": 0.05270911435635022,
+      "mean_steady_error_m": 0.05663423160170525
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.1234951229291434,
+      "worst_min_separation_m": 2.039795178321305,
+      "mean_final_error_m": 0.08482017422085945,
+      "mean_steady_error_m": 0.18333731072313267
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.2884716442636766,
+      "worst_min_separation_m": 2.213384122026121,
+      "mean_final_error_m": 0.05270911435635022,
+      "mean_steady_error_m": 0.05663423160170525
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.189571777405733,
+      "worst_min_separation_m": 1.930212706570873,
+      "mean_final_error_m": 0.30455631524277754,
+      "mean_steady_error_m": 0.312923882472743
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.028847090298448,
+      "worst_min_separation_m": 1.7495138995736097,
+      "mean_final_error_m": 0.33948177517372696,
+      "mean_steady_error_m": 0.38701921849931703
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 2.189571777405733,
+      "worst_min_separation_m": 1.930212706570873,
+      "mean_final_error_m": 0.30455631524277754,
+      "mean_steady_error_m": 0.312923882472743
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.9995258038417743,
+      "worst_min_separation_m": 1.5031381253715945,
+      "mean_final_error_m": 0.608660300933475,
+      "mean_steady_error_m": 0.6242529539275867
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.8903802536364578,
+      "worst_min_separation_m": 1.3027158347780685,
+      "mean_final_error_m": 0.668272726091041,
+      "mean_steady_error_m": 0.6993333058055697
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.9995258038417743,
+      "worst_min_separation_m": 1.5031381253715945,
+      "mean_final_error_m": 0.608660300933475,
+      "mean_steady_error_m": 0.6242529539275867
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.114934574435508,
+      "worst_min_separation_m": 0.03756237908426487,
+      "mean_final_error_m": 1.8263062406282444,
+      "mean_steady_error_m": 1.8716156974642957
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.0307416103526936,
+      "worst_min_separation_m": 0.0019111113774804831,
+      "mean_final_error_m": 2.0083429526231718,
+      "mean_steady_error_m": 1.999028555693803
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "n": 20,
+      "passes": 0,
+      "pass_rate_wilson95": [
+        -1.3877787807814457e-17,
+        0.16113012549493322
+      ],
+      "mean_min_separation_m": 1.114934574435508,
+      "worst_min_separation_m": 0.03756237908426487,
+      "mean_final_error_m": 1.8263062406282444,
+      "mean_steady_error_m": 1.8716156974642957
+    }
+  ],
+  "raw": [
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 100,
+      "min_separation_m": 2.3058772834891075,
+      "final_error_m": 0.03282613916664662,
+      "steady_error_m": 0.05025023716698424,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 123,
+      "min_separation_m": 2.219226195238822,
+      "final_error_m": 0.04168342316933727,
+      "steady_error_m": 0.05255153507579641,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 146,
+      "min_separation_m": 2.273523726585246,
+      "final_error_m": 0.04347291866292743,
+      "steady_error_m": 0.05223939193535656,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 169,
+      "min_separation_m": 2.3117373064233027,
+      "final_error_m": 0.05586858601054643,
+      "steady_error_m": 0.05816928537926906,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 192,
+      "min_separation_m": 2.3241376144825483,
+      "final_error_m": 0.06186673723991208,
+      "steady_error_m": 0.056775999199325966,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 215,
+      "min_separation_m": 2.2663899550302062,
+      "final_error_m": 0.0796336548540532,
+      "steady_error_m": 0.06791946091342209,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 238,
+      "min_separation_m": 2.352446420025019,
+      "final_error_m": 0.06655541268541147,
+      "steady_error_m": 0.0711318146198605,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 261,
+      "min_separation_m": 2.2245780987260066,
+      "final_error_m": 0.04665735551386817,
+      "steady_error_m": 0.04620281729076992,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 284,
+      "min_separation_m": 2.3201630185893727,
+      "final_error_m": 0.043617011491635445,
+      "steady_error_m": 0.04435681072995631,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 307,
+      "min_separation_m": 2.285165362858846,
+      "final_error_m": 0.029733433397003406,
+      "steady_error_m": 0.04981689672006617,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 330,
+      "min_separation_m": 2.3095334939378467,
+      "final_error_m": 0.030427823678469697,
+      "steady_error_m": 0.03625357338339908,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 353,
+      "min_separation_m": 2.2942091292732303,
+      "final_error_m": 0.06733635558125568,
+      "steady_error_m": 0.06098377708451484,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 376,
+      "min_separation_m": 2.2544154511578487,
+      "final_error_m": 0.07760943954627336,
+      "steady_error_m": 0.07162143230946368,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 399,
+      "min_separation_m": 2.296317900197688,
+      "final_error_m": 0.04689852496042095,
+      "steady_error_m": 0.04114896826413803,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 422,
+      "min_separation_m": 2.3079401513800377,
+      "final_error_m": 0.02645578803275937,
+      "steady_error_m": 0.0452213016913691,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 445,
+      "min_separation_m": 2.299477793796833,
+      "final_error_m": 0.06100211646437482,
+      "steady_error_m": 0.06544516595021409,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 468,
+      "min_separation_m": 2.283586974624142,
+      "final_error_m": 0.038174977703320324,
+      "steady_error_m": 0.057699821315818814,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 491,
+      "min_separation_m": 2.3319315513193066,
+      "final_error_m": 0.024264823099219006,
+      "steady_error_m": 0.03511524249988133,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 514,
+      "min_separation_m": 2.213384122026121,
+      "final_error_m": 0.06364409794766966,
+      "steady_error_m": 0.05016215958360835,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 537,
+      "min_separation_m": 2.2953913361119986,
+      "final_error_m": 0.11645366792190003,
+      "steady_error_m": 0.11961894092089048,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 100,
+      "min_separation_m": 2.137309904457058,
+      "final_error_m": 0.08122749520955191,
+      "steady_error_m": 0.1753516252810134,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 123,
+      "min_separation_m": 2.039795178321305,
+      "final_error_m": 0.11702613221571545,
+      "steady_error_m": 0.16510900725947955,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 146,
+      "min_separation_m": 2.111613581456496,
+      "final_error_m": 0.11449445715812326,
+      "steady_error_m": 0.1511771510491625,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 169,
+      "min_separation_m": 2.148043514103634,
+      "final_error_m": 0.07945282610112349,
+      "steady_error_m": 0.1790032239137125,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 192,
+      "min_separation_m": 2.132912423885935,
+      "final_error_m": 0.07514413948839894,
+      "steady_error_m": 0.19096031154050763,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 215,
+      "min_separation_m": 2.095490193618732,
+      "final_error_m": 0.08815012593617487,
+      "steady_error_m": 0.17136772090393207,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 238,
+      "min_separation_m": 2.1829441558305342,
+      "final_error_m": 0.11367216063451588,
+      "steady_error_m": 0.16731890599101562,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 261,
+      "min_separation_m": 2.0637424099112556,
+      "final_error_m": 0.05705874452964734,
+      "steady_error_m": 0.1880302341862741,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 284,
+      "min_separation_m": 2.138252117371269,
+      "final_error_m": 0.09405746312470817,
+      "steady_error_m": 0.1897533081388897,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 307,
+      "min_separation_m": 2.1224600188154024,
+      "final_error_m": 0.06341605489292529,
+      "steady_error_m": 0.16497785323841693,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 330,
+      "min_separation_m": 2.1517413704780832,
+      "final_error_m": 0.06435200376287598,
+      "steady_error_m": 0.19462856329929737,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 353,
+      "min_separation_m": 2.14859102267347,
+      "final_error_m": 0.06951152455559288,
+      "steady_error_m": 0.1944107205269665,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 376,
+      "min_separation_m": 2.0835052508999765,
+      "final_error_m": 0.04936631044060102,
+      "steady_error_m": 0.21414029618291855,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 399,
+      "min_separation_m": 2.1326154866407654,
+      "final_error_m": 0.09808483367594387,
+      "steady_error_m": 0.1622533815145574,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 422,
+      "min_separation_m": 2.1447931929011155,
+      "final_error_m": 0.058410859561853073,
+      "steady_error_m": 0.18727702968872423,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 445,
+      "min_separation_m": 2.1562172139736506,
+      "final_error_m": 0.07649150651961208,
+      "steady_error_m": 0.19859574375302924,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 468,
+      "min_separation_m": 2.131240560695202,
+      "final_error_m": 0.11156285103291737,
+      "steady_error_m": 0.16066629356220705,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 491,
+      "min_separation_m": 2.1732595673265784,
+      "final_error_m": 0.08145974240894834,
+      "steady_error_m": 0.17672478085692625,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 514,
+      "min_separation_m": 2.0577220674176573,
+      "final_error_m": 0.11601762638110423,
+      "steady_error_m": 0.16329824355003741,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.04,
+      "seed": 537,
+      "min_separation_m": 2.1176532278047526,
+      "final_error_m": 0.08744662678685562,
+      "steady_error_m": 0.27170182002558535,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 100,
+      "min_separation_m": 2.3058772834891075,
+      "final_error_m": 0.03282613916664662,
+      "steady_error_m": 0.05025023716698424,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 123,
+      "min_separation_m": 2.219226195238822,
+      "final_error_m": 0.04168342316933727,
+      "steady_error_m": 0.05255153507579641,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 146,
+      "min_separation_m": 2.273523726585246,
+      "final_error_m": 0.04347291866292743,
+      "steady_error_m": 0.05223939193535656,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 169,
+      "min_separation_m": 2.3117373064233027,
+      "final_error_m": 0.05586858601054643,
+      "steady_error_m": 0.05816928537926906,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 192,
+      "min_separation_m": 2.3241376144825483,
+      "final_error_m": 0.06186673723991208,
+      "steady_error_m": 0.056775999199325966,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 215,
+      "min_separation_m": 2.2663899550302062,
+      "final_error_m": 0.0796336548540532,
+      "steady_error_m": 0.06791946091342209,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 238,
+      "min_separation_m": 2.352446420025019,
+      "final_error_m": 0.06655541268541147,
+      "steady_error_m": 0.0711318146198605,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 261,
+      "min_separation_m": 2.2245780987260066,
+      "final_error_m": 0.04665735551386817,
+      "steady_error_m": 0.04620281729076992,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 284,
+      "min_separation_m": 2.3201630185893727,
+      "final_error_m": 0.043617011491635445,
+      "steady_error_m": 0.04435681072995631,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 307,
+      "min_separation_m": 2.285165362858846,
+      "final_error_m": 0.029733433397003406,
+      "steady_error_m": 0.04981689672006617,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 330,
+      "min_separation_m": 2.3095334939378467,
+      "final_error_m": 0.030427823678469697,
+      "steady_error_m": 0.03625357338339908,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 353,
+      "min_separation_m": 2.2942091292732303,
+      "final_error_m": 0.06733635558125568,
+      "steady_error_m": 0.06098377708451484,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 376,
+      "min_separation_m": 2.2544154511578487,
+      "final_error_m": 0.07760943954627336,
+      "steady_error_m": 0.07162143230946368,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 399,
+      "min_separation_m": 2.296317900197688,
+      "final_error_m": 0.04689852496042095,
+      "steady_error_m": 0.04114896826413803,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 422,
+      "min_separation_m": 2.3079401513800377,
+      "final_error_m": 0.02645578803275937,
+      "steady_error_m": 0.0452213016913691,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 445,
+      "min_separation_m": 2.299477793796833,
+      "final_error_m": 0.06100211646437482,
+      "steady_error_m": 0.06544516595021409,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 468,
+      "min_separation_m": 2.283586974624142,
+      "final_error_m": 0.038174977703320324,
+      "steady_error_m": 0.057699821315818814,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 491,
+      "min_separation_m": 2.3319315513193066,
+      "final_error_m": 0.024264823099219006,
+      "steady_error_m": 0.03511524249988133,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 514,
+      "min_separation_m": 2.213384122026121,
+      "final_error_m": 0.06364409794766966,
+      "steady_error_m": 0.05016215958360835,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.04,
+      "seed": 537,
+      "min_separation_m": 2.2953913361119986,
+      "final_error_m": 0.11645366792190003,
+      "steady_error_m": 0.11961894092089048,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 100,
+      "min_separation_m": 2.251269315781648,
+      "final_error_m": 0.23277427999775988,
+      "steady_error_m": 0.2341456334114657,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 123,
+      "min_separation_m": 2.0216906816809055,
+      "final_error_m": 0.30530780547543024,
+      "steady_error_m": 0.3200983748480561,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 146,
+      "min_separation_m": 2.1671906376998247,
+      "final_error_m": 0.2854111121937783,
+      "steady_error_m": 0.29209429359103256,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 169,
+      "min_separation_m": 2.1905946687493634,
+      "final_error_m": 0.30330792307979054,
+      "steady_error_m": 0.33168998673938566,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 192,
+      "min_separation_m": 2.3446219211879433,
+      "final_error_m": 0.32125176157235874,
+      "steady_error_m": 0.3278462749681327,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 215,
+      "min_separation_m": 1.9624459730617236,
+      "final_error_m": 0.4249667260369316,
+      "steady_error_m": 0.3928601435185253,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 238,
+      "min_separation_m": 2.491322461870214,
+      "final_error_m": 0.41357972735738935,
+      "steady_error_m": 0.420143767920874,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 261,
+      "min_separation_m": 2.0235488676801348,
+      "final_error_m": 0.25369354040223674,
+      "steady_error_m": 0.22516152708276538,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 284,
+      "min_separation_m": 2.368759204893601,
+      "final_error_m": 0.2428484530586373,
+      "steady_error_m": 0.24288455545529522,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 307,
+      "min_separation_m": 1.930212706570873,
+      "final_error_m": 0.1526959464076023,
+      "steady_error_m": 0.22413221126458888,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 330,
+      "min_separation_m": 2.283270590191708,
+      "final_error_m": 0.18986995422054198,
+      "steady_error_m": 0.22470263482851519,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 353,
+      "min_separation_m": 2.181237739675759,
+      "final_error_m": 0.3900960027128229,
+      "steady_error_m": 0.3604553925568808,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 376,
+      "min_separation_m": 2.007239175657237,
+      "final_error_m": 0.4206690948579802,
+      "steady_error_m": 0.42365289799216005,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 399,
+      "min_separation_m": 2.215103145761544,
+      "final_error_m": 0.23091266744047984,
+      "steady_error_m": 0.18218306352299057,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 422,
+      "min_separation_m": 2.2985671632428826,
+      "final_error_m": 0.14849672970148203,
+      "steady_error_m": 0.1914771078445207,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 445,
+      "min_separation_m": 2.258228550227762,
+      "final_error_m": 0.4218777813330315,
+      "steady_error_m": 0.3871486419094914,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 468,
+      "min_separation_m": 2.269535437931544,
+      "final_error_m": 0.21640094157936426,
+      "steady_error_m": 0.287805894827794,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 491,
+      "min_separation_m": 2.4306801015691324,
+      "final_error_m": 0.1617613428026824,
+      "steady_error_m": 0.18170248881998938,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 514,
+      "min_separation_m": 1.955607447625526,
+      "final_error_m": 0.3474737187130562,
+      "steady_error_m": 0.31859700555318604,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 537,
+      "min_separation_m": 2.1403097570553307,
+      "final_error_m": 0.6277307959121948,
+      "steady_error_m": 0.6896957527992105,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 100,
+      "min_separation_m": 2.0830828912188877,
+      "final_error_m": 0.27268638139393636,
+      "steady_error_m": 0.3011505322572732,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 123,
+      "min_separation_m": 1.845972997474438,
+      "final_error_m": 0.4058588403703134,
+      "steady_error_m": 0.3484571770179472,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 146,
+      "min_separation_m": 1.9976132426631144,
+      "final_error_m": 0.4042121329250805,
+      "steady_error_m": 0.2958726021927751,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 169,
+      "min_separation_m": 2.0105621907453437,
+      "final_error_m": 0.3090362113402498,
+      "steady_error_m": 0.3946290521336303,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 192,
+      "min_separation_m": 2.209019086515649,
+      "final_error_m": 0.2807091976205099,
+      "steady_error_m": 0.36082565265798316,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 215,
+      "min_separation_m": 1.7976391431014604,
+      "final_error_m": 0.43943002262046205,
+      "steady_error_m": 0.48445442040083886,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 238,
+      "min_separation_m": 2.3394340678371823,
+      "final_error_m": 0.5128206986452637,
+      "steady_error_m": 0.4413070187762268,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 261,
+      "min_separation_m": 1.8786361385469932,
+      "final_error_m": 0.2563395783682809,
+      "steady_error_m": 0.3633996477116121,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 284,
+      "min_separation_m": 2.1789207555634773,
+      "final_error_m": 0.27468308111570994,
+      "steady_error_m": 0.3253711644805143,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 307,
+      "min_separation_m": 1.7495138995736097,
+      "final_error_m": 0.18920924829051664,
+      "steady_error_m": 0.2759899432449279,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 330,
+      "min_separation_m": 2.107820240659952,
+      "final_error_m": 0.1622152406781525,
+      "steady_error_m": 0.3721280298011744,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 353,
+      "min_separation_m": 2.0424445305092185,
+      "final_error_m": 0.3975745509980382,
+      "steady_error_m": 0.486577815621202,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 376,
+      "min_separation_m": 1.84650980045975,
+      "final_error_m": 0.4073439338638039,
+      "steady_error_m": 0.5492325446168398,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 399,
+      "min_separation_m": 2.044959028190035,
+      "final_error_m": 0.33621433111895216,
+      "steady_error_m": 0.2510644229417343,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 422,
+      "min_separation_m": 2.1324151911431057,
+      "final_error_m": 0.14237362816380933,
+      "steady_error_m": 0.31008701713799497,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 445,
+      "min_separation_m": 2.119029011571952,
+      "final_error_m": 0.4248715753624557,
+      "steady_error_m": 0.48887348960103855,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 468,
+      "min_separation_m": 2.12798218520448,
+      "final_error_m": 0.33229213507426797,
+      "steady_error_m": 0.23467817960746223,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 491,
+      "min_separation_m": 2.358075146280497,
+      "final_error_m": 0.17348278803925682,
+      "steady_error_m": 0.2525878870026595,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 514,
+      "min_separation_m": 1.775439251637351,
+      "final_error_m": 0.4120425245543428,
+      "steady_error_m": 0.31624881218484857,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.25,
+      "seed": 537,
+      "min_separation_m": 1.9318730070724663,
+      "final_error_m": 0.6562394029311371,
+      "steady_error_m": 0.8874489605976571,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 100,
+      "min_separation_m": 2.251269315781648,
+      "final_error_m": 0.23277427999775988,
+      "steady_error_m": 0.2341456334114657,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 123,
+      "min_separation_m": 2.0216906816809055,
+      "final_error_m": 0.30530780547543024,
+      "steady_error_m": 0.3200983748480561,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 146,
+      "min_separation_m": 2.1671906376998247,
+      "final_error_m": 0.2854111121937783,
+      "steady_error_m": 0.29209429359103256,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 169,
+      "min_separation_m": 2.1905946687493634,
+      "final_error_m": 0.30330792307979054,
+      "steady_error_m": 0.33168998673938566,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 192,
+      "min_separation_m": 2.3446219211879433,
+      "final_error_m": 0.32125176157235874,
+      "steady_error_m": 0.3278462749681327,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 215,
+      "min_separation_m": 1.9624459730617236,
+      "final_error_m": 0.4249667260369316,
+      "steady_error_m": 0.3928601435185253,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 238,
+      "min_separation_m": 2.491322461870214,
+      "final_error_m": 0.41357972735738935,
+      "steady_error_m": 0.420143767920874,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 261,
+      "min_separation_m": 2.0235488676801348,
+      "final_error_m": 0.25369354040223674,
+      "steady_error_m": 0.22516152708276538,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 284,
+      "min_separation_m": 2.368759204893601,
+      "final_error_m": 0.2428484530586373,
+      "steady_error_m": 0.24288455545529522,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 307,
+      "min_separation_m": 1.930212706570873,
+      "final_error_m": 0.1526959464076023,
+      "steady_error_m": 0.22413221126458888,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 330,
+      "min_separation_m": 2.283270590191708,
+      "final_error_m": 0.18986995422054198,
+      "steady_error_m": 0.22470263482851519,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 353,
+      "min_separation_m": 2.181237739675759,
+      "final_error_m": 0.3900960027128229,
+      "steady_error_m": 0.3604553925568808,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 376,
+      "min_separation_m": 2.007239175657237,
+      "final_error_m": 0.4206690948579802,
+      "steady_error_m": 0.42365289799216005,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 399,
+      "min_separation_m": 2.215103145761544,
+      "final_error_m": 0.23091266744047984,
+      "steady_error_m": 0.18218306352299057,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 422,
+      "min_separation_m": 2.2985671632428826,
+      "final_error_m": 0.14849672970148203,
+      "steady_error_m": 0.1914771078445207,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 445,
+      "min_separation_m": 2.258228550227762,
+      "final_error_m": 0.4218777813330315,
+      "steady_error_m": 0.3871486419094914,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 468,
+      "min_separation_m": 2.269535437931544,
+      "final_error_m": 0.21640094157936426,
+      "steady_error_m": 0.287805894827794,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 491,
+      "min_separation_m": 2.4306801015691324,
+      "final_error_m": 0.1617613428026824,
+      "steady_error_m": 0.18170248881998938,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 514,
+      "min_separation_m": 1.955607447625526,
+      "final_error_m": 0.3474737187130562,
+      "steady_error_m": 0.31859700555318604,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.25,
+      "seed": 537,
+      "min_separation_m": 2.1403097570553307,
+      "final_error_m": 0.6277307959121948,
+      "steady_error_m": 0.6896957527992105,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 100,
+      "min_separation_m": 2.099080777192765,
+      "final_error_m": 0.47340264994273773,
+      "steady_error_m": 0.4598502709898197,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 123,
+      "min_separation_m": 1.841948949629681,
+      "final_error_m": 0.6222205479796843,
+      "steady_error_m": 0.6438090335016409,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 146,
+      "min_separation_m": 2.0448972744883065,
+      "final_error_m": 0.5777053032129875,
+      "steady_error_m": 0.5825386532030025,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 169,
+      "min_separation_m": 1.849299862225244,
+      "final_error_m": 0.6023221819441701,
+      "steady_error_m": 0.6636822642025548,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 192,
+      "min_separation_m": 2.0797064436160237,
+      "final_error_m": 0.6321365918945763,
+      "steady_error_m": 0.65615826746988,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 215,
+      "min_separation_m": 1.5971024107782505,
+      "final_error_m": 0.8390040492287997,
+      "steady_error_m": 0.7835360194948885,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 238,
+      "min_separation_m": 2.474362651642888,
+      "final_error_m": 0.8298733398810721,
+      "steady_error_m": 0.8447510071587313,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 261,
+      "min_separation_m": 1.7845865716387677,
+      "final_error_m": 0.5055841800618458,
+      "steady_error_m": 0.4443251861874611,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 284,
+      "min_separation_m": 2.425342016809203,
+      "final_error_m": 0.4815404223041897,
+      "steady_error_m": 0.4862581578964246,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 307,
+      "min_separation_m": 1.5031381253715945,
+      "final_error_m": 0.309106624821219,
+      "steady_error_m": 0.4381058092063665,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 330,
+      "min_separation_m": 2.253001103490224,
+      "final_error_m": 0.38842876609683435,
+      "steady_error_m": 0.45697264897529144,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 353,
+      "min_separation_m": 2.0773453524713754,
+      "final_error_m": 0.7765278730099201,
+      "steady_error_m": 0.7219381452276639,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 376,
+      "min_separation_m": 1.7213974926511197,
+      "final_error_m": 0.8340405742522593,
+      "steady_error_m": 0.8466423383305999,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 399,
+      "min_separation_m": 2.1200814368596186,
+      "final_error_m": 0.45261455613260076,
+      "steady_error_m": 0.35643867958306097,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 422,
+      "min_separation_m": 1.9490445253764048,
+      "final_error_m": 0.304167741634986,
+      "steady_error_m": 0.3790064622379728,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 445,
+      "min_separation_m": 2.212422246336436,
+      "final_error_m": 0.8529836762575764,
+      "steady_error_m": 0.7743311760930971,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 468,
+      "min_separation_m": 2.252320961651237,
+      "final_error_m": 0.4356456596255489,
+      "steady_error_m": 0.5664102217000515,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 491,
+      "min_separation_m": 2.0828439255707996,
+      "final_error_m": 0.33201903799789845,
+      "steady_error_m": 0.3672010463958602,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 514,
+      "min_separation_m": 1.6736166904775607,
+      "final_error_m": 0.6870855335596573,
+      "steady_error_m": 0.6436631473940633,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 537,
+      "min_separation_m": 1.9489772585579845,
+      "final_error_m": 1.2367967088309364,
+      "steady_error_m": 1.3694405433033026,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 100,
+      "min_separation_m": 2.0191409530301843,
+      "final_error_m": 0.5205571448919855,
+      "steady_error_m": 0.5133560656301074,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 123,
+      "min_separation_m": 1.6830554952985488,
+      "final_error_m": 0.7635111786382789,
+      "steady_error_m": 0.7217631992491339,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 146,
+      "min_separation_m": 1.863424307138996,
+      "final_error_m": 0.7658175111251728,
+      "steady_error_m": 0.6148776311414129,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 169,
+      "min_separation_m": 1.7835713857758007,
+      "final_error_m": 0.5993648656911195,
+      "steady_error_m": 0.7246430150895848,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 192,
+      "min_separation_m": 2.113607110397273,
+      "final_error_m": 0.5566166111637046,
+      "steady_error_m": 0.6273247004454198,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 215,
+      "min_separation_m": 1.443628664814814,
+      "final_error_m": 0.8951086911752865,
+      "steady_error_m": 0.940680714326789,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 238,
+      "min_separation_m": 2.468814218458878,
+      "final_error_m": 0.9875436246344939,
+      "steady_error_m": 0.8775830725781141,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 261,
+      "min_separation_m": 1.6583149229485699,
+      "final_error_m": 0.5462225100636671,
+      "steady_error_m": 0.6042618750576103,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 284,
+      "min_separation_m": 2.2277003796258055,
+      "final_error_m": 0.5109851785749963,
+      "steady_error_m": 0.5365191753627325,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 307,
+      "min_separation_m": 1.3027158347780685,
+      "final_error_m": 0.36552787261847497,
+      "steady_error_m": 0.509466959573061,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 330,
+      "min_separation_m": 2.057525367267266,
+      "final_error_m": 0.33199482545902986,
+      "steady_error_m": 0.6063572459274109,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 353,
+      "min_separation_m": 1.9469421196264494,
+      "final_error_m": 0.8200349759884392,
+      "steady_error_m": 0.8695407573177111,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 376,
+      "min_separation_m": 1.573959069995794,
+      "final_error_m": 0.8547549479993751,
+      "steady_error_m": 0.9705499649441058,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 399,
+      "min_separation_m": 1.945041177353017,
+      "final_error_m": 0.645428213326352,
+      "steady_error_m": 0.4322284780188491,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 422,
+      "min_separation_m": 2.1177072762585336,
+      "final_error_m": 0.2968070215921578,
+      "steady_error_m": 0.4824389512893397,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 445,
+      "min_separation_m": 2.077098327229209,
+      "final_error_m": 0.8693595858365615,
+      "steady_error_m": 0.8619669826929846,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 468,
+      "min_separation_m": 2.124616849343513,
+      "final_error_m": 0.6019512951338636,
+      "steady_error_m": 0.4623060243144086,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 491,
+      "min_separation_m": 2.2271021075983697,
+      "final_error_m": 0.31184873022650544,
+      "steady_error_m": 0.38767078794391613,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 514,
+      "min_separation_m": 1.4707092227293528,
+      "final_error_m": 0.7717302651365221,
+      "steady_error_m": 0.6143991673829431,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 0.5,
+      "seed": 537,
+      "min_separation_m": 1.702930283060711,
+      "final_error_m": 1.350289472544835,
+      "steady_error_m": 1.6287313478257603,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 100,
+      "min_separation_m": 2.099080777192765,
+      "final_error_m": 0.47340264994273773,
+      "steady_error_m": 0.4598502709898197,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 123,
+      "min_separation_m": 1.841948949629681,
+      "final_error_m": 0.6222205479796843,
+      "steady_error_m": 0.6438090335016409,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 146,
+      "min_separation_m": 2.0448972744883065,
+      "final_error_m": 0.5777053032129875,
+      "steady_error_m": 0.5825386532030025,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 169,
+      "min_separation_m": 1.849299862225244,
+      "final_error_m": 0.6023221819441701,
+      "steady_error_m": 0.6636822642025548,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 192,
+      "min_separation_m": 2.0797064436160237,
+      "final_error_m": 0.6321365918945763,
+      "steady_error_m": 0.65615826746988,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 215,
+      "min_separation_m": 1.5971024107782505,
+      "final_error_m": 0.8390040492287997,
+      "steady_error_m": 0.7835360194948885,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 238,
+      "min_separation_m": 2.474362651642888,
+      "final_error_m": 0.8298733398810721,
+      "steady_error_m": 0.8447510071587313,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 261,
+      "min_separation_m": 1.7845865716387677,
+      "final_error_m": 0.5055841800618458,
+      "steady_error_m": 0.4443251861874611,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 284,
+      "min_separation_m": 2.425342016809203,
+      "final_error_m": 0.4815404223041897,
+      "steady_error_m": 0.4862581578964246,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 307,
+      "min_separation_m": 1.5031381253715945,
+      "final_error_m": 0.309106624821219,
+      "steady_error_m": 0.4381058092063665,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 330,
+      "min_separation_m": 2.253001103490224,
+      "final_error_m": 0.38842876609683435,
+      "steady_error_m": 0.45697264897529144,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 353,
+      "min_separation_m": 2.0773453524713754,
+      "final_error_m": 0.7765278730099201,
+      "steady_error_m": 0.7219381452276639,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 376,
+      "min_separation_m": 1.7213974926511197,
+      "final_error_m": 0.8340405742522593,
+      "steady_error_m": 0.8466423383305999,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 399,
+      "min_separation_m": 2.1200814368596186,
+      "final_error_m": 0.45261455613260076,
+      "steady_error_m": 0.35643867958306097,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 422,
+      "min_separation_m": 1.9490445253764048,
+      "final_error_m": 0.304167741634986,
+      "steady_error_m": 0.3790064622379728,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 445,
+      "min_separation_m": 2.212422246336436,
+      "final_error_m": 0.8529836762575764,
+      "steady_error_m": 0.7743311760930971,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 468,
+      "min_separation_m": 2.252320961651237,
+      "final_error_m": 0.4356456596255489,
+      "steady_error_m": 0.5664102217000515,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 491,
+      "min_separation_m": 2.0828439255707996,
+      "final_error_m": 0.33201903799789845,
+      "steady_error_m": 0.3672010463958602,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 514,
+      "min_separation_m": 1.6736166904775607,
+      "final_error_m": 0.6870855335596573,
+      "steady_error_m": 0.6436631473940633,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 0.5,
+      "seed": 537,
+      "min_separation_m": 1.9489772585579845,
+      "final_error_m": 1.2367967088309364,
+      "steady_error_m": 1.3694405433033026,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 100,
+      "min_separation_m": 1.215201114198239,
+      "final_error_m": 1.4364778908330278,
+      "steady_error_m": 1.3632763740741212,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 123,
+      "min_separation_m": 0.2007398796078332,
+      "final_error_m": 1.8909069569502883,
+      "steady_error_m": 1.953236803565521,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 146,
+      "min_separation_m": 1.590033773594418,
+      "final_error_m": 1.7479713015199834,
+      "steady_error_m": 1.745620477663174,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 169,
+      "min_separation_m": 0.03756237908426487,
+      "final_error_m": 1.7997999509385738,
+      "steady_error_m": 1.992494912464595,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 192,
+      "min_separation_m": 1.5734136581821339,
+      "final_error_m": 1.8763443250163074,
+      "steady_error_m": 1.9690848686536844,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 215,
+      "min_separation_m": 0.8709535455167866,
+      "final_error_m": 2.49603217369947,
+      "steady_error_m": 2.343713608606121,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 238,
+      "min_separation_m": 1.9987888654675348,
+      "final_error_m": 2.495933856370187,
+      "steady_error_m": 2.5455096185585644,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 261,
+      "min_separation_m": 0.9526573451801896,
+      "final_error_m": 1.5148707638729324,
+      "steady_error_m": 1.3231688710691962,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 284,
+      "min_separation_m": 2.272329498595997,
+      "final_error_m": 1.4368099983175218,
+      "steady_error_m": 1.46216977560339,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 307,
+      "min_separation_m": 0.24077482616953144,
+      "final_error_m": 0.9377225655957917,
+      "steady_error_m": 1.2974677703083934,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 330,
+      "min_separation_m": 1.668575004671138,
+      "final_error_m": 1.1848179637964116,
+      "steady_error_m": 1.3881921893833413,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 353,
+      "min_separation_m": 0.8938154972902621,
+      "final_error_m": 2.3228601584211903,
+      "steady_error_m": 2.166798449381066,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 376,
+      "min_separation_m": 1.0847800670157266,
+      "final_error_m": 2.4895691309850045,
+      "steady_error_m": 2.5460607128086625,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 399,
+      "min_separation_m": 1.748733971230197,
+      "final_error_m": 1.340404290586383,
+      "steady_error_m": 1.0564442684533126,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 422,
+      "min_separation_m": 0.7437721914729329,
+      "final_error_m": 0.9293936022965763,
+      "steady_error_m": 1.1310337332732816,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 445,
+      "min_separation_m": 1.1667356233213488,
+      "final_error_m": 2.5777322980136708,
+      "steady_error_m": 2.322375081912742,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 468,
+      "min_separation_m": 1.9488290886243318,
+      "final_error_m": 1.3146844214510234,
+      "steady_error_m": 1.6824814982610332,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 491,
+      "min_separation_m": 0.689019147417764,
+      "final_error_m": 1.0145863040371732,
+      "steady_error_m": 1.1126813243933598,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 514,
+      "min_separation_m": 1.2617473258225196,
+      "final_error_m": 2.0460226834993196,
+      "steady_error_m": 1.9423783534781198,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "centralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 537,
+      "min_separation_m": 0.14022868624700913,
+      "final_error_m": 3.673184176364052,
+      "steady_error_m": 4.088125257374232,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 100,
+      "min_separation_m": 0.9780399337567974,
+      "final_error_m": 1.4999540717006947,
+      "steady_error_m": 1.456008715633935,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 123,
+      "min_separation_m": 0.04031336168648464,
+      "final_error_m": 2.116419636191138,
+      "steady_error_m": 2.2277089311502167,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 146,
+      "min_separation_m": 1.3958698435623942,
+      "final_error_m": 2.25215522202629,
+      "steady_error_m": 1.9914896322378508,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 169,
+      "min_separation_m": 0.0019111113774804831,
+      "final_error_m": 1.7577298169078936,
+      "steady_error_m": 2.109843106151871,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 192,
+      "min_separation_m": 1.5401505434634808,
+      "final_error_m": 1.5781574851962346,
+      "steady_error_m": 1.7284823591593215,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 215,
+      "min_separation_m": 0.8265163005391156,
+      "final_error_m": 3.047450755403168,
+      "steady_error_m": 2.823310418382133,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 238,
+      "min_separation_m": 1.9811727452570769,
+      "final_error_m": 2.8641264812746994,
+      "steady_error_m": 2.637558308110596,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 261,
+      "min_separation_m": 0.912176233436966,
+      "final_error_m": 1.7116347738383972,
+      "steady_error_m": 1.6360247563442807,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 284,
+      "min_separation_m": 2.1617804195155848,
+      "final_error_m": 1.4755865695189354,
+      "steady_error_m": 1.4621399998923108,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 307,
+      "min_separation_m": 0.011247803574057314,
+      "final_error_m": 1.190961693450757,
+      "steady_error_m": 1.5364001231663758,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 330,
+      "min_separation_m": 1.5694318153993125,
+      "final_error_m": 1.0205968722395644,
+      "steady_error_m": 1.5526127986486968,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 353,
+      "min_separation_m": 0.5787959424317048,
+      "final_error_m": 2.5953556024117868,
+      "steady_error_m": 2.473842535046929,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 376,
+      "min_separation_m": 1.1060599481240856,
+      "final_error_m": 2.7176264425086565,
+      "steady_error_m": 2.723421514498319,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 399,
+      "min_separation_m": 1.5631214586085596,
+      "final_error_m": 1.9157034045052923,
+      "steady_error_m": 1.2542852754934481,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 422,
+      "min_separation_m": 0.7568350014344665,
+      "final_error_m": 0.9586733040636888,
+      "steady_error_m": 1.2045274556649286,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 445,
+      "min_separation_m": 1.0325703376133875,
+      "final_error_m": 2.6463479403302683,
+      "steady_error_m": 2.345414391314934,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 468,
+      "min_separation_m": 1.8368625178668494,
+      "final_error_m": 1.6828181329526404,
+      "steady_error_m": 1.5258806974571801,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 491,
+      "min_separation_m": 0.7166443489245398,
+      "final_error_m": 0.8806445515209596,
+      "steady_error_m": 1.0388680598670057,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 514,
+      "min_separation_m": 1.4903259804093092,
+      "final_error_m": 2.2246028775880933,
+      "steady_error_m": 1.8949420386121183,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "decentralized",
+      "gps_noise_std_m": 1.5,
+      "seed": 537,
+      "min_separation_m": 0.11500656007222015,
+      "final_error_m": 4.0303134188342735,
+      "steady_error_m": 4.357809997043608,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 100,
+      "min_separation_m": 1.215201114198239,
+      "final_error_m": 1.4364778908330278,
+      "steady_error_m": 1.3632763740741212,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 123,
+      "min_separation_m": 0.2007398796078332,
+      "final_error_m": 1.8909069569502883,
+      "steady_error_m": 1.953236803565521,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 146,
+      "min_separation_m": 1.590033773594418,
+      "final_error_m": 1.7479713015199834,
+      "steady_error_m": 1.745620477663174,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 169,
+      "min_separation_m": 0.03756237908426487,
+      "final_error_m": 1.7997999509385738,
+      "steady_error_m": 1.992494912464595,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 192,
+      "min_separation_m": 1.5734136581821339,
+      "final_error_m": 1.8763443250163074,
+      "steady_error_m": 1.9690848686536844,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 215,
+      "min_separation_m": 0.8709535455167866,
+      "final_error_m": 2.49603217369947,
+      "steady_error_m": 2.343713608606121,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 238,
+      "min_separation_m": 1.9987888654675348,
+      "final_error_m": 2.495933856370187,
+      "steady_error_m": 2.5455096185585644,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 261,
+      "min_separation_m": 0.9526573451801896,
+      "final_error_m": 1.5148707638729324,
+      "steady_error_m": 1.3231688710691962,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 284,
+      "min_separation_m": 2.272329498595997,
+      "final_error_m": 1.4368099983175218,
+      "steady_error_m": 1.46216977560339,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 307,
+      "min_separation_m": 0.24077482616953144,
+      "final_error_m": 0.9377225655957917,
+      "steady_error_m": 1.2974677703083934,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 330,
+      "min_separation_m": 1.668575004671138,
+      "final_error_m": 1.1848179637964116,
+      "steady_error_m": 1.3881921893833413,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 353,
+      "min_separation_m": 0.8938154972902621,
+      "final_error_m": 2.3228601584211903,
+      "steady_error_m": 2.166798449381066,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 376,
+      "min_separation_m": 1.0847800670157266,
+      "final_error_m": 2.4895691309850045,
+      "steady_error_m": 2.5460607128086625,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 399,
+      "min_separation_m": 1.748733971230197,
+      "final_error_m": 1.340404290586383,
+      "steady_error_m": 1.0564442684533126,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 422,
+      "min_separation_m": 0.7437721914729329,
+      "final_error_m": 0.9293936022965763,
+      "steady_error_m": 1.1310337332732816,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 445,
+      "min_separation_m": 1.1667356233213488,
+      "final_error_m": 2.5777322980136708,
+      "steady_error_m": 2.322375081912742,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 468,
+      "min_separation_m": 1.9488290886243318,
+      "final_error_m": 1.3146844214510234,
+      "steady_error_m": 1.6824814982610332,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 491,
+      "min_separation_m": 0.689019147417764,
+      "final_error_m": 1.0145863040371732,
+      "steady_error_m": 1.1126813243933598,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 514,
+      "min_separation_m": 1.2617473258225196,
+      "final_error_m": 2.0460226834993196,
+      "steady_error_m": 1.9423783534781198,
+      "pass_criteria": false
+    },
+    {
+      "profile": "sitl_corrected_s1",
+      "mode": "hybrid_proposed",
+      "gps_noise_std_m": 1.5,
+      "seed": 537,
+      "min_separation_m": 0.14022868624700913,
+      "final_error_m": 3.673184176364052,
+      "steady_error_m": 4.088125257374232,
+      "pass_criteria": false
+    }
+  ]
+}

@@ -9,6 +9,7 @@ Reports Mean +/- Standard Deviation across multiple random seeds.
 
 import os
 import shutil
+from typing import Optional
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -27,6 +28,7 @@ def run_single_trial(
     seed: int = 42,
     naive_switching: bool = False,
     initial_layout: str = "scattered",
+    gps_noise_std: Optional[float] = None,
 ):
     rng = np.random.default_rng(seed)
     if initial_layout == "formation":
@@ -50,6 +52,7 @@ def run_single_trial(
         packet_loss_rate=loss_rate,
         latency_mean=0.03,  # 30ms nominal latency
         dt=0.05,
+        gps_noise_std=gps_noise_std,
         use_velocity_feedforward=True,
         seed=seed,
     )

@@ -69,6 +69,35 @@ a safety validation or claim that the S4 bridge improves Phase 2 performance.
 The separate ten-drone standalone SITL controller has a different path and
 its own validation report.
 
+### Spacing diagnosis: GPS noise and controller threshold
+
+`experiments/diagnose_phase2_gps_spacing.py` held corrected S1 dynamics, the
+three-metre V start, moving reference, and V-to-line morph constant while
+varying position-noise standard deviation across 20 seeds per mode.
+
+| Position noise | Centralized mean minimum / worst | Decentralized mean minimum / worst | Hybrid mean minimum / worst | Passes across 60 runs |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.04 m | 2.288 / 2.213 m | 2.123 / 2.040 m | 2.288 / 2.213 m | 0/60 |
+| 0.25 m | 2.190 / 1.930 m | 2.029 / 1.750 m | 2.190 / 1.930 m | 0/60 |
+| 0.50 m | 2.000 / 1.503 m | 1.890 / 1.303 m | 2.000 / 1.503 m | 0/60 |
+| 1.50 m | 1.115 / 0.038 m | 1.031 / 0.002 m | 1.115 / 0.038 m | 0/60 |
+
+Even at 4 cm position noise, none of these 60 runs met both the 2.5 m
+separation and 1 m steady-error gates. The steady-error gate passed in all 60
+runs at 0.04 m and 0.25 m, 57/60 at 0.50 m, and 0/60 at 1.50 m; the spacing
+gate passed in none. At the profile's default 1.5 m noise, mean steady error
+rose to 1.87–2.00 m and worst sampled clearance nearly reached zero. Noise
+makes the failure much worse, but it is not the only cause: the
+current APF repulsion activates at 1.5 m, below the 2.5 m project gate, and
+does not enforce stopping distance or an uncertainty margin.
+
+A temporary additive/priority repulsion override was checked on one seed and
+made spacing worse; it was discarded. A proper fix needs a tested pairwise
+safety constraint with priority over tracking, delayed/noisy neighbor-state
+handling, and a feasible formation path. Simply increasing the APF radius or
+reducing sensor noise is not enough evidence of a fix. Raw noise-sweep data
+are in `experiments/results/phase2_gps_spacing_diagnostic.json`.
+
 For comparison with the branch's earlier Phase 2 output, the S4-only run
 using the original `scattered` layout is preserved in
 `experiments/results/phase2_s4_bridge_20seed.json`. That layout can start
@@ -82,11 +111,12 @@ python3 -m experiments.reconcile_tracking_fits
 python3 -m experiments.run_corrected_phase2 --seeds 20 \
   --initial-layout formation \
   --output experiments/results/phase2_s4_formation_20seed.json
+python3 -m experiments.diagnose_phase2_gps_spacing --seeds 20
 python3 -m pytest -q
 ```
 
-Next, diagnose the Phase 2 formation/avoidance transitions and design a
-native position-setpoint controller so S4 can be evaluated without the
+Next, design and validate a pairwise safety controller and feasible formation
+transition, then design a native position-setpoint controller so S4 can be evaluated without the
 synthetic inverse bridge. Refit with a separate training segment of a swarm
 mission, reserve its remaining segment for validation, and report uncertainty
 from more airframes and repeats. Physical parameters still require measured
