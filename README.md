@@ -1,6 +1,6 @@
 # Autonomous Swarm Drones
 
-Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor: Dr. Abdul Ghafoor · Status summarized: 20 October 2026
+Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor: Dr. Abdul Ghafoor · Status summarized: 24 October 2026
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
@@ -18,9 +18,12 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The
 
 ## Branches and project state
 
+For the plain-language map of local folders, branches, and which copy to use, read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+
 | Branch or tag | Purpose | State |
 |---|---|---|
 | `master` | Standalone 2D demo baseline and run evidence | The earlier `demo-ready-2026-10-12` tag remains at `2620f585`; `demo-2d-verified-2026-10-12` marks the consolidated five-drone demo checkpoint. |
+| `work/decentralized-sitl-20261020` | Experimental 10-drone control and three-mode comparison | Separate from the demo baseline; includes 10-drone 2D work and generated Gazebo world support. |
 | `hw-matched-identification` | SITL position-controller identification study | Kept separate from the demo branch. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
 | `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved locally as a historical savepoint; not part of the current GitHub demo baseline. |
 
@@ -41,7 +44,7 @@ These are results from local consolidated copies on one development machine. The
 
 ## Work kept separate
 
-Experimental host-side hybrid guidance and presentation drafts remain uncommitted in the local demo working copy. The live hybrid runs did not pass the recorded acceptance criteria, so they are not part of this demo baseline. The uneven-timestamp timing correction and regression test also remain uncommitted in the identification working copy. Physical-aircraft communication and flight tests remain future work.
+Experimental host-side hybrid guidance and presentation drafts are kept on a separate experimental/archive branch; they are not part of this demo baseline. The uneven-timestamp timing correction and regression test are on the separate corrected Phase 2 branch. Physical-aircraft communication and flight tests remain future work.
 
 ## Quick start
 
