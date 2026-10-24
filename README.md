@@ -12,6 +12,7 @@ This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-L
 | Explore ten-drone 2D centralized, decentralized, and hybrid control | [Experimental branch](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/decentralized-sitl-20261020) and its [validation report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/decentralized-sitl-20261020/docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md) |
 | Study controller identification and corrected Phase 2 timing | [Identification study](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/hw-matched-identification) and [corrected rerun](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/corrected-phase2-20261020) |
 | Find local folders, branch roles, and preserved checkpoints | [Project state and history](docs/PROJECT_STATE.md) |
+| Read old Claude and session handoffs | [Historical handoff archive](docs/history/agent-handoffs/README.md) |
 
 ## Current implementation
 

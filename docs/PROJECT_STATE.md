@@ -33,6 +33,8 @@ Older local branch tips such as `milestone/phase1-stable`, `unified-swarm-consol
 
 Tags and branches are retained for recovery. A tag identifies a historical commit; it does not mean every feature at that stage passed a later acceptance test.
 
+The older Claude/session handoffs are preserved under [`docs/history/agent-handoffs/`](history/agent-handoffs/README.md). They describe past states and are separate from the current run instructions.
+
 ## The short version
 
 This project is stored in several Git working copies under `working-copies/`. Each is a separate checkout, and the hardware-identification checkout has its own Git repository. Do not edit an old backup when you mean to change the current project.
