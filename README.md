@@ -43,9 +43,9 @@ For the plain-language map of local folders, branches, and which copy to use, re
 | `work/corrected-phase2-20261020` | Corrected identification Phase 2 timing and profile study | Separate identification checkout; inspect its report for corrected metrics and limitations. |
 | `archive/*` | Preserved experimental working snapshots | Historical/recovery branches; not stable demo baselines. |
 | `hw-matched-identification` | SITL position-controller identification study | Kept separate from the demo branch. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
-| `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved locally as a historical savepoint; not part of the current GitHub demo baseline. |
+| `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved on GitHub as a historical savepoint; not part of the current demo baseline. |
 
-The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. The new model is not yet used in the simulator's Phase 2 experiments.
+The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. The corrected S1 timing profile was used in a separate Phase 2 sensitivity rerun. The more accurate S4 cascade model has not yet been integrated into Phase 2; see the [corrected Phase 2 report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/corrected-phase2-20261020/docs/reports/PHASE2_CORRECTED_TIMING_2026-10-20.md).
 
 The identification results are preliminary: one default SITL airframe, two repeats per step condition, no confidence intervals, and horizontal motion only. The study does not identify physical mass, thrust, or inertia and has not been validated against real-flight logs. See [identification report on the research branch](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/hw-matched-identification/docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md) for methods, raw-data locations, comparisons, and limitations.
 
@@ -88,7 +88,7 @@ For Gazebo, first start the matching Gazebo world/plugin as described in the con
 python3 -m sitl.swarm_console --drones 5 --gazebo
 ```
 
-Gazebo flight has not yet passed the console's EKF readiness gate on the tested laptop. Do not bypass arming or EKF checks to make a demo proceed.
+The five-drone Gazebo run passed the console's EKF readiness gate after convergence on 20 October. See the validation report above for that run's results and limits.
 
 ## Main directories
 
