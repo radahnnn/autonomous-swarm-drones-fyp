@@ -1,0 +1,101 @@
+{
+  "kind": "matched_three_mode_sitl_comparison",
+  "drones": 10,
+  "mission": {
+    "formation": "v",
+    "goal_ne_m": [
+      2.0,
+      0.0
+    ],
+    "target_altitude_m": 5.0,
+    "horizontal_and_vertical_convergence_tolerance_m": 0.5,
+    "peer_channel_for_decentralized_and_hybrid": {
+      "peer_loss": 0.02,
+      "peer_latency_ms": 25.0,
+      "peer_jitter_ms": 5.0,
+      "peer_burst_loss": false
+    },
+    "paired_seed": 1024
+  },
+  "results": {
+    "centralized": {
+      "terminal_snapshot_utc": "2026-10-24T09:23:11.595823+00:00",
+      "terminal_snapshot_p95_3d_slot_error_m": 0.039812471923960494,
+      "minimum_sampled_separation_m": 4.1704236062027515,
+      "converged": true,
+      "all_landed_disarmed": true,
+      "evidence_samples": 100,
+      "run_start": {
+        "utc": "2026-10-24T09:21:19.508309+00:00",
+        "elapsed_s": 0.005,
+        "kind": "run_start",
+        "mode": "standalone",
+        "drones": 10,
+        "git_head": "eaf3a474e0994435e4408fb663066401894ac308",
+        "working_tree_dirty": true,
+        "criteria": {
+          "connected_drones": "All requested vehicles connect and become EKF ready",
+          "landing": "All requested vehicles report disarmed after LAND",
+          "minimum_separation_m": 2.5,
+          "p95_settled_slot_error_m": 1.0,
+          "maximum_heartbeat_age_s": 3.5
+        }
+      },
+      "source_summary": "runs/centralized/standalone-10-20261024/summary.json"
+    },
+    "decentralized": {
+      "terminal_snapshot_utc": 1792837134.2283487,
+      "terminal_snapshot_p95_3d_slot_error_m": 0.30862484065943024,
+      "minimum_sampled_separation_m": 4.126147252284882,
+      "converged": true,
+      "all_landed_disarmed": true,
+      "evidence_samples": 13,
+      "source_summary": "runs/independent/external-sitl-20261024T101746.150977Z/external_agent_sitl_summary.json",
+      "reproducibility": {
+        "git_revision": "eaf3a474e0994435e4408fb663066401894ac308",
+        "working_tree_dirty": true,
+        "tracked_diff_sha256": "5c3712f4f7bb08c72900c3801ea1ec830bca74e7e8b3f8ae9274c7bccdec182a",
+        "configuration_sha256": "7ac95e78d2942d3254e49ab59acfc347e5e1ce59212b2fd592adf2ee42df9013",
+        "sitl_params_sha256": "2988f1ec30c44b9fd132b6a8f35fb17a97e9a9b79bea27a8e98fa6628f66d43f",
+        "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+      },
+      "coordinator_switch_test": null,
+      "soak_test": null
+    },
+    "hybrid": {
+      "terminal_snapshot_utc": 1792837565.940498,
+      "terminal_snapshot_p95_3d_slot_error_m": 0.2428225889011934,
+      "minimum_sampled_separation_m": 4.157649348282163,
+      "converged": true,
+      "all_landed_disarmed": true,
+      "evidence_samples": 9,
+      "source_summary": "runs/independent/external-sitl-20261024T102501.767100Z/external_agent_sitl_summary.json",
+      "reproducibility": {
+        "git_revision": "eaf3a474e0994435e4408fb663066401894ac308",
+        "working_tree_dirty": true,
+        "tracked_diff_sha256": "9ada36cf55417d513840495d98f2a79005be5a09d3c41e893e2dc2bd6b38e5a3",
+        "configuration_sha256": "b101e18554c78b0459400cfe82159c660f10c6a8b517bf582a93fa96e61c6f88",
+        "sitl_params_sha256": "2988f1ec30c44b9fd132b6a8f35fb17a97e9a9b79bea27a8e98fa6628f66d43f",
+        "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39"
+      },
+      "coordinator_switch_test": null,
+      "soak_test": null
+    }
+  },
+  "acceptance": {
+    "all_modes_converged": true,
+    "all_modes_landed_disarmed": true,
+    "all_modes_sampled_separation_at_least_2_5m": true
+  },
+  "scope_and_caveats": [
+    "One real ArduPilot SITL run per mode; no confidence intervals or statistical significance claim.",
+    "All modes used ten vehicles, V formation, 5 m target altitude, 2 m north goal, and the same convergence tolerance.",
+    "Decentralized and hybrid used the same peer-channel profile and seed. Centralized has no peer-to-peer channel by design.",
+    "The independent-agent modes use separate agent processes and loopback UDP; this is not a separate-computer LAN or physical-radio test.",
+    "The terminal p95 is computed across ten vehicles at the last settled/aligned mission snapshot; centralized evidence uses telemetry positions versus assigned slots, while independent evidence uses validator position-versus-slot errors.",
+    "Minimum separation is sampled telemetry, not a continuous collision guarantee."
+  ],
+  "pass": true
+}

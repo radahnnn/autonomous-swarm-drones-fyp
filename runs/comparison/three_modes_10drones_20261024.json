@@ -1,0 +1,1285 @@
+{
+  "paired_differences": {
+    "nominal_impaired": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.01837096864671136,
+          "low": 0.004942907076720219,
+          "high": 0.0317990302167025
+        },
+        "minimum_separation_m": {
+          "mean": -0.0007737400277044948,
+          "low": -0.00193491610363888,
+          "high": 0.00038743604822989036
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": -2.0889187214125776e-05,
+          "low": -0.00019972380289643013,
+          "high": 0.00015794542846817857
+        },
+        "minimum_separation_m": {
+          "mean": 0.0,
+          "low": 0.0,
+          "high": 0.0
+        }
+      }
+    },
+    "repeated_outage": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.07083741723617294,
+          "low": 0.04112615289745136,
+          "high": 0.10054868157489452
+        },
+        "minimum_separation_m": {
+          "mean": 0.0011763653826605935,
+          "low": -0.0020758094345866467,
+          "high": 0.004428540199907834
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 8.389382936832001e-05,
+          "low": -1.9350397563898763e-05,
+          "high": 0.00018713805630053877
+        },
+        "minimum_separation_m": {
+          "mean": -0.008648874129369188,
+          "low": -0.02447328024462185,
+          "high": 0.007175531985883473
+        }
+      }
+    },
+    "burst_repeated_outage": {
+      "decentralized_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.038393760033283666,
+          "low": 0.010349257516754216,
+          "high": 0.06643826254981311
+        },
+        "minimum_separation_m": {
+          "mean": 0.0067728721212577895,
+          "low": -0.023908621181562076,
+          "high": 0.03745436542407766
+        }
+      },
+      "hybrid_minus_centralized": {
+        "steady_mean_error_m": {
+          "mean": 6.026199176742409e-06,
+          "low": -0.00042555210961691076,
+          "high": 0.00043760450797039553
+        },
+        "minimum_separation_m": {
+          "mean": -0.05744877343328243,
+          "low": -0.10224952484394674,
+          "high": -0.012648022022618124
+        }
+      }
+    }
+  },
+  "scope": "Pure Python engine; not console/SITL or hardware validation",
+  "dynamics": "assumed_baseline; avoids invalid old fitted profile",
+  "reproducibility": {
+    "seed_start": 20261020,
+    "trials_per_cell": 10,
+    "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "revision": "eaf3a474e0994435e4408fb663066401894ac308",
+    "working_tree_dirty": true,
+    "tracked_diff_sha256": "dc68e5612c0edcb876aeaed5299d2dc86c0a05a048fe37005f545b0d23b8026f"
+  },
+  "conditions": {
+    "drones": 10,
+    "spacing_m": 3,
+    "dt_s": 0.05,
+    "duration_s": 30,
+    "packet_loss": 0.1,
+    "latency_mean_s": 0.05,
+    "gps_noise_std_m": 0.08,
+    "mission": "hold 2s, north .4m/s until 20s, hold to 30s",
+    "outages_s": [
+      [
+        5,
+        8
+      ],
+      [
+        15,
+        18
+      ]
+    ],
+    "trials_per_cell": 10
+  },
+  "criteria": {
+    "minimum_separation_m": 2.5,
+    "steady_p95_error_m": 1
+  },
+  "caveats": [
+    "Identical seeds/configuration, not guaranteed identical delivered packets: distances affect transport.",
+    "All modes use centrally supplied goals; decentralized refers to local control.",
+    "Engine controllers differ from SITL adapter; no reliability claim beyond these trials."
+  ],
+  "summary": {
+    "nominal_impaired": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.10829897948058638,
+          "low": 0.07322398693877727,
+          "high": 0.1433739720223955
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11683145209419896,
+          "low": 0.08113283005783878,
+          "high": 0.15253007413055913
+        },
+        "minimum_separation_m": {
+          "mean": 2.723719506352933,
+          "low": 2.6728045088629573,
+          "high": 2.7746345038429086
+        },
+        "passes": 10
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.12666994812729773,
+          "low": 0.10146404875916087,
+          "high": 0.1518758474954346
+        },
+        "steady_p95_error_m": {
+          "mean": 0.17526715479940064,
+          "low": 0.14796480770131604,
+          "high": 0.20256950189748524
+        },
+        "minimum_separation_m": {
+          "mean": 2.7229457663252283,
+          "low": 2.6720037300529174,
+          "high": 2.7738878025975393
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.10827809029337225,
+          "low": 0.07319396256906327,
+          "high": 0.14336221801768123
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11680161511427056,
+          "low": 0.08108938874646722,
+          "high": 0.15251384148207392
+        },
+        "minimum_separation_m": {
+          "mean": 2.723719506352933,
+          "low": 2.6728045088629573,
+          "high": 2.7746345038429086
+        },
+        "passes": 10
+      }
+    },
+    "repeated_outage": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.10829039117475256,
+          "low": 0.07323413090148712,
+          "high": 0.143346651448018
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11682251596579793,
+          "low": 0.08113347592522485,
+          "high": 0.152511556006371
+        },
+        "minimum_separation_m": {
+          "mean": 2.7232344263491464,
+          "low": 2.6723428106091562,
+          "high": 2.7741260420891365
+        },
+        "passes": 10
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.17912780841092552,
+          "low": 0.16291501310042972,
+          "high": 0.1953406037214213
+        },
+        "steady_p95_error_m": {
+          "mean": 0.2736841166785242,
+          "low": 0.2428843400271121,
+          "high": 0.3044838933299363
+        },
+        "minimum_separation_m": {
+          "mean": 2.724410791731807,
+          "low": 2.67333033422158,
+          "high": 2.775491249242034
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.1083742850041209,
+          "low": 0.07337211974527068,
+          "high": 0.14337645026297113
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11678221890464169,
+          "low": 0.08108690580487157,
+          "high": 0.1524775320044118
+        },
+        "minimum_separation_m": {
+          "mean": 2.714585552219777,
+          "low": 2.665055625895622,
+          "high": 2.764115478543932
+        },
+        "passes": 10
+      }
+    },
+    "burst_repeated_outage": {
+      "centralized": {
+        "steady_mean_error_m": {
+          "mean": 0.10828408457048996,
+          "low": 0.07323158945504243,
+          "high": 0.1433365796859375
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11679125413071326,
+          "low": 0.081088568530473,
+          "high": 0.15249393973095351
+        },
+        "minimum_separation_m": {
+          "mean": 2.689012059655416,
+          "low": 2.648747731710063,
+          "high": 2.7292763876007693
+        },
+        "passes": 10
+      },
+      "decentralized": {
+        "steady_mean_error_m": {
+          "mean": 0.1466778446037736,
+          "low": 0.1269192886603992,
+          "high": 0.16643640054714798
+        },
+        "steady_p95_error_m": {
+          "mean": 0.2055923242159888,
+          "low": 0.17920722363720368,
+          "high": 0.23197742479477393
+        },
+        "minimum_separation_m": {
+          "mean": 2.6957849317766738,
+          "low": 2.6382886495062534,
+          "high": 2.753281214047094
+        },
+        "passes": 10
+      },
+      "hybrid": {
+        "steady_mean_error_m": {
+          "mean": 0.1082901107696667,
+          "low": 0.0735583187958404,
+          "high": 0.143021902743493
+        },
+        "steady_p95_error_m": {
+          "mean": 0.11676399039783243,
+          "low": 0.0812407855829603,
+          "high": 0.15228719521270456
+        },
+        "minimum_separation_m": {
+          "mean": 2.631563286222134,
+          "low": 2.5854708748513433,
+          "high": 2.6776556975929244
+        },
+        "passes": 10
+      }
+    }
+  },
+  "results": [
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.08588330174527782,
+      "steady_p95_error_m": 0.09327464116000797,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11711336031605284,
+      "steady_p95_error_m": 0.1772759903168371,
+      "minimum_separation_m": 2.6122667641637953,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.08588412698384802,
+      "steady_p95_error_m": 0.09328011515235292,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.07883835992318212,
+      "steady_p95_error_m": 0.0821574538177408,
+      "minimum_separation_m": 2.643994844342052,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11766637235576285,
+      "steady_p95_error_m": 0.17543006992943186,
+      "minimum_separation_m": 2.643730517307153,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.07883835992318212,
+      "steady_p95_error_m": 0.0821574538177408,
+      "minimum_separation_m": 2.643994844342052,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.12382524224361603,
+      "steady_p95_error_m": 0.1386277746802307,
+      "minimum_separation_m": 2.7714899955549925,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.14624468459153678,
+      "steady_p95_error_m": 0.19030530131370998,
+      "minimum_separation_m": 2.7712538480605016,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.12382351629148705,
+      "steady_p95_error_m": 0.13862773748097829,
+      "minimum_separation_m": 2.7714899955549925,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.0790739053847827,
+      "steady_p95_error_m": 0.08853238287491731,
+      "minimum_separation_m": 2.758510013099081,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10979935357058337,
+      "steady_p95_error_m": 0.1676591453197135,
+      "minimum_separation_m": 2.758298112220476,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.07841366073904835,
+      "steady_p95_error_m": 0.08822615901527396,
+      "minimum_separation_m": 2.758510013099081,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11460690048955481,
+      "steady_p95_error_m": 0.1238039044943067,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11967385375523415,
+      "steady_p95_error_m": 0.1364942450473622,
+      "minimum_separation_m": 2.6690237670431305,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1146069004895548,
+      "steady_p95_error_m": 0.1238039044943067,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.06943018384863887,
+      "steady_p95_error_m": 0.08062076539916442,
+      "minimum_separation_m": 2.7661534945585453,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11078344942546199,
+      "steady_p95_error_m": 0.18825820392757928,
+      "minimum_separation_m": 2.7659461135603225,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.06943018384905172,
+      "steady_p95_error_m": 0.08062076540193827,
+      "minimum_separation_m": 2.7661534945585453,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.13183501297527384,
+      "steady_p95_error_m": 0.13783930985711443,
+      "minimum_separation_m": 2.7302176226749104,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.12500038308767006,
+      "steady_p95_error_m": 0.1730719399656647,
+      "minimum_separation_m": 2.7248297282458913,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.1319441875971486,
+      "steady_p95_error_m": 0.1378425723982284,
+      "minimum_separation_m": 2.7302176226749104,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10811065878912571,
+      "steady_p95_error_m": 0.11563104725393125,
+      "minimum_separation_m": 2.828604427781472,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.11763824838456488,
+      "steady_p95_error_m": 0.17151717738402275,
+      "minimum_separation_m": 2.8284232987832008,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.10811065878912567,
+      "steady_p95_error_m": 0.1156310472539313,
+      "minimum_separation_m": 2.828604427781472,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.0612241892376067,
+      "steady_p95_error_m": 0.06781166765491223,
+      "minimum_separation_m": 2.789649877889417,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.08533765158188183,
+      "steady_p95_error_m": 0.11255308882142964,
+      "minimum_separation_m": 2.7894805062971213,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.06156913177442348,
+      "steady_p95_error_m": 0.06781166765491212,
+      "minimum_separation_m": 2.789649877889417,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.23016204016880512,
+      "steady_p95_error_m": 0.24001557374966367,
+      "minimum_separation_m": 2.666523805732021,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.21744212420422854,
+      "steady_p95_error_m": 0.2601063859682555,
+      "minimum_separation_m": 2.666205007570694,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "nominal_impaired",
+      "steady_mean_error_m": 0.23016017649685266,
+      "steady_p95_error_m": 0.240014728473043,
+      "minimum_separation_m": 2.666523805732021,
+      "pass_criteria": true,
+      "switches": 0
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.08592404801779326,
+      "steady_p95_error_m": 0.09344786097365677,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.19350949770897372,
+      "steady_p95_error_m": 0.31223367697883225,
+      "minimum_separation_m": 2.6122667641637953,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.08596272361579327,
+      "steady_p95_error_m": 0.09360720915837484,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.07887806086034761,
+      "steady_p95_error_m": 0.08215906066884272,
+      "minimum_separation_m": 2.643994844342052,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.18996038950162525,
+      "steady_p95_error_m": 0.3108726075706237,
+      "minimum_separation_m": 2.643730517307153,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.0789215010824199,
+      "steady_p95_error_m": 0.08216071278468744,
+      "minimum_separation_m": 2.643994844342052,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.12387170997222405,
+      "steady_p95_error_m": 0.1386292812813818,
+      "minimum_separation_m": 2.7714899955549925,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.20716084397793452,
+      "steady_p95_error_m": 0.325608006405814,
+      "minimum_separation_m": 2.7712538480605016,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.12394079196695769,
+      "steady_p95_error_m": 0.13863152223043032,
+      "minimum_separation_m": 2.70167567389807,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.07911093076147206,
+      "steady_p95_error_m": 0.08853365712418733,
+      "minimum_separation_m": 2.758510013099081,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17085077768759127,
+      "steady_p95_error_m": 0.2943792060951539,
+      "minimum_separation_m": 2.758298112220476,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.07942521888934424,
+      "steady_p95_error_m": 0.08825110141944134,
+      "minimum_separation_m": 2.758510013099081,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.11455708146193955,
+      "steady_p95_error_m": 0.123624885647952,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.16892647751718545,
+      "steady_p95_error_m": 0.23590844857260113,
+      "minimum_separation_m": 2.6690237670431305,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.11474177961854863,
+      "steady_p95_error_m": 0.12347470179495831,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.0694511178217778,
+      "steady_p95_error_m": 0.08072410841610879,
+      "minimum_separation_m": 2.7661534945585453,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.17671187617288414,
+      "steady_p95_error_m": 0.30609204917434296,
+      "minimum_separation_m": 2.7659461135603225,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.0694757294240318,
+      "steady_p95_error_m": 0.08083653855166026,
+      "minimum_separation_m": 2.7661534945585453,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.13177618336295896,
+      "steady_p95_error_m": 0.13783782864733557,
+      "minimum_separation_m": 2.725366822637044,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.15376373119668255,
+      "steady_p95_error_m": 0.21137809585718026,
+      "minimum_separation_m": 2.7394799823116758,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.13179369059387064,
+      "steady_p95_error_m": 0.13783883306019332,
+      "minimum_separation_m": 2.7086924030002746,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10803019539291236,
+      "steady_p95_error_m": 0.11562186534693883,
+      "minimum_separation_m": 2.828604427781472,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.1540005751567043,
+      "steady_p95_error_m": 0.20915457307821653,
+      "minimum_separation_m": 2.8284232987832008,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.10793188099217557,
+      "steady_p95_error_m": 0.11561040284057668,
+      "minimum_separation_m": 2.828604427781472,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.061204497713359396,
+      "steady_p95_error_m": 0.06766452786537538,
+      "minimum_separation_m": 2.789649877889417,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.1574136317974464,
+      "steady_p95_error_m": 0.2613404636357708,
+      "minimum_separation_m": 2.7894805062971213,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.061522198841550496,
+      "steady_p95_error_m": 0.06746931749624266,
+      "minimum_separation_m": 2.789649877889417,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.23010008638274065,
+      "steady_p95_error_m": 0.23998208368620016,
+      "minimum_separation_m": 2.666523805732021,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.21898028339222747,
+      "steady_p95_error_m": 0.2698740394167064,
+      "minimum_separation_m": 2.666205007570694,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "repeated_outage",
+      "steady_mean_error_m": 0.23002733501651668,
+      "steady_p95_error_m": 0.23994184970985177,
+      "minimum_separation_m": 2.666523805732021,
+      "pass_criteria": true,
+      "switches": 40
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.0859046416608052,
+      "steady_p95_error_m": 0.09335873983105393,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17538476087307175,
+      "steady_p95_error_m": 0.25925322554231545,
+      "minimum_separation_m": 2.6122667641637953,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261020,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.08556626249506413,
+      "steady_p95_error_m": 0.09322599423492564,
+      "minimum_separation_m": 2.612696379212001,
+      "pass_criteria": true,
+      "switches": 81
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.07895269179021389,
+      "steady_p95_error_m": 0.08216422850215933,
+      "minimum_separation_m": 2.643994844342052,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12392738154506215,
+      "steady_p95_error_m": 0.1785921704708832,
+      "minimum_separation_m": 2.5487765605029953,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261021,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.07962957427755106,
+      "steady_p95_error_m": 0.08296156488578436,
+      "minimum_separation_m": 2.501924559519306,
+      "pass_criteria": true,
+      "switches": 73
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12386428616792909,
+      "steady_p95_error_m": 0.1386292010874313,
+      "minimum_separation_m": 2.719272719303788,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.17875069555261672,
+      "steady_p95_error_m": 0.24518298889717421,
+      "minimum_separation_m": 2.7016799736867823,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261022,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12339630583001798,
+      "steady_p95_error_m": 0.1363159999360042,
+      "minimum_separation_m": 2.657574042795907,
+      "pass_criteria": true,
+      "switches": 75
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.07911003843360603,
+      "steady_p95_error_m": 0.08853340737014938,
+      "minimum_separation_m": 2.740247530681355,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1419942226830371,
+      "steady_p95_error_m": 0.21581799045568148,
+      "minimum_separation_m": 2.758298112220476,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261023,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.07906877445843707,
+      "steady_p95_error_m": 0.08933451379304264,
+      "minimum_separation_m": 2.7519239835521407,
+      "pass_criteria": true,
+      "switches": 84
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1145421611427324,
+      "steady_p95_error_m": 0.12356684251569992,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12378622451922089,
+      "steady_p95_error_m": 0.1502800217080733,
+      "minimum_separation_m": 2.6690237670431305,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261024,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.11423034780263022,
+      "steady_p95_error_m": 0.12061084869165661,
+      "minimum_separation_m": 2.6693546026848387,
+      "pass_criteria": true,
+      "switches": 74
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.0694462472854374,
+      "steady_p95_error_m": 0.0806968526185423,
+      "minimum_separation_m": 2.72690511642195,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.13934071700248418,
+      "steady_p95_error_m": 0.21417283409400217,
+      "minimum_separation_m": 2.7659461135603225,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261025,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.07027041883388863,
+      "steady_p95_error_m": 0.08059478470671982,
+      "minimum_separation_m": 2.6640304905971903,
+      "pass_criteria": true,
+      "switches": 74
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.13174851683116823,
+      "steady_p95_error_m": 0.13783688291549984,
+      "minimum_separation_m": 2.6085225627398483,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.12291126087307885,
+      "steady_p95_error_m": 0.15885183115130175,
+      "minimum_separation_m": 2.656650225977995,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261026,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.13216386943292902,
+      "steady_p95_error_m": 0.13916390357447822,
+      "minimum_separation_m": 2.6260879343207337,
+      "pass_criteria": true,
+      "switches": 74
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10799697194824188,
+      "steady_p95_error_m": 0.11561755569465627,
+      "minimum_separation_m": 2.7679556746368843,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1278078471367868,
+      "steady_p95_error_m": 0.18249420888333404,
+      "minimum_separation_m": 2.7895222867434293,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261027,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.10825496863417795,
+      "steady_p95_error_m": 0.11750136253613276,
+      "minimum_separation_m": 2.6210111817036936,
+      "pass_criteria": true,
+      "switches": 76
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.061182951916715925,
+      "steady_p95_error_m": 0.06753081109632954,
+      "minimum_separation_m": 2.734647360799425,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.1333159726355283,
+      "steady_p95_error_m": 0.21322417584583375,
+      "minimum_separation_m": 2.7894805062971213,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261028,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.06141675319513501,
+      "steady_p95_error_m": 0.0680330519234407,
+      "minimum_separation_m": 2.628516177831867,
+      "pass_criteria": true,
+      "switches": 68
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "centralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.23009233852804964,
+      "steady_p95_error_m": 0.23997801967561067,
+      "minimum_separation_m": 2.666523805732021,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "decentralized",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.19955936321684953,
+      "steady_p95_error_m": 0.2380537951112889,
+      "minimum_separation_m": 2.666205007570694,
+      "pass_criteria": true,
+      "switches": null
+    },
+    {
+      "seed": 20261029,
+      "drones": 10,
+      "mode": "hybrid",
+      "scenario": "burst_repeated_outage",
+      "steady_mean_error_m": 0.22890383273683604,
+      "steady_p95_error_m": 0.2398978796961395,
+      "minimum_separation_m": 2.582513510003661,
+      "pass_criteria": true,
+      "switches": 88
+    }
+  ]
+}

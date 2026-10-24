@@ -5,9 +5,12 @@ import pytest
 from experiments.summarize_external_sitl_runs import summarize, wilson_interval
 
 
-def run(seed=1, *, passed=True, loss=0.02, operator_loss=False):
+def run(seed=1, *, passed=True, loss=0.02, operator_loss=False,
+        drones=5, control_mode="decentralized"):
     summary = {
         "kind": "external_agent_sitl_validation",
+        "drones": drones,
+        "control_mode": control_mode,
         "seed": seed,
         "topology": "split-loopback",
         "peer_loss": loss,
@@ -89,3 +92,19 @@ def test_summarizer_verifies_operator_loss_specific_checks():
     assert result["operator_loss_checks_all_passed"] is True
     assert result["maximum_seconds_to_landed_disarmed_after_operator_loss"] == 42.5
     assert result["runs"][0]["operator_loss"]["operator_process_killed"] is True
+
+
+def test_summarizer_keeps_ten_drone_hybrid_runs_comparable_and_uses_dynamic_landing_key():
+    ten_drone_run = run(drones=10, control_mode="hybrid")
+    ten_drone_run.pop("all_five_landed_disarmed")
+    ten_drone_run["all_drones_landed_disarmed"] = True
+
+    result = summarize([
+        (Path("hybrid-10-a.json"), ten_drone_run),
+        (Path("hybrid-10-b.json"), {**ten_drone_run, "seed": 2}),
+    ])
+
+    assert result["profile"]["drones"] == 10
+    assert result["profile"]["control_mode"] == "hybrid"
+    assert result["all_runs_landed_disarmed"] is True
+    assert result["runs"][0]["drones"] == 10

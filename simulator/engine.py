@@ -28,6 +28,7 @@ from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.metrics import SwarmMetricsTracker
+from swarm_core.safety import separation_guard_acceleration
 
 
 class SwarmSimulation:
@@ -222,6 +223,29 @@ class SwarmSimulation:
         if centroid is not None:
             self.centroid_target = np.array(centroid, dtype=np.float64)
         self._lock_formation_slots()
+        # The coordinator's first packet may be delayed or lost. Keep each onboard
+        # controller's cached target aligned with the newly locked geometry now, so
+        # it never briefly flies toward constructor-time slots from the old shape.
+        if hasattr(self, "drone_last_received_target"):
+            drone_ids = [drone.id for drone in self.drones]
+            for index, drone in enumerate(self.drones):
+                target = self.target_slots[index].copy()
+                target_velocity = self.centroid_velocity.copy()
+                next_waypoint = target + target_velocity
+                neighbors = [peer for peer in drone_ids if peer != drone.id]
+                offsets = compute_desired_neighbor_offsets(
+                    drone.id, self.target_slots, neighbors, drone_ids,
+                )
+                self.drone_last_received_target[drone.id] = target
+                self.drone_last_received_velocity[drone.id] = target_velocity
+                self.drone_last_received_next_waypoint[drone.id] = next_waypoint
+                self.drone_last_received_offsets[drone.id] = offsets
+                self.hybrid_ctrl.last_known_target[drone.id] = target.copy()
+                self.hybrid_ctrl.last_known_velocity[drone.id] = target_velocity.copy()
+                self.hybrid_ctrl.last_known_next_waypoint[drone.id] = next_waypoint.copy()
+                self.hybrid_ctrl.last_known_offsets[drone.id] = {
+                    peer: offset.copy() for peer, offset in offsets.items()
+                }
 
     def set_coordinator_link(self, active: bool) -> None:
         """
@@ -424,6 +448,15 @@ class SwarmSimulation:
                     if 1e-4 < dist < self.central_ctrl.collision_dist:
                         repulse = (self.central_ctrl.k_repulse / deg) * (1.0 / dist - 1.0 / self.central_ctrl.collision_dist) / (dist**2)
                         u_cmd += repulse * (diff / dist)
+                u_cmd += separation_guard_acceleration(
+                    measured_positions[d.id], measured_velocities[d.id],
+                    [{
+                        "id": other.id,
+                        "position": measured_positions[other.id],
+                        "velocity": measured_velocities[other.id],
+                    } for other in self.drones if other.id != d.id],
+                    max_accel_m_s2=d.max_accel,
+                )
                 d.set_control_input(u_cmd)
 
         elif self.control_mode == "centralized_hold_accel":

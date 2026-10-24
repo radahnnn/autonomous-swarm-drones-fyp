@@ -20,6 +20,7 @@ import numpy as np
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.drone import Drone
+from swarm_core.safety import separation_guard_acceleration
 
 
 class HybridMode(Enum):
@@ -323,6 +324,13 @@ class HybridController:
             measured_velocity=vel,
             use_velocity_feedforward=use_velocity_feedforward,
             drag_coeff=drag_coeff,
+            # The configured dead-reckoning policy explicitly permits bounded
+            # motion on the last accepted intent; the ordinary decentralized
+            # mode still brakes when no peer state is available.
+            stop_without_neighbors=self.fallback_strategy != "dead_reckon",
+            # Hybrid blends the local controller with its own always-on guard;
+            # keep the shared guard horizon aligned to that blend's safety term.
+            reaction_time_s=1.0,
         )
 
         # 3. Always-on local decentralized APF safety barrier (degree-normalised)
@@ -339,6 +347,10 @@ class HybridController:
                 )
                 u_safe_apf += repulse * (diff / dist)
         u_safe_apf = u_safe_apf / deg
+        u_safe_apf += separation_guard_acceleration(
+            pos, vel, neighbor_states,
+            max_accel_m_s2=drone.max_accel,
+        )
 
         # 4. Smooth continuous blending without double APF:
         # u_decentral already contains (1 - alpha) * f_sep.

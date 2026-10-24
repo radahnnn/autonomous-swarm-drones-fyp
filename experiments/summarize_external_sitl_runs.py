@@ -8,6 +8,8 @@ from pathlib import Path
 
 
 PROFILE_FIELDS = (
+    "drones",
+    "control_mode",
     "topology",
     "peer_loss",
     "peer_latency_ms",
@@ -20,6 +22,9 @@ PROFILE_FIELDS = (
     "peer_reorder_delay_ms",
 )
 PROFILE_DEFAULTS = {
+    # Before the validator became configurable it always exercised five decentralized agents.
+    "drones": 5,
+    "control_mode": "decentralized",
     # Older summaries used these fixed values before they became CLI options.
     "peer_burst_start_rate": 0.04,
     "peer_burst_continue_rate": 0.65,
@@ -87,9 +92,14 @@ def summarize(summaries: list[tuple[Path, dict]]) -> dict:
         row = {
             "path": str(path),
             "seed": summary.get("seed"),
+            "drones": summary.get("drones", 5),
+            "control_mode": summary.get("control_mode", "decentralized"),
             "passed": summary["passed"] is True,
             "converged": convergence.get("converged") is True,
-            "all_five_landed_disarmed": summary.get("all_five_landed_disarmed") is True,
+            "all_drones_landed_disarmed": summary.get(
+                "all_drones_landed_disarmed",
+                summary.get("all_five_landed_disarmed"),
+            ) is True,
             "minimum_horizontal_separation_m": separation,
             "duplicate_packets": sum(int(item.get("duplicated_packets", 0)) for item in peer_metrics),
             "reordered_packets": sum(int(item.get("reorder_delayed_packets", 0)) for item in summary.get("peer_metrics", {}).values()),
@@ -133,7 +143,7 @@ def summarize(summaries: list[tuple[Path, dict]]) -> dict:
         "observed_pass_fraction": passed / len(rows),
         "pass_fraction_wilson_95": wilson_interval(passed, len(rows)),
         "all_runs_converged": all(row["converged"] for row in rows),
-        "all_runs_landed_disarmed": all(row["all_five_landed_disarmed"] for row in rows),
+        "all_runs_landed_disarmed": all(row["all_drones_landed_disarmed"] for row in rows),
         "minimum_horizontal_separation_across_runs_m": min(separations) if separations else None,
         "total_duplicate_packets": sum(row["duplicate_packets"] for row in rows),
         "total_reordered_packets": sum(row["reordered_packets"] for row in rows),

@@ -718,4 +718,35 @@ Comprehensively addressed and verified all nine directives across the numerical 
    - Test suite expanded to **68 passing unit and regression tests** in 2.53s. Zero failures.
 
 
+# 2026-10-24 — Ten-drone 2D/SITL scale-up
 
+- Verified ten-drone standalone SITL in centralized mode: all ten connected, passed EKF readiness,
+  took off, moved 2 m north, maintained at least 4.17 m sampled separation, and landed/disarmed.
+- Generalized the external per-agent SITL validator from five to 1–10 drones and enabled independent
+  hybrid control. Fresh ten-drone decentralized and hybrid SITL reruns passed. The hybrid stress run
+  verified coordinator fallback/recovery, a 20 s soak (4.22 m minimum sampled separation), bursty
+  peer loss, directed-link recovery, and landing/disarm. Current raw runs are under
+  `runs/independent/external-sitl-20261024T101746.150977Z/` and
+  `runs/independent/external-sitl-20261024T101921.729225Z/`.
+- Added a nominal hybrid run using the same seed and peer-channel profile as decentralized, then
+  generated a matched three-mode SITL summary. All modes converged and landed disarmed; terminal
+  p95 slot error was 0.040 m centralized, 0.309 m decentralized, and 0.243 m hybrid. Minimum
+  sampled separation was 4.170 m, 4.126 m, and 4.158 m respectively. One run per mode is
+  descriptive only; the point-mass experiment supplies the multi-seed confidence intervals. The
+  aggregate is `runs/comparison/three_mode_sitl_10drones_20261024.json`.
+- Added a 2.5 m sampled-separation acceptance gate and generalized run provenance/aggregation for
+  swarm size and control mode. Independent run summaries now record configuration and SITL
+  parameter hashes, revision, dirty-tree state, Python, and platform.
+- Compared all three modes over ten paired seeds per condition in the pure-Python engine. Each mode
+  passed 10/10 nominal-impaired, repeated-outage, and burst-repeated-outage trials. The worst sampled
+  separation was 2.502 m, just above the 2.5 m project criterion. Pure decentralized control now
+  brakes when it has no peer state; its local separation guard anticipates closing traffic for 1.5 s.
+  Centralized and hybrid guards use 1.0 s. This sampled point-mass result is not a continuous safety
+  guarantee.
+- Added a generator and launcher for the 6–10-drone Gazebo world because the checked-in world only
+  contained five vehicles. A headless, one-iteration Gazebo smoke test loaded the generated ten
+  models and their plugins. A full 10-drone Gazebo-to-ArduPilot takeoff/movement run remains
+  unverified.
+- Full pytest suite passed, including localhost UDP/TCP tests. There are no new physical-flight or
+  LAN-radio claims. Detailed results:
+  `docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md`.

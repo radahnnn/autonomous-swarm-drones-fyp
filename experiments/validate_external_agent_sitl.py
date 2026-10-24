@@ -1,4 +1,4 @@
-"""Exercise the external-operator path against five real ArduPilot SITL agents.
+"""Exercise the external-operator path against 1..10 real ArduPilot SITL agents.
 
 SITL vehicles, per-aircraft agent processes, and the operator console are launched as
 separate process groups. Agents use distinct loopback addresses to exercise the same
@@ -7,11 +7,13 @@ static-roster routing code used by the documented multi-host setup.
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import pty
+import platform
 import socket
 import statistics
 import subprocess
@@ -26,11 +28,36 @@ from experiments.validate_independent_operator_loss import (
     terminate_pids,
 )
 from sitl.fleet import build_fleet
+from sitl.fleet import MAX_DRONES
 from sitl.formation_library import slots_for
 from sitl.operator_udp import decode_message
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def reproducibility_metadata(configuration: dict) -> dict:
+    """Capture enough local provenance to interpret and reproduce this run."""
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True,
+    ).stdout.strip()
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True,
+    ).stdout
+    diff = subprocess.run(
+        ["git", "diff", "HEAD"], cwd=ROOT, capture_output=True,
+    ).stdout
+    serialized = json.dumps(configuration, sort_keys=True, separators=(",", ":"))
+    params = ROOT / "sitl" / "swarm_params.parm"
+    return {
+        "git_revision": revision,
+        "working_tree_dirty": bool(status.strip()),
+        "tracked_diff_sha256": hashlib.sha256(diff).hexdigest(),
+        "configuration_sha256": hashlib.sha256(serialized.encode("utf-8")).hexdigest(),
+        "sitl_params_sha256": hashlib.sha256(params.read_bytes()).hexdigest(),
+        "python_version": sys.version,
+        "platform": platform.platform(),
+    }
 
 
 def read_events(path: Path) -> list[dict]:
@@ -572,6 +599,10 @@ def wait_for_events(terminal: ConsolePty, event_path: Path, predicate,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--drones", type=int, default=5,
+                        help=f"number of independent SITL vehicles, 1..{MAX_DRONES}")
+    parser.add_argument("--control-mode", choices=("decentralized", "hybrid"),
+                        default="decentralized")
     parser.add_argument("--seed", type=int, default=121)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--convergence-timeout", type=float, default=90.0,
@@ -579,6 +610,12 @@ def main() -> None:
     parser.add_argument("--horizontal-tolerance-m", type=float, default=0.5)
     parser.add_argument("--altitude-tolerance-m", type=float, default=0.5)
     parser.add_argument("--convergence-dwell-samples", type=int, default=3)
+    parser.add_argument("--soak-seconds", type=float, default=0.0,
+                        help="continue the airborne mission after convergence and check all-agent safety")
+    parser.add_argument("--minimum-separation-m", type=float, default=2.5,
+                        help="minimum sampled horizontal separation required for a passing run")
+    parser.add_argument("--test-coordinator-switch", action="store_true",
+                        help="hybrid only: cut and restore coordinator stream and verify every agent changes mode")
     parser.add_argument("--topology", choices=("distinct-loopback", "split-loopback"),
                         default="distinct-loopback",
                         help="use one loopback alias per agent or emulate the two-host ID split with .1/.2 aliases")
@@ -607,12 +644,16 @@ def main() -> None:
     parser.add_argument("--test-launch-blocked-peer", default=None,
                         help="before launch, cut one required directed peer link (1-based sender:recipient) and verify the swarm-wide gate blocks takeoff")
     args = parser.parse_args()
+    if not 1 <= args.drones <= MAX_DRONES:
+        parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     if args.operator_loss and args.operator_restart:
         parser.error("--operator-loss and --operator-restart are mutually exclusive")
     if (not math.isfinite(args.timeout) or args.timeout <= 0 or
             not math.isfinite(args.convergence_timeout) or args.convergence_timeout <= 0 or
             not math.isfinite(args.horizontal_tolerance_m) or args.horizontal_tolerance_m <= 0 or
             not math.isfinite(args.altitude_tolerance_m) or args.altitude_tolerance_m <= 0 or
+            not math.isfinite(args.soak_seconds) or args.soak_seconds < 0 or
+            not math.isfinite(args.minimum_separation_m) or args.minimum_separation_m <= 0 or
             args.convergence_dwell_samples < 1 or
             not math.isfinite(args.operator_loss_timeout) or args.operator_loss_timeout <= 0 or
             not math.isfinite(args.peer_loss) or not 0.0 <= args.peer_loss <= 1.0 or
@@ -629,6 +670,8 @@ def main() -> None:
             not math.isfinite(args.peer_reorder_delay_ms) or
             args.peer_reorder_delay_ms < 0):
         parser.error("timeout must be positive; loss, latency, and jitter must be finite and non-negative (loss <= 1)")
+    if args.test_coordinator_switch and args.control_mode != "hybrid":
+        parser.error("--test-coordinator-switch requires --control-mode hybrid")
     if args.test_launch_blocked_peer is not None:
         try:
             block_sender, block_recipient = (
@@ -636,9 +679,9 @@ def main() -> None:
             )
         except (TypeError, ValueError):
             parser.error("--test-launch-blocked-peer must be a directed edge like 1:2")
-        if (not 1 <= block_sender <= 5 or not 1 <= block_recipient <= 5 or
+        if (not 1 <= block_sender <= args.drones or not 1 <= block_recipient <= args.drones or
                 block_sender == block_recipient):
-            parser.error("--test-launch-blocked-peer IDs must be different values from 1 to 5")
+            parser.error(f"--test-launch-blocked-peer IDs must be different values from 1 to {args.drones}")
 
     run_dir = ROOT / "runs" / "independent" / (
         "external-sitl-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
@@ -660,6 +703,8 @@ def main() -> None:
     operator_loss_result = None
     result = {
         "kind": "external_agent_sitl_validation",
+        "drones": args.drones,
+        "control_mode": args.control_mode,
         "seed": args.seed,
         "peer_loss": args.peer_loss,
         "peer_latency_ms": args.peer_latency_ms,
@@ -674,14 +719,19 @@ def main() -> None:
         "started_utc": datetime.now(timezone.utc).isoformat(),
         "passed": False,
     }
+    result["reproducibility"] = reproducibility_metadata({
+        key: value for key, value in vars(args).items()
+        if key not in {"output"}
+    })
 
     try:
         rows = []
-        for agent_id in range(5):
+        split_at = max(1, args.drones // 2)
+        for agent_id in range(args.drones):
             if args.topology == "split-loopback":
-                # Emulate the documented split: D1/D2 on host A, D3/D4/D5 on B.
+                # Emulate two host groups; loopback still does not cross a physical LAN.
                 # Linux loopback routing still means this is not a real LAN test.
-                address = "127.0.0.1" if agent_id < 2 else "127.0.0.2"
+                address = "127.0.0.1" if agent_id < split_at else "127.0.0.2"
             else:
                 address = f"127.0.0.{agent_id + 2}"
             rows.append({
@@ -698,19 +748,19 @@ def main() -> None:
         roster_path.write_text(json.dumps({"version": 1, "agents": rows}, indent=2) + "\n",
                                encoding="utf-8")
         result["agent_address_groups"] = {
-            "host_a_ids": [0, 1],
-            "host_b_ids": [2, 3, 4],
-            "expected_cross_host_peer_edges": [[0, 2], [1, 3]],
+            "host_a_ids": list(range(split_at)),
+            "host_b_ids": list(range(split_at, args.drones)),
         } if args.topology == "split-loopback" else None
 
-        sitl_processes = start_standalone_sitl(ROOT, 5)
+        sitl_processes = start_standalone_sitl(ROOT, args.drones)
         result["sitl_pids"] = [process.pid for process in sitl_processes]
-        for spec in build_fleet(5):
+        for spec in build_fleet(args.drones):
             command = [
                 sys.executable, "-u", "-m", "sitl.independent_agent_node",
-                "--id", str(spec.index), "--count", "5",
+                "--id", str(spec.index), "--count", str(args.drones),
                 "--endpoint", f"tcp:127.0.0.1:{spec.tcp_port}",
-                "--formation", "v", "--peer-roster", str(roster_path),
+                "--formation", "v", "--control-mode", args.control_mode,
+                "--peer-roster", str(roster_path),
                 "--peer-auth-key-file", str(key_path),
                 *peer_impairment_cli_args(args),
                 "--peer-seed", str(args.seed + spec.index),
@@ -724,7 +774,7 @@ def main() -> None:
 
         operator_command = [
             sys.executable, "-u", "-m", "sitl.swarm_console",
-            "--drones", "5", "--standalone", "--control-mode", "decentralized",
+            "--drones", str(args.drones), "--standalone", "--control-mode", args.control_mode,
             "--agent-runtime", "independent", "--external-agents",
             "--operator-bind-host", "127.0.0.1", "--peer-roster", str(roster_path),
             "--peer-auth-key-file", str(key_path),
@@ -738,7 +788,7 @@ def main() -> None:
         os.close(slave)
         terminal = ConsolePty(operator, master, run_dir / "operator-console.log")
         terminal.wait_for(lambda text: "Independent Swarm > " in text, 420.0,
-                          "all five real SITL agents becoming ready")
+                          f"all {args.drones} real SITL agents becoming ready")
         match = None
         for line in terminal.text.splitlines():
             if ">> Independent-node evidence:" in line:
@@ -793,7 +843,8 @@ def main() -> None:
             result["launch_preflight_fault_test"]["launch_blocked"] = True
             result["launch_preflight_fault_test"]["all_vehicles_stayed_grounded"] = all(
                 states.get(index, {}).get("airborne") is False
-                and states.get(index, {}).get("armed") is False for index in range(5)
+                and states.get(index, {}).get("armed") is False
+                for index in range(args.drones)
             )
             if not result["launch_preflight_fault_test"]["all_vehicles_stayed_grounded"]:
                 raise RuntimeError("a vehicle armed or left the ground despite failed swarm preflight")
@@ -813,7 +864,7 @@ def main() -> None:
                     (state := latest_statuses(rows).get(index)) is not None
                     and set(state.get("peer_ids", [])).issubset(
                         set(state.get("peer_live_ids", []))
-                    ) for index in range(5)
+                    ) for index in range(args.drones)
                 ),
                 8.0, "all configured peer heartbeats returning",
             )
@@ -829,13 +880,13 @@ def main() -> None:
         terminal.send("launch")
         events = wait_for_events(
             terminal, event_path,
-            lambda rows: len(latest_statuses(rows)) == 5 and all(
+            lambda rows: len(latest_statuses(rows)) == args.drones and all(
                 latest_statuses(rows)[index].get("airborne") is True
                 and latest_statuses(rows)[index].get("armed") is True
-                for index in range(5)
-            ), 180.0, "all five SITL vehicles airborne",
+                for index in range(args.drones)
+            ), 300.0, f"all {args.drones} SITL vehicles airborne",
         )
-        result["all_five_airborne"] = True
+        result["all_drones_airborne"] = True
         launch_states = latest_statuses(events)
         leader_north_before = float(launch_states[0]["position"][0])
         result["leader_north_before_move_m"] = leader_north_before
@@ -876,20 +927,94 @@ def main() -> None:
         events = wait_for_events(
             terminal, event_path,
             lambda rows: mission_convergence_state(
-                rows, count=5, goal_ne=(2.0, 0.0),
+                rows, count=args.drones, goal_ne=(2.0, 0.0),
                 horizontal_tolerance_m=args.horizontal_tolerance_m,
                 vertical_tolerance_m=args.altitude_tolerance_m,
                 dwell_samples=args.convergence_dwell_samples,
             )["converged"],
             args.convergence_timeout,
-            "all five agents holding their mission-plus-slot targets for the dwell window",
+            f"all {args.drones} agents holding their mission-plus-slot targets for the dwell window",
         )
         result["mission_convergence"] = mission_convergence_state(
-            events, count=5, goal_ne=(2.0, 0.0),
+            events, count=args.drones, goal_ne=(2.0, 0.0),
             horizontal_tolerance_m=args.horizontal_tolerance_m,
             vertical_tolerance_m=args.altitude_tolerance_m,
             dwell_samples=args.convergence_dwell_samples,
         )
+
+        if args.test_coordinator_switch:
+            result["coordinator_switch_test"] = {"requested": True}
+            terminal.send("coord off")
+            events = wait_for_events(
+                terminal, event_path,
+                lambda rows: all(
+                    (state := latest_statuses(rows).get(index)) is not None
+                    and state.get("hybrid_mode") == "decentralized_fallback"
+                    and state.get("coordinator_connected") is False
+                    and state.get("hybrid_alpha") is not None
+                    and float(state["hybrid_alpha"]) <= 0.01
+                    for index in range(args.drones)
+                ), 15.0, "all hybrid agents entering local fallback after coordinator loss",
+            )
+            result["coordinator_switch_test"]["all_agents_fell_back"] = True
+            terminal.send("coord on")
+            events = wait_for_events(
+                terminal, event_path,
+                lambda rows: all(
+                    (state := latest_statuses(rows).get(index)) is not None
+                    and state.get("hybrid_mode") == "centralized"
+                    and state.get("coordinator_connected") is True
+                    and state.get("hybrid_alpha") is not None
+                    and float(state["hybrid_alpha"]) >= 0.99
+                    for index in range(args.drones)
+                ), 30.0, "all hybrid agents recovering after coordinator restoration",
+            )
+            result["coordinator_switch_test"]["all_agents_recovered"] = True
+
+        if args.soak_seconds:
+            soak_started = time.monotonic()
+            minimum_observed_separation = math.inf
+            safety_samples = 0
+            while time.monotonic() - soak_started < args.soak_seconds:
+                events = read_events(event_path)
+                states = latest_statuses(events)
+                if len(states) < args.drones:
+                    raise RuntimeError("soak failed: one or more agents stopped reporting status")
+                if any(states[index].get("airborne") is not True or
+                       states[index].get("armed") is not True or
+                       states[index].get("safety_state") != "nominal"
+                       for index in range(args.drones)):
+                    raise RuntimeError("soak failed: an agent left flight or reported a non-nominal safety state")
+                positions = [np.asarray(states[index].get("position"), dtype=float)
+                             for index in range(args.drones)]
+                if any(position.shape != (3,) or not np.isfinite(position).all()
+                       for position in positions):
+                    raise RuntimeError("soak failed: invalid position telemetry")
+                pair_distances = [
+                    float(np.linalg.norm(first[:2] - second[:2]))
+                    for index, first in enumerate(positions)
+                    for second in positions[index + 1:]
+                ]
+                if pair_distances:
+                    minimum_observed_separation = min(
+                        minimum_observed_separation, min(pair_distances),
+                    )
+                safety_samples += 1
+                time.sleep(min(1.0, max(0.0, args.soak_seconds -
+                                        (time.monotonic() - soak_started))))
+            result["soak_test"] = {
+                "duration_s": args.soak_seconds,
+                "safety_samples": safety_samples,
+                "minimum_sampled_horizontal_separation_m": (
+                    minimum_observed_separation if math.isfinite(minimum_observed_separation) else None
+                ),
+                "minimum_separation_threshold_m": args.minimum_separation_m,
+                "passed": (safety_samples > 0 and math.isfinite(minimum_observed_separation)
+                           and minimum_observed_separation >= args.minimum_separation_m),
+                "metric_scope": "asynchronous latest-position samples; not a continuous collision guarantee",
+            }
+            if not result["soak_test"]["passed"]:
+                raise RuntimeError("soak failed: sampled separation was below the configured threshold")
 
         terminal.send("link-block 1 2")
         events = wait_for_events(
@@ -920,7 +1045,7 @@ def main() -> None:
             lambda rows: all(
                 latest_statuses(rows).get(index, {}).get("safety_state") == "nominal"
                 and latest_statuses(rows).get(index, {}).get("airborne") is True
-                for index in range(5)
+                for index in range(args.drones)
             ), 8.0, "all agents remaining airborne with nominal safety after link restoration",
         )
         result["all_agents_nominal_after_restore"] = True
@@ -1002,24 +1127,43 @@ def main() -> None:
         if final_status_override is not None:
             states = final_status_override
         result["final_statuses"] = {str(index + 1): states.get(index, {})
-                                     for index in range(5)}
-        result["all_five_landed_disarmed"] = all(
-            landed(states.get(index, {})) for index in range(5)
+                                     for index in range(args.drones)}
+        result["all_drones_landed_disarmed"] = all(
+            landed(states.get(index, {})) for index in range(args.drones)
         )
+        # Retain the old alias for archived five-drone report consumers only.
+        if args.drones == 5:
+            result["all_five_landed_disarmed"] = result["all_drones_landed_disarmed"]
         result["peer_metrics"] = {
             str(index + 1): states.get(index, {}).get("peer_metrics", {})
-            for index in range(5)
+            for index in range(args.drones)
         }
-        result["separation_metrics"] = minimum_time_aligned_separation(events, count=5)
-        result["tracking_metrics"] = formation_tracking_metrics(events, count=5)
+        result["separation_metrics"] = minimum_time_aligned_separation(
+            events, count=args.drones,
+        )
+        result["separation_metrics"]["minimum_separation_threshold_m"] = args.minimum_separation_m
+        result["separation_metrics"]["safety_gate_passed"] = bool(
+            result["separation_metrics"]["minimum_horizontal_separation_m"] is not None
+            and result["separation_metrics"]["minimum_horizontal_separation_m"]
+            >= args.minimum_separation_m
+        )
+        result["tracking_metrics"] = formation_tracking_metrics(
+            events, count=args.drones,
+        )
         result["session_end"] = next(
             (row for row in reversed(events) if row.get("kind") == "session_end"), None,
         )
         result["passed"] = bool(
-            result["all_five_airborne"] and result["shared_north_goal_accepted"]
+            result["all_drones_airborne"] and result["shared_north_goal_accepted"]
             and result["leader_north_progress_m"] >= 1.5
             and result["directed_cut_observed"] and result["directed_link_restored"]
             and result["all_agents_nominal_after_restore"]
+            and result["separation_metrics"]["safety_gate_passed"]
+            and (not args.test_coordinator_switch or (
+                result.get("coordinator_switch_test", {}).get("all_agents_fell_back") is True
+                and result.get("coordinator_switch_test", {}).get("all_agents_recovered") is True
+            ))
+            and (not args.soak_seconds or result.get("soak_test", {}).get("passed") is True)
             and result["separation_metrics"]["time_aligned_samples"] > 0
             and result["separation_metrics"]["minimum_horizontal_separation_m"] is not None
             and (not args.operator_loss or (
@@ -1040,14 +1184,15 @@ def main() -> None:
                     "restored_preflight_passed"
                 ) is True
             ))
-            and result["all_five_landed_disarmed"]
+            and result["all_drones_landed_disarmed"]
         )
         result["completed_utc"] = datetime.now(timezone.utc).isoformat()
         (run_dir / "external_agent_sitl_summary.json").write_text(
             json.dumps(result, indent=2) + "\n", encoding="utf-8",
         )
         print(json.dumps({"passed": result["passed"], "run_dir": str(run_dir),
-                          "all_five_landed_disarmed": result["all_five_landed_disarmed"],
+                          "drones": args.drones,
+                          "all_drones_landed_disarmed": result["all_drones_landed_disarmed"],
                           "peer_metrics": result["peer_metrics"]}))
         if not result["passed"]:
             raise RuntimeError("external-agent SITL validation did not meet all acceptance checks")

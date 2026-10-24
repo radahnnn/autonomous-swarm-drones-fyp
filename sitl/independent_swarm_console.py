@@ -44,6 +44,7 @@ class IndependentSwarmConsole:
     def __init__(self, args):
         self.args = args
         self.count = args.drones
+        self.control_mode = getattr(args, "control_mode", "decentralized")
         self.fleet = build_fleet(self.count)
         self.peer_roster = load_peer_roster(args.peer_roster, self.count)
         self.operator_auth_key = load_auth_key(args.peer_auth_key_file)
@@ -87,6 +88,7 @@ class IndependentSwarmConsole:
         self.operator_bind_host = getattr(args, "operator_bind_host", "127.0.0.1")
         self.status_thread = None
         self.intent_thread = None
+        self.dashboard_server = None
         evidence_parent = (Path(args.evidence_dir) if getattr(args, "evidence_dir", None)
                            else self.root / "runs" / "independent")
         self.run_dir = evidence_parent / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
@@ -136,10 +138,19 @@ class IndependentSwarmConsole:
         self.log.flush()
 
     def _agent_command(self, spec) -> list[str]:
+        # When this console starts ArduPilot directly, each node owns the
+        # vehicle's TCP server.  When an external sim_vehicle/MAVProxy session
+        # is already running (for example to mirror telemetry into QGC), the
+        # node must consume its dedicated UDP output instead; MAVProxy already
+        # owns the ArduPilot TCP connection in that topology.
+        use_tcp = getattr(getattr(self, "launcher", None), "use_tcp", True)
+        endpoint = (f"tcp:127.0.0.1:{spec.tcp_port}" if use_tcp
+                    else f"udpin:127.0.0.1:{spec.port}")
         command = [
             sys.executable, "-u", "-m", "sitl.independent_agent_node",
             "--id", str(spec.index), "--count", str(self.count),
-            "--endpoint", f"tcp:127.0.0.1:{spec.tcp_port}",
+            "--endpoint", endpoint,
+            "--control-mode", self.control_mode,
             "--formation", self.formation,
             "--peer-loss", str(self.args.peer_loss),
             "--peer-latency-ms", str(self.args.peer_latency_ms),
@@ -160,6 +171,10 @@ class IndependentSwarmConsole:
             command += ["--peer-seed", str(self.args.peer_seed)]
         if self.args.peer_burst_loss:
             command.append("--peer-burst-loss")
+        if getattr(self.args, "adaptive_swarm", False):
+            command.append("--adaptive-swarm")
+        for obstacle in getattr(self.args, "obstacle", ()):
+            command += ["--obstacle", str(obstacle)]
         if self.args.peer_roster:
             command += ["--peer-roster", str(self.args.peer_roster)]
         if self.args.peer_auth_key_file:
@@ -200,7 +215,8 @@ class IndependentSwarmConsole:
         if self.external_agents:
             self._restore_external_mission()
         self._synchronize_clocks()
-        self.event("nodes_ready", count=self.count, formation=self.formation,
+        self.event("nodes_ready", count=self.count, control_mode=self.control_mode,
+                   formation=self.formation,
                    peer_loss=self.args.peer_loss, peer_latency_ms=self.args.peer_latency_ms,
                    peer_jitter_ms=(getattr(self.args, "peer_jitter_ms", None)
                                    if getattr(self.args, "peer_jitter_ms", None) is not None
@@ -217,11 +233,19 @@ class IndependentSwarmConsole:
                    clock_offsets_s=self.clock_offsets_s,
                    clock_uncertainty_s=self.clock_uncertainty_s,
                    operator_takeover=self.external_agents,
+                   adaptive_swarm=bool(getattr(self.args, "adaptive_swarm", False)),
+                   obstacles=list(getattr(self.args, "obstacle", ())),
                    resumed_mission_sequence=self.mission_sequence if self.external_agents else None)
         self._publish_intent()
         self.intent_thread = threading.Thread(target=self._intent_loop, daemon=True)
         self.intent_thread.start()
-        print("\nIndependent swarm ready. Commands: preflight, launch, w/s/a/d [m], u/j [m], status, "
+        dashboard_port = int(getattr(self.args, "dashboard_port", 0) or 0)
+        if dashboard_port:
+            from sitl.operator_dashboard import start_dashboard
+            self.dashboard_server = start_dashboard(self, dashboard_port)
+            print(f">> Visual controller: http://127.0.0.1:{dashboard_port}")
+        print(f"\nIndependent {self.control_mode} swarm ready ({self.count} drones). "
+              "Commands: preflight, launch, w/s/a/d [m], u/j [m], status, "
               "link-block <sender> <recipient>, link-restore <sender> <recipient>, "
               "fail <id>, restart <id>, rescue <id>, coord off/on, q")
 
@@ -231,6 +255,17 @@ class IndependentSwarmConsole:
             "agent_pids": [process.pid for process in self.nodes],
         }
         self.process_manifest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    def mode_relaunch_command(self, mode: str) -> str:
+        """Build the explicit 2D relaunch command used by the dashboard selector."""
+        base = ["python3", "-m", "sitl.swarm_console", "--drones", str(self.count),
+                "--standalone", "--control-mode", mode]
+        if mode in {"decentralized", "hybrid"}:
+            base += ["--agent-runtime", "independent", "--adaptive-swarm"]
+            dashboard_port = int(getattr(self.args, "dashboard_port", 0) or 0)
+            if dashboard_port:
+                base += ["--dashboard-port", str(dashboard_port)]
+        return " ".join(base)
 
     @staticmethod
     def _status_confirms_landed(status: dict) -> bool:
@@ -671,7 +706,7 @@ class IndependentSwarmConsole:
     def status(self) -> None:
         with self.lock:
             states = {key: value.copy() for key, value in self.latest.items()}
-        print("\n--- Independent five-drone swarm ---")
+        print(f"\n--- Independent {self.control_mode} {self.count}-drone swarm ---")
         for index in range(self.count):
             state = states.get(index)
             process = self.nodes[index] if index < len(self.nodes) else None
@@ -697,13 +732,19 @@ class IndependentSwarmConsole:
             age = state.get("position_age_s")
             print(f"D{index + 1}: {'airborne' if state.get('airborne') else 'grounded':8s} "
                   f"armed={'yes' if state.get('armed') else 'no'} "
+                  f"mode={state.get('hybrid_mode') or state.get('control_mode', self.control_mode)} "
+                  f"alpha={state.get('hybrid_alpha') if state.get('hybrid_alpha') is not None else 'n/a'} "
+                  f"coordinator={'up' if state.get('coordinator_connected') else 'down'} "
                   f"{position_text} peers={state.get('peer_ids', [])} "
                   f"live_peers={state.get('peer_live_ids', [])} "
                   f"telemetry_age={age if age is not None else 'n/a'} "
+                  f"leader=D{int(state.get('elected_leader_id', 0)) + 1} "
+                  f"members={[int(i) + 1 for i in state.get('active_member_ids', [])]} "
                   f"safety={state.get('safety_state', 'unknown')}"
                   f"{':' + state['safety_reason'] if state.get('safety_reason') else ''}")
-        print(f"Mission: N={self.goal_ne[0]:.1f}m E={self.goal_ne[1]:.1f}m Alt={self.target_alt_m:.1f}m | "
-              f"mission stream={'ON' if self.intent_enabled else 'OFF'}\n")
+        print(f"Mode: {self.control_mode} | Mission: N={self.goal_ne[0]:.1f}m "
+              f"E={self.goal_ne[1]:.1f}m Alt={self.target_alt_m:.1f}m | "
+              f"coordinator stream={'ON' if self.intent_enabled else 'OFF'}\n")
 
     def _set_peer_link(self, sender: int, recipient: int, blocked: bool) -> None:
         if not (1 <= sender <= self.count and 1 <= recipient <= self.count) or sender == recipient:
@@ -953,6 +994,9 @@ class IndependentSwarmConsole:
                     self.event("agent_rescue_unconfirmed", drone_id=index,
                                final_position=final_position, reason="console_shutdown")
         self.running = False
+        if self.dashboard_server is not None:
+            self.dashboard_server.shutdown()
+            self.dashboard_server.server_close()
         if self.intent_thread is not None:
             self.intent_thread.join(timeout=1.5)
         if self.status_thread is not None:

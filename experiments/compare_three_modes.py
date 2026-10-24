@@ -1,7 +1,11 @@
 """Paired software-only comparison; assumed dynamics, never a hardware/SITL claim."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
+import platform
+import subprocess
+import sys
 import numpy as np
 from scipy.stats import t
 from simulator.engine import SwarmSimulation
@@ -16,11 +20,11 @@ def ci(values):
     return dict(mean=float(a.mean()), low=float(a.mean()-half), high=float(a.mean()+half))
 
 
-def trial(mode, seed, scenario):
+def trial(mode, seed, scenario, count):
     rng = np.random.default_rng(seed)
-    offsets = FormationGenerator.get_formation_offsets(FormationType.V_SHAPE, 5, spacing=3.0)
+    offsets = FormationGenerator.get_formation_offsets(FormationType.V_SHAPE, count, spacing=3.0)
     positions = offsets + rng.normal(0, .12, offsets.shape)
-    drones = [Drone(i, positions[i], profile='assumed_baseline') for i in range(5)]
+    drones = [Drone(i, positions[i], profile='assumed_baseline') for i in range(count)]
     sim = SwarmSimulation(drones, control_mode=mode, profile='assumed_baseline', dt=.05,
                          comm_range=12, packet_loss_rate=.1, latency_mean=.05,
                          gps_noise_std=.08, gps_common_mode_fraction=.6, seed=seed,
@@ -37,7 +41,7 @@ def trial(mode, seed, scenario):
     rows = sim.metrics.history
     errors = [r.formation_error for r in rows if r.time >= 25]
     sep = min(r.min_inter_drone_dist for r in rows)
-    return dict(seed=seed, mode=mode, scenario=scenario,
+    return dict(seed=seed, drones=count, mode=mode, scenario=scenario,
                 steady_mean_error_m=float(np.mean(errors)),
                 steady_p95_error_m=float(np.percentile(errors,95)),
                 minimum_separation_m=float(sep),
@@ -48,14 +52,16 @@ def trial(mode, seed, scenario):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--trials',type=int,default=10)
+    parser.add_argument('--drones',type=int,default=5,help='swarm size, 1..10')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     if args.trials < 2: parser.error('need at least two trials')
+    if not 1 <= args.drones <= 10: parser.error('--drones must be between 1 and 10')
     results=[]; summary={}
     for scenario in ('nominal_impaired','repeated_outage','burst_repeated_outage'):
         for seed in range(20261020,20261020+args.trials):
             for mode in MODES:
-                results.append(trial(mode,seed,scenario))
+                results.append(trial(mode,seed,scenario,args.drones))
         summary[scenario]={}
         for mode in MODES:
             rows=[r for r in results if r['scenario']==scenario and r['mode']==mode]
@@ -72,12 +78,19 @@ def main():
             paired[scenario][mode + '_minus_centralized'] = {
                 metric: ci([r[metric]-baseline[r['seed']][metric] for r in rows])
                 for metric in ('steady_mean_error_m','minimum_separation_m')}
+    revision = subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True).stdout.strip()
+    status = subprocess.run(['git','status','--porcelain'],capture_output=True,text=True).stdout
+    tracked_diff = subprocess.run(['git','diff','HEAD'],capture_output=True).stdout
     report=dict(paired_differences=paired, scope='Pure Python engine; not console/SITL or hardware validation',
                 dynamics='assumed_baseline; avoids invalid old fitted profile',
-                conditions=dict(drones=5,spacing_m=3,dt_s=.05,duration_s=30,
+                reproducibility=dict(seed_start=20261020,trials_per_cell=args.trials,
+                                     python=sys.version,platform=platform.platform(),
+                                     revision=revision,working_tree_dirty=bool(status.strip()),
+                                     tracked_diff_sha256=hashlib.sha256(tracked_diff).hexdigest()),
+                conditions=dict(drones=args.drones,spacing_m=3,dt_s=.05,duration_s=30,
                                 packet_loss=.1,latency_mean_s=.05,gps_noise_std_m=.08,
                                 mission='hold 2s, north .4m/s until 20s, hold to 30s',
-                                outages_s=[[5,8],[15,18]],seed_start=20261020,
+                                outages_s=[[5,8],[15,18]],
                                 trials_per_cell=args.trials),
                 criteria=dict(minimum_separation_m=2.5,steady_p95_error_m=1),
                 caveats=['Identical seeds/configuration, not guaranteed identical delivered packets: distances affect transport.',

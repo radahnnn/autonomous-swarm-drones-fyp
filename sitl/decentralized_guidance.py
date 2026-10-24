@@ -6,6 +6,7 @@ its one-hop neighbors. This models decentralized control logic on one host; it d
 not place controllers on separate flight computers or create a drone-to-drone radio.
 """
 
+import os
 import time
 from typing import Dict, List, Optional
 
@@ -152,7 +153,9 @@ class DecentralizedGuidance:
             raise ValueError("agent_runtime must be local or process")
         self.cached_goal = None
         self.cached_slots = None
-        self.peer_port_base = 20000
+        # Keep the process harness away from the live independent swarm's fixed
+        # 20000+ range so regression tests can run while a demo is connected.
+        self.peer_port_base = 30000 + (os.getpid() % 1000) * 10
         if agent_runtime == "process":
             self.agents = [agent_class(i, safe_radius=safe_radius,
                                        hybrid=control_mode == "hybrid", peer_count=count,

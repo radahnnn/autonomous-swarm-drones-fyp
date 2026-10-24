@@ -18,6 +18,27 @@ Experimental agent modes: `--control-mode decentralized` or `--control-mode hybr
 stable heartbeats and confirmed disarm; otherwise use `r <id>` to request recovery manually.
 Every run writes a dated `runs/console/` evidence folder; see [criteria and file format](RUN_EVIDENCE.md).
 
+Adaptive independent mode is opt-in while it is being validated:
+
+```bash
+python3 -m sitl.swarm_console --drones 10 --standalone \
+  --control-mode decentralized --agent-runtime independent --adaptive-swarm \
+  --obstacle 5,0,2 --dashboard-port 8765
+```
+
+Open `http://127.0.0.1:8765` for the visual operator dashboard. It shows the
+vehicle map, mission target, active one-hop peer graph, elected leader, compact
+health state, movement controls and directed link-fault controls. It also shows
+Centralized, Decentralized and Hybrid profiles. Architecture changes are locked
+while any vehicle is airborne. When grounded, selecting another profile copies
+the exact relaunch command; the current controller is not hot-swapped in flight.
+
+Discovery packets reach all configured agents, while guidance uses a dynamically repaired
+one-hop ring. Each node independently derives active membership, elects the lowest live ID as
+its component leader, and redistributes the chosen formation across the active IDs. Circular
+`north,east,radius` obstacles add bounded local repulsion. These are experimental software
+behaviours; they do not establish sensor-based obstacle avoidance or physical flight safety.
+
 ## Commands
 | Command | Action |
 |---|---|
@@ -32,8 +53,8 @@ Every run writes a dated `runs/console/` evidence folder; see [criteria and file
 
 ## Conventions (shared with launchers and Gazebo worlds)
 - Drone i = ArduPilot instance `-I<i>`, SYSID i+1. Existing MAVProxy-forwarded instances may be reached on UDP 14552 + 10*i; instances launched directly by this console expose TCP 5760 + 10*i. Gazebo FDM uses port 9002 + 10*i.
-- Gazebo: all instances share one home (the world origin); the world files spawn drones on their V slots
-  (`cinewhoop_3drones.sdf`, `cinewhoop_5drones.sdf`). Other swarm sizes work standalone; Gazebo needs a matching world.
+- Gazebo: all instances share one home (the world origin); the checked-in 3- and 5-drone worlds spawn
+  drones on their V slots. For 6–10 vehicles, use the generated world launcher below.
 - Standalone: each drone's home is its own V slot, so the swarm starts on the ground in formation.
 - Slots are offsets [N, E, D] from the centroid; every style keeps drones at least 2.5 m apart for 1-10 drones
   (tested). Hand-tuned tables for up to 5 drones are preserved; larger swarms use generators.
@@ -62,9 +83,28 @@ Wait for all five EKFs to report ready before typing `launch`. The successful ru
 EKF ready on this laptop. Starting a second Gazebo world on the same ports disrupts the sensor link; if a prior
 SITL session has ended, restart Gazebo before trying again.
 
+### Prepared 6–10-drone Gazebo world
+
+For ten vehicles, start the generated world first:
+
+```bash
+bash sitl/launch_gazebo_10drones.sh
+# In another terminal, from the repository root:
+python3 -m sitl.swarm_console --drones 10 --gazebo --ekf-timeout 900
+```
+
+The launcher creates temporary model copies for vehicles 6–10 with unique ArduPilot FDM ports,
+uses the existing checked-in models for vehicles 1–5, and generates V slots from the shared
+formation library. It removes only its own temporary generated files after Gazebo exits. The
+generated ten-model world loaded in a headless one-iteration smoke test. A full ten-drone Gazebo
+SITL takeoff and movement run remains unverified; the complete ten-drone mission results in this
+project are for 2D SITL.
+
 The experimental hybrid and decentralized paths passed the specific standalone runs listed in
 [the decentralized guide](DECENTRALIZED_SITL.md). Those runs are not Gazebo or hardware validation.
 See [the hardening report](reports/HYBRID_HARDENING_2026-10-20.md) for subsequent changes and new evidence.
+The adaptive ten-agent run and visual controller are documented in
+[the 24 October build report](reports/ADAPTIVE_DECENTRALIZED_BUILD_2026-10-24.md).
 
 ## Experimental recovery and process controls
 

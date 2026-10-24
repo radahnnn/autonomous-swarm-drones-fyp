@@ -32,6 +32,8 @@ mav.tlog.raw
 *.log
 *.raw
 /runs/console/
+# Keep compact centralized SITL summaries, while leaving the large raw event stream local.
+/runs/centralized/*/events.jsonl
 # Timestamped SITL evidence directories are local artifacts. Keep compact batch summaries,
 # reproducible configs, and the evidence index under runs/ available for version control.
 /runs/independent/[0-9]*/

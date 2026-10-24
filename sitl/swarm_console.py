@@ -1085,6 +1085,12 @@ def main():
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress"), default="baseline",
                         help="independent runtime only: use run-local SITL sensor/environment profile; stress values are assumptions, not hardware-calibrated")
+    parser.add_argument("--adaptive-swarm", action="store_true",
+                        help="independent runtime: dynamic membership, topology repair, leader election and slot redistribution")
+    parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
+                        help="independent runtime: circular north,east,radius keep-out zone; repeatable")
+    parser.add_argument("--dashboard-port", type=int, default=0,
+                        help="independent runtime: serve the simple browser controller on this localhost port")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
@@ -1111,10 +1117,20 @@ def main():
     if args.agent_runtime in ("process", "independent") and args.control_mode == "centralized":
         parser.error(f"--agent-runtime {args.agent_runtime} requires decentralized or hybrid control")
     if args.agent_runtime == "independent":
-        if args.control_mode != "decentralized":
-            parser.error("--agent-runtime independent currently supports --control-mode decentralized only")
+        if not 0 <= args.dashboard_port <= 65535:
+            parser.error("--dashboard-port must be 0 (disabled) or a valid TCP port")
+        if args.control_mode not in ("decentralized", "hybrid"):
+            parser.error("--agent-runtime independent supports decentralized or hybrid control")
         if args.auto_recover:
             parser.error("--auto-recover is not implemented for independent UDP nodes yet")
+        for raw_obstacle in args.obstacle:
+            try:
+                values = tuple(float(value) for value in raw_obstacle.split(","))
+            except (TypeError, ValueError):
+                parser.error("--obstacle must be north,east,radius, for example 5,0,2")
+            if (len(values) != 3 or not all(math.isfinite(value) for value in values)
+                    or values[2] <= 0):
+                parser.error("--obstacle must contain finite north,east and positive radius")
         if args.external_agents and (args.peer_roster is None or args.peer_auth_key_file is None):
             parser.error("--external-agents requires --peer-roster and --peer-auth-key-file")
         if args.external_agents and (args.peer_loss or args.peer_latency_ms != 30.0 or

@@ -20,6 +20,7 @@ from sitl.mission_intent import MissionIntent, MissionLease
 from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
 from sitl.peer_roster import load_auth_key, load_peer_roster
+from sitl.adaptive_membership import AdaptiveMembership
 
 
 OPERATOR_VERSION = 1
@@ -32,7 +33,10 @@ _TYPE_MASK_POS_YAW = 0b0000101111111000
 class IndependentAgentNode:
     """Owns one MAVLink connection, local guidance loop, and direct peer datagrams."""
 
+    COORDINATOR_TIMEOUT_S = 2.5
+
     def __init__(self, drone_id: int, count: int, endpoint: str, formation: str = "v",
+                 control_mode: str = "decentralized",
                  peer_loss: float = 0.0, peer_latency_ms: float = 30.0,
                  peer_latency_jitter_ms: float | None = None,
                  peer_seed: int | None = None, peer_burst_loss: bool = False,
@@ -44,7 +48,8 @@ class IndependentAgentNode:
                  peer_port_base: int = PEER_PORT_BASE,
                  command_port_base: int = NODE_COMMAND_PORT_BASE,
                  status_port_base: int = STATUS_PORT_BASE,
-                 baudrate: int = 115200, mavlink_system_id: int | None = None):
+                 baudrate: int = 115200, mavlink_system_id: int | None = None,
+                 adaptive_swarm: bool = False, obstacles=()):
         self.drone_id = int(drone_id)
         self.count = int(count)
         self.endpoint = endpoint
@@ -56,6 +61,9 @@ class IndependentAgentNode:
         if not 1 <= self.mavlink_system_id <= 255:
             raise ValueError("MAVLink system ID must be between 1 and 255")
         self.formation = formation
+        if control_mode not in ("decentralized", "hybrid"):
+            raise ValueError("independent agent control mode must be decentralized or hybrid")
+        self.control_mode = control_mode
         if not 0 <= self.drone_id < self.count:
             raise ValueError("agent ID must be within the configured swarm")
         self.all_slots = np.asarray(slots_for(formation, count), dtype=float)
@@ -68,7 +76,25 @@ class IndependentAgentNode:
             self.peer_ids, timeout_s=2.0, startup_grace_s=5.0,
         )
         self.peer_timeout_ids = []
+        self.adaptive_swarm = bool(adaptive_swarm)
+        self.membership = (AdaptiveMembership(self.drone_id, self.count, formation)
+                           if self.adaptive_swarm else None)
+        self.discovery_ids = (self.membership.discovery_ids if self.membership is not None
+                              else list(self.peer_ids))
+        self.elected_leader_id = 0
+        self.membership_revision = 0
+        self.obstacles = [tuple(float(value) for value in obstacle) for obstacle in obstacles]
+        if any(len(obstacle) != 3 or not all(math.isfinite(v) for v in obstacle)
+               or obstacle[2] <= 0 for obstacle in self.obstacles):
+            raise ValueError("obstacles must be finite north,east,radius triples")
         self.peer_roster = load_peer_roster(peer_roster_path, count, peer_port_base)
+        if peer_roster_path is None:
+            # Honour every caller-selected range. The generated roster otherwise
+            # falls back to production command/status ports and prevents parallel
+            # tests or a second local deployment.
+            for agent_id, entry in self.peer_roster.items():
+                entry["command_port"] = int(command_port_base) + agent_id
+                entry["status_port"] = int(status_port_base) + agent_id
         self.peer_roster_path = str(peer_roster_path) if peer_roster_path is not None else None
         if peer_latency_jitter_ms is None:
             peer_latency_jitter_ms = 5.0 if peer_latency_ms > 0 else 0.0
@@ -77,7 +103,9 @@ class IndependentAgentNode:
             raise ValueError("peer latency mean and jitter must be finite and non-negative")
         self.peer_latency_jitter_ms = float(peer_latency_jitter_ms)
         self.frame = CommonCoordinateFrame(DATUM_LAT, DATUM_LON, DATUM_ALT)
-        self.agent = LocalDroneAgent(self.drone_id, safe_radius=3.0)
+        self.agent = LocalDroneAgent(
+            self.drone_id, safe_radius=3.0, hybrid=control_mode == "hybrid",
+        )
         seed = None if peer_seed is None else int(peer_seed) + self.drone_id * 65537
         self.peers = UdpPeerStateTransport(
             self.drone_id, peer_port_base, count,
@@ -131,6 +159,8 @@ class IndependentAgentNode:
         self.current_mission = None
         self.mission_lease = MissionLease()
         self.pending_intent = None
+        self.last_coordinator_message_monotonic = 0.0
+        self.coordinator_connected = False
         self.airborne = False
         self.armed = False
         self.landing = False
@@ -160,6 +190,10 @@ class IndependentAgentNode:
                     f"agent {self.drone_id + 1}: MAVLink endpoint {self.endpoint} "
                     f"unavailable: {last_error}"
                 )
+            self.conn = mavutil.mavlink_connection(
+                self.endpoint, retries=1, reconnect_delay=0,
+            )
+        elif self.endpoint.startswith(("udp:", "udpin:", "udpout:")):
             self.conn = mavutil.mavlink_connection(
                 self.endpoint, retries=1, reconnect_delay=0,
             )
@@ -200,7 +234,7 @@ class IndependentAgentNode:
             return
         now = time.monotonic()
         if now - self.last_peer_heartbeat_at >= 0.5:
-            self.peers.publish_heartbeat(self.peer_ids, time.time())
+            self.peers.publish_heartbeat(self.discovery_ids, time.time())
             self.last_peer_heartbeat_at = now
         if now - self.last_gcs_heartbeat_at >= 1.0:
             self.conn.mav.heartbeat_send(
@@ -340,6 +374,8 @@ class IndependentAgentNode:
                 self.last_mission_sequence = intent.sequence
                 self.current_mission = intent.to_dict()
                 self.pending_intent = self.current_mission
+                self.last_coordinator_message_monotonic = time.monotonic()
+                self.coordinator_connected = True
                 # Keep terminal landing status visible after touchdown. The operator refreshes
                 # mission intent continuously, but a fresh mission does not imply takeoff.
                 if not self.landing and not (not self.airborne and self.last_command == "landed"):
@@ -405,6 +441,8 @@ class IndependentAgentNode:
                         # mistaken for a lost radio/telemetry link on return.
                         self.last_heartbeat_at = time.time()
                         self.position_at = time.time()
+                        if self.membership is not None:
+                            self.membership.resume_after_local_pause(time.time())
                         self.command_in_progress = False
                 elif action == "land":
                     self._command_land("operator")
@@ -447,7 +485,7 @@ class IndependentAgentNode:
         return None
 
     def _check_peer_failsafe(self, now: float, fresh_peer_ids, peer_states=()) -> None:
-        """Land autonomously after a required one-hop peer remains missing in flight."""
+        """Degrade around one lost edge; land only when this node is isolated."""
         if not self.airborne:
             # Learn which configured peers were actually reachable before takeoff, but do
             # not age a missing link into a preflight emergency.
@@ -455,13 +493,16 @@ class IndependentAgentNode:
             self.peer_watchdog.deactivate()
             self.peer_timeout_ids = []
             return
+        # A peer's local LAND is state information, not a swarm-wide command.  Copying
+        # it through the graph made one failed directed link cascade into a fleet-wide
+        # landing.  Keep its slot reserved and let each remaining node independently
+        # assess whether it still has a live route.
         peers_landing = sorted({int(peer["id"]) for peer in peer_states
                                 if peer.get("landing") is True})
         if peers_landing and not self.landing:
             ids = ",".join(str(peer_id + 1) for peer_id in peers_landing)
-            self.safety_state = "peer_landing_failsafe"
-            self.safety_reason = f"peer_land_request:{ids}"
-            self._command_land(self.safety_reason)
+            self.safety_state = "peer_landing_observed"
+            self.safety_reason = f"peer_landing_observed:{ids}"
         if not self.peer_watchdog.monitoring:
             self.peer_watchdog.activate(now, fresh_peer_ids)
         self.peer_timeout_ids = self.peer_watchdog.update(
@@ -469,9 +510,25 @@ class IndependentAgentNode:
         )
         if self.peer_timeout_ids and not self.landing:
             missing = ",".join(str(peer_id + 1) for peer_id in self.peer_timeout_ids)
-            self.safety_state = "peer_link_failsafe"
-            self.safety_reason = f"required_peer_timeout:{missing}"
-            self._command_land(self.safety_reason)
+            required_ids = getattr(self, "peer_ids", self.peer_watchdog.peer_ids)
+            live_required = sorted(set(required_ids) & set(int(value)
+                                                             for value in fresh_peer_ids))
+            if live_required:
+                # Guidance already consumes only fresh received neighbors, so this is
+                # the local topology reconfiguration: remove the failed edge and keep
+                # controlling through the remaining one-hop links.
+                self.safety_state = "peer_link_degraded"
+                self.safety_reason = f"peer_link_degraded:{missing}"
+                self.last_command = self.safety_reason
+            else:
+                self.safety_state = "peer_isolation_failsafe"
+                self.safety_reason = f"isolated_peer_timeout:{missing}"
+                self._command_land(self.safety_reason)
+        elif (not self.peer_timeout_ids and not peers_landing and not self.landing and
+              self.safety_state in {"peer_link_degraded", "peer_landing_observed"}):
+            self.safety_state = "nominal"
+            self.safety_reason = None
+            self.last_command = "peer_links_restored"
 
     def _send_position_target(self, target_global: np.ndarray, altitude_m: float) -> None:
         if self.global_origin is None:
@@ -489,7 +546,8 @@ class IndependentAgentNode:
         )
 
     def _run_guidance(self, intent: MissionIntent, now: float, tick: float,
-                      last_loop: float, neighbors) -> None:
+                      last_loop: float, neighbors,
+                      coordinator_connected: bool = True) -> None:
         """Compute one guidance update, converting invalid intent into a safe landing."""
         # Mission intents are timestamped in the operator clock domain. The lease was
         # accepted using this same offset, so cached-intent validation must not compare
@@ -503,6 +561,7 @@ class IndependentAgentNode:
                 min(0.25, max(0.02, tick - last_loop)), now=mission_now,
                 mission_intent=self.pending_intent,
                 slot_offset=self.slot[:2],
+                coordinator_connected=coordinator_connected,
             )
         except (TypeError, ValueError) as exc:
             # An airborne agent must never exit merely because mission data became
@@ -516,7 +575,46 @@ class IndependentAgentNode:
             return
         self.pending_intent = None
         target_global = np.array([target[0], target[1], self.position[2]], dtype=float)
+        target_global[:2] = self._avoid_obstacles(target_global[:2])
         self._send_position_target(target_global, intent.target_alt_m + self.slot[2])
+
+    def _avoid_obstacles(self, target_ne: np.ndarray) -> np.ndarray:
+        """Apply a bounded local repulsion from configured circular keep-out zones."""
+        target = np.asarray(target_ne, dtype=float).copy()
+        if self.position is None:
+            return target
+        position = np.asarray(self.position[:2], dtype=float)
+        correction = np.zeros(2, dtype=float)
+        for north, east, radius in getattr(self, "obstacles", ()):
+            delta = position - np.array([north, east], dtype=float)
+            distance = float(np.linalg.norm(delta))
+            influence = radius + 3.0
+            if distance >= influence:
+                continue
+            direction = delta / max(distance, 0.10)
+            correction += direction * min(2.0, influence - distance)
+        return target + correction
+
+    def _update_adaptive_membership(self, now: float, fresh_ids) -> None:
+        if self.membership is None:
+            return
+        if self.membership.update(now, fresh_ids):
+            self.membership_revision += 1
+        slot_map = self.membership.slot_map()
+        self.peer_ids = self.membership.neighbors_for()
+        self.slot = slot_map[self.drone_id].copy()
+        self.all_slots = np.asarray([
+            slot_map.get(agent_id, self.all_slots[agent_id])
+            for agent_id in range(self.count)
+        ], dtype=float)
+        self.elected_leader_id = self.membership.leader_id
+        if len(self.membership.active_ids) == 1 and self.airborne and not self.landing:
+            self.safety_state = "peer_isolation_failsafe"
+            self.safety_reason = "adaptive_membership_isolated"
+            self._command_land(self.safety_reason)
+        elif self.safety_state in {"peer_link_degraded", "peer_landing_observed"}:
+            self.safety_state = "nominal"
+            self.safety_reason = None
 
     def _send_status(self, now: float) -> None:
         if now - self.last_status_at < 1.0:
@@ -538,13 +636,31 @@ class IndependentAgentNode:
             "airborne": bool(self.position is not None and self.position[2] < -0.5),
             "armed": self.armed,
             "peer_ids": self.peer_ids,
+            "discovery_ids": self.discovery_ids,
             "peer_live_ids": self.peers.fresh_link_ids(now),
             "peer_timeout_ids": self.peer_timeout_ids,
             "safety_state": self.safety_state,
             "safety_reason": self.safety_reason,
+            "adaptive_swarm": self.adaptive_swarm,
+            "active_member_ids": (sorted(self.membership.active_ids)
+                                  if self.membership is not None else list(range(self.count))),
+            "elected_leader_id": self.elected_leader_id,
+            "membership_revision": self.membership_revision,
+            "obstacle_count": len(self.obstacles),
             "recovery_state": self.recovery_state,
             "mission_sequence": self.last_mission_sequence,
             "mission_active": self.mission_lease.active(time.monotonic()) is not None,
+            "control_mode": self.control_mode,
+            "coordinator_connected": (self.coordinator_connected
+                                       if self.control_mode == "hybrid" else None),
+            "hybrid_mode": (
+                self.agent.hybrid_controller.get_drone_mode(self.drone_id).value
+                if self.agent.hybrid_controller is not None else None
+            ),
+            "hybrid_alpha": (
+                self.agent.hybrid_controller.get_alpha(self.drone_id)
+                if self.agent.hybrid_controller is not None else None
+            ),
             # Expose the currently accepted shared intent so a replacement operator can
             # resume the same target instead of silently resetting the swarm to home.
             "mission_intent": self.current_mission,
@@ -567,6 +683,17 @@ class IndependentAgentNode:
                 self._send_gcs_heartbeat()
                 self._read_vehicle()
                 self._receive_operator_messages()
+                # Launch/land handling may block while ArduPilot arms or takes off.
+                # Do not use the timestamp captured before that operation for peer
+                # expiry, mission leases, telemetry age, or guidance dt.
+                now = time.time()
+                tick = time.monotonic()
+                if self.control_mode == "hybrid":
+                    self.coordinator_connected = (
+                        self.last_coordinator_message_monotonic > 0 and
+                        time.monotonic() - self.last_coordinator_message_monotonic
+                        <= self.COORDINATOR_TIMEOUT_S
+                    )
                 if self.position is None or self.position_at <= 0:
                     time.sleep(0.02)
                     continue
@@ -583,13 +710,20 @@ class IndependentAgentNode:
                     self.current_mission = None
                 self.agent.update_local_state(self.position[:2], self.position_at)
                 self.peers.publish(self.position[:2], self.agent.velocity,
-                                   self.position_at, self.peer_ids, now,
+                                   self.position_at, self.discovery_ids, now,
                                    landing=self.landing)
-                neighbors = self.peers.receive(now, self.peer_ids)
+                discovered = self.peers.receive(now, self.discovery_ids)
                 fresh_peer_ids = self.peers.fresh_link_ids(now)
-                self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
+                self._update_adaptive_membership(now, fresh_peer_ids)
+                neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
+                if self.membership is None:
+                    self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
                 if self.airborne and intent is not None and not self.landing:
-                    self._run_guidance(intent, now, tick, last_loop, neighbors)
+                    self._run_guidance(
+                        intent, now, tick, last_loop, neighbors,
+                        coordinator_connected=(self.control_mode != "hybrid" or
+                                              self.coordinator_connected),
+                    )
                 elif self.airborne and self.landing:
                     heartbeat = self.conn.recv_match(type="HEARTBEAT", blocking=False)
                     if heartbeat and not (heartbeat.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED):
@@ -623,7 +757,13 @@ def main(argv=None):
                         help="MAVLink baud rate for serial endpoints")
     parser.add_argument("--mavlink-system-id", type=int, default=None,
                         help="expected ArduPilot SYSID_THISMAV; defaults to zero-based agent ID + 1")
+    parser.add_argument("--adaptive-swarm", action="store_true",
+                        help="discover membership, repair a one-hop ring, elect a leader and redistribute slots")
+    parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
+                        help="circular local keep-out zone in shared north/east metres; repeatable")
     parser.add_argument("--formation", default="v")
+    parser.add_argument("--control-mode", choices=("decentralized", "hybrid"),
+                        default="decentralized")
     parser.add_argument("--peer-loss", type=float, default=0.0)
     parser.add_argument("--peer-latency-ms", type=float, default=0.0)
     parser.add_argument("--peer-jitter-ms", type=float, default=None,
@@ -689,8 +829,19 @@ def main(argv=None):
                 or sender == recipient):
             parser.error("--peer-block IDs must be different valid zero-based drone IDs")
         blocked_links.append((sender, recipient))
+    obstacles = []
+    for raw_obstacle in args.obstacle:
+        try:
+            obstacle = tuple(float(value) for value in raw_obstacle.split(","))
+        except (TypeError, ValueError):
+            parser.error("--obstacle must be north,east,radius, for example 5,0,2")
+        if (len(obstacle) != 3 or not all(math.isfinite(value) for value in obstacle)
+                or obstacle[2] <= 0):
+            parser.error("--obstacle must contain finite north,east and positive radius")
+        obstacles.append(obstacle)
     node = IndependentAgentNode(
         args.id, args.count, args.endpoint, args.formation,
+        control_mode=args.control_mode,
         peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
         peer_latency_jitter_ms=args.peer_jitter_ms,
         peer_seed=args.peer_seed, peer_burst_loss=args.peer_burst_loss,
@@ -707,6 +858,8 @@ def main(argv=None):
         status_port_base=args.status_port_base,
         baudrate=args.baudrate,
         mavlink_system_id=args.mavlink_system_id,
+        adaptive_swarm=args.adaptive_swarm,
+        obstacles=obstacles,
     )
     node.run(args.duration)
 

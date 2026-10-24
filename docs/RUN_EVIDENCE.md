@@ -1,6 +1,6 @@
-# Five-drone console run evidence
+# Swarm console run evidence
 
-Each invocation of `sitl/swarm_console.py` creates a new UTC-named folder under `runs/console/` before it launches or connects to SITL. Use `--evidence-dir PATH` to choose another parent folder. The folder contains `events.jsonl` and, when the console exits, `summary.json`. The runtime folder is ignored by Git; archive chosen results deliberately with the report.
+Each invocation of `sitl/swarm_console.py` creates a new UTC-named folder under `runs/console/` before it launches or connects to SITL. The console supports 1–10 drones. Use `--evidence-dir PATH` to choose another parent folder. The folder contains `events.jsonl` and, when the console exits, `summary.json`. The runtime folder is ignored by Git; archive chosen results deliberately with the report.
 
 `events.jsonl` records the Git commit, requested fleet size and mode, connections, EKF readiness, pilot commands, launch/formation/fault/patrol/landing events, and 10 Hz samples. Each sample carries timestamp, actual and commanded global NED positions, active state, telemetry freshness, heartbeat age, formation, leader, slot errors, and the closest observed horizontal separation. Errors use a position fix no older than one second. The p95 tracking result uses only samples at least five seconds after a target/topology change and after morphing finishes. `patrol_commands_complete` means the four legs were issued; it does not by itself prove accurate patrol tracking.
 

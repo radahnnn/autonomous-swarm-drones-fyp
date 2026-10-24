@@ -480,6 +480,7 @@ def test_independent_console_passes_peer_jitter_to_agent_process():
     console = object.__new__(IndependentSwarmConsole)
     console.count = 5
     console.formation = "v"
+    console.control_mode = "decentralized"
     console.args = SimpleNamespace(
         peer_loss=0.02, peer_latency_ms=40.0, peer_jitter_ms=17.0,
         peer_duplicate_rate=0.0, peer_reorder_rate=0.0,
@@ -490,6 +491,42 @@ def test_independent_console_passes_peer_jitter_to_agent_process():
     command = console._agent_command(build_fleet(5)[0])
     index = command.index("--peer-jitter-ms")
     assert command[index + 1] == "17.0"
+
+
+def test_independent_console_uses_private_udp_output_for_mavproxy_routed_sitl():
+    console = object.__new__(IndependentSwarmConsole)
+    console.count = 10
+    console.formation = "v"
+    console.control_mode = "decentralized"
+    console.launcher = SimpleNamespace(use_tcp=False)
+    console.args = SimpleNamespace(
+        peer_loss=0.0, peer_latency_ms=25.0, peer_jitter_ms=5.0,
+        peer_duplicate_rate=0.0, peer_reorder_rate=0.0,
+        peer_reorder_delay_ms=150.0, peer_block=None, peer_seed=1024,
+        peer_burst_loss=False, peer_roster=None, peer_auth_key_file=None,
+    )
+    from sitl.fleet import build_fleet
+    command = console._agent_command(build_fleet(10)[9])
+
+    assert command[command.index("--endpoint") + 1] == "udpin:127.0.0.1:14642"
+
+
+def test_independent_console_passes_hybrid_mode_to_agent_process():
+    console = object.__new__(IndependentSwarmConsole)
+    console.count = 10
+    console.formation = "v"
+    console.control_mode = "hybrid"
+    console.args = SimpleNamespace(
+        peer_loss=0.0, peer_latency_ms=30.0, peer_jitter_ms=None,
+        peer_duplicate_rate=0.0, peer_reorder_rate=0.0,
+        peer_reorder_delay_ms=150.0, peer_block=None, peer_seed=None,
+        peer_burst_loss=False, peer_roster=None, peer_auth_key_file=None,
+    )
+    from sitl.fleet import build_fleet
+    command = console._agent_command(build_fleet(10)[0])
+
+    assert command[command.index("--count") + 1] == "10"
+    assert command[command.index("--control-mode") + 1] == "hybrid"
 
 
 def test_operator_loss_harness_accepts_measured_leader_target_within_tolerance():
@@ -586,7 +623,26 @@ def test_independent_agent_can_open_serial_mavlink_with_explicit_system_id(
 def test_external_operator_console_runs_five_agent_command_status_cycle(tmp_path, monkeypatch):
     monkeypatch.setattr(independent_console_module, "_CLOCK_RESYNC_INTERVAL_S", 0.05)
     count = 5
-    base = 41000 + (os.getpid() % 1000)
+    # Select a genuinely free contiguous range. Desktop applications commonly
+    # occupy random high UDP ports, so a PID-derived port is not isolated.
+    base = None
+    for candidate in range(46000, 62000, 250):
+        probes = []
+        try:
+            for agent_id in range(count):
+                for host, port in ((f"127.0.0.{agent_id + 2}", candidate + agent_id),
+                                   ("127.0.0.1", candidate + 100 + agent_id)):
+                    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    probe.bind((host, port))
+                    probes.append(probe)
+            base = candidate
+            break
+        except OSError:
+            pass
+        finally:
+            for probe in probes:
+                probe.close()
+    assert base is not None, "no free UDP block for operator integration test"
     key = b"external-console-five-agent-test-key-32-bytes"
     key_path = tmp_path / "test-key"
     key_path.write_bytes(key)

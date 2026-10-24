@@ -185,7 +185,6 @@ def test_isolated_fallback_bounded_hover_deceleration():
     (accel = -k_align * velocity) rather than drifting at constant velocity.
     """
     from swarm_core.controllers.decentralized import DecentralizedController
-
     ctrl = DecentralizedController(k_align=1.6)
     drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[2.0, -1.5])
 
@@ -249,6 +248,7 @@ def test_degree_normalisation_at_various_swarm_sizes():
     scale unbounded with swarm size n = 3, 5, 10.
     """
     from swarm_core.controllers.decentralized import DecentralizedController
+    from swarm_core.safety import separation_guard_acceleration
 
     ctrl = DecentralizedController(k_sep=2.0, k_align=1.5, k_form=1.0, safe_radius=1.5)
     drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[1.0, 0.0])
@@ -284,6 +284,13 @@ def test_degree_normalisation_at_various_swarm_sizes():
         single_form = -1.0 * displacement_err
 
         expected_accel = single_repulse + single_align + single_form
+        # The controller now adds a velocity-aware safety intervention after
+        # the degree-normalised flocking terms; keep this test focused on the
+        # normalization while accounting for that identical local guard.
+        expected_accel += separation_guard_acceleration(
+            drone.position, drone.velocity, neighbors,
+            reaction_time_s=1.5, max_accel_m_s2=drone.max_accel,
+        )
         assert np.allclose(accel, expected_accel, atol=1e-5), (
             f"Degree normalisation failed at swarm size n={n_peers+1}. "
             f"Accel: {accel}, Expected: {expected_accel}"
@@ -446,4 +453,3 @@ if __name__ == "__main__":
     test_coordinator_heartbeat_payload_and_freezing()
     test_double_apf_elimination_in_fallback()
     print("All hybrid feature tests passed successfully!")
-

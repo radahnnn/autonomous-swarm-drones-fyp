@@ -27,6 +27,27 @@ def test_centralized_simulation():
     assert summary["any_collision"] == 0.0
 
 
+def test_formation_setup_synchronizes_cached_targets_before_delayed_coordinator_packets():
+    drones = create_non_overlapping_drones(10, seed=20261026)
+    sim = SwarmSimulation(drones, control_mode="hybrid", comm_range=12.0)
+    sim.set_formation(FormationType.V_SHAPE, centroid=np.zeros(2), spacing=3.0)
+    drone_ids = [drone.id for drone in drones]
+
+    for index, drone in enumerate(drones):
+        expected = sim.target_slots[index]
+        assert np.allclose(sim.drone_last_received_target[drone.id], expected)
+        assert np.allclose(sim.hybrid_ctrl.last_known_target[drone.id], expected)
+        for peer_id in drone_ids:
+            if peer_id != drone.id:
+                expected_offset = expected - sim.target_slots[peer_id]
+                assert np.allclose(
+                    sim.drone_last_received_offsets[drone.id][peer_id], expected_offset,
+                )
+                assert np.allclose(
+                    sim.hybrid_ctrl.last_known_offsets[drone.id][peer_id], expected_offset,
+                )
+
+
 def test_decentralized_simulation():
     drones = create_non_overlapping_drones(5, seed=101)
     sim = SwarmSimulation(drones, control_mode="decentralized", comm_range=15.0)
@@ -527,4 +548,3 @@ if __name__ == "__main__":
     test_per_drone_velocity_in_control_loop()
     test_set_coordinator_link_and_outage_equivalence()
     print("All simulation tests passed successfully!")
-

@@ -84,7 +84,7 @@ def test_decentralized_local_agent_holds_position_and_bounds_acceleration():
         position=np.zeros(2), sample_time=1.0, goal=np.array([20.0, 0.0]),
         neighbor_states=[], desired_offsets={}, dt=0.1, now=1.0,
     )
-    assert 0.0 < np.linalg.norm(target) <= agent.MAX_SPEED * agent.LOOKAHEAD_S
+    assert np.allclose(target, 0.0)
     assert np.linalg.norm(agent.drone.commanded_accel) <= agent.MAX_ACCEL + 1e-9
 
 
@@ -98,6 +98,7 @@ def test_independent_agent_gcs_heartbeat_is_rate_limited(monkeypatch):
     node.last_gcs_heartbeat_at = 0.0
     node.last_peer_heartbeat_at = 0.0
     node.peer_ids = [1]
+    node.discovery_ids = [1]
     node.peers = MagicMock()
 
     node._send_gcs_heartbeat()
@@ -607,8 +608,37 @@ def test_independent_agent_lands_after_required_peer_timeout_only_while_airborne
     node._check_peer_failsafe(21.9, [])
     assert landed_for == []
     node._check_peer_failsafe(22.0, [])
-    assert landed_for == ["required_peer_timeout:2"]
-    assert node.safety_state == "peer_link_failsafe"
+    assert landed_for == ["isolated_peer_timeout:2"]
+    assert node.safety_state == "peer_isolation_failsafe"
+
+
+def test_independent_agent_reconfigures_around_one_missing_peer_and_recovers():
+    from sitl.independent_agent_node import IndependentAgentNode
+    from sitl.peer_udp import PeerLinkWatchdog
+
+    node = object.__new__(IndependentAgentNode)
+    node.peer_ids = [1, 2]
+    node.peer_watchdog = PeerLinkWatchdog([1, 2], timeout_s=2.0)
+    node.peer_timeout_ids = []
+    node.airborne = True
+    node.landing = False
+    node.safety_state = "nominal"
+    node.safety_reason = None
+    node.last_command = "airborne"
+    landed_for = []
+    node._command_land = landed_for.append
+
+    node._check_peer_failsafe(10.0, [2])
+    node._check_peer_failsafe(12.0, [2])
+    assert landed_for == []
+    assert node.peer_timeout_ids == [1]
+    assert node.safety_state == "peer_link_degraded"
+    assert node.safety_reason == "peer_link_degraded:2"
+
+    node._check_peer_failsafe(12.1, [1, 2])
+    assert node.safety_state == "nominal"
+    assert node.safety_reason is None
+    assert node.last_command == "peer_links_restored"
 
 
 def test_independent_agent_launch_preflight_requires_mission_and_fresh_neighbors():
@@ -694,7 +724,7 @@ def test_agent_detects_existing_armed_airborne_vehicle_after_process_restart():
     assert land_reasons == ["agent_process_restarted_while_airborne"]
 
 
-def test_airborne_agent_propagates_peer_landing_request():
+def test_airborne_agent_observes_peer_landing_without_copying_land_command():
     from sitl.independent_agent_node import IndependentAgentNode
     from sitl.peer_udp import PeerLinkWatchdog
 
@@ -706,13 +736,14 @@ def test_airborne_agent_propagates_peer_landing_request():
     node.landing = False
     node.safety_state = "nominal"
     node.safety_reason = None
+    node.last_command = "airborne"
     landed_for = []
     node._command_land = landed_for.append
 
     node._check_peer_failsafe(10.0, [1], [{"id": 1, "landing": True}])
-    assert node.safety_state == "peer_landing_failsafe"
-    assert node.safety_reason == "peer_land_request:2"
-    assert landed_for == ["peer_land_request:2"]
+    assert node.safety_state == "peer_landing_observed"
+    assert node.safety_reason == "peer_landing_observed:2"
+    assert landed_for == []
 
 
 def test_new_mission_refresh_does_not_erase_landed_status():
@@ -826,12 +857,15 @@ def test_mission_intent_is_shared_but_each_agent_applies_its_own_slot():
     common = MissionIntent(1, 10.0, 11.0, (10.0, 4.0)).to_dict()
     left = LocalDroneAgent(0)
     right = LocalDroneAgent(1)
+    # Mission/slot mapping is checked while local peer awareness is available;
+    # a truly isolated agent should hold/brake until peer state returns.
+    peers = [{"id": 2, "position": np.array([0.0, 4.0]), "velocity": np.zeros(2)}]
     left_target = left.command(
-        np.zeros(2), 10.0, None, [], {}, 0.1, now=10.0,
+        np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0,
         mission_intent=common, slot_offset=np.array([-2.0, 0.0]),
     )
     right_target = right.command(
-        np.zeros(2), 10.0, None, [], {}, 0.1, now=10.0,
+        np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0,
         mission_intent=common, slot_offset=np.array([2.0, 0.0]),
     )
     assert left_target[0] < right_target[0]
@@ -878,15 +912,48 @@ def test_agent_keeps_an_accepted_mission_without_per_tick_refresh():
 
     agent = LocalDroneAgent(0)
     intent = MissionIntent(1, 10.0, 20.0, (5.0, 0.0)).to_dict()
+    peers = [{"id": 1, "position": np.array([0.0, 4.0]), "velocity": np.zeros(2)}]
     first = agent.command(
-        np.zeros(2), 10.0, None, [], {}, 0.1, now=10.0,
+        np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0,
         mission_intent=intent, slot_offset=np.array([1.0, 0.0]),
     )
     next_tick = agent.command(
-        np.zeros(2), 10.1, None, [], {}, 0.1, now=10.1,
+        np.zeros(2), 10.1, None, peers, {}, 0.1, now=10.1,
     )
     assert agent.last_mission_sequence == 1
     assert np.linalg.norm(first) > 0 and np.linalg.norm(next_tick) > 0
+
+
+def test_hybrid_local_agent_falls_back_on_coordinator_loss_and_recovers_with_hysteresis():
+    from sitl.decentralized_guidance import LocalDroneAgent
+    from sitl.mission_intent import MissionIntent
+
+    agent = LocalDroneAgent(0, hybrid=True)
+    intent = MissionIntent(1, 10.0, 40.0, (5.0, 0.0)).to_dict()
+    for tick in range(8):
+        now = 10.0 + tick * 0.1
+        agent.command(
+            np.zeros(2), now, None, [], {}, 0.1, now=now,
+            mission_intent=intent if tick == 0 else None,
+            slot_offset=np.zeros(2) if tick == 0 else None,
+            coordinator_connected=True,
+        )
+
+    # A missing coordinator heartbeat outlives the controller's 0.5 s degrade timeout.
+    for tick in range(6):
+        now = 10.7 + (tick + 1) * 0.12
+        agent.command(np.zeros(2), now, None, [], {}, 0.12, now=now,
+                      coordinator_connected=False)
+    assert agent.hybrid_controller.get_drone_mode(0).value == "decentralized_fallback"
+    assert agent.hybrid_controller.get_alpha(0) < 1.0
+
+    # Recovery uses fresh sequential coordinator heartbeats plus the minimum fallback dwell.
+    for tick in range(30):
+        now = 12.0 + tick * 0.1
+        agent.command(np.zeros(2), now, None, [], {}, 0.1, now=now,
+                      coordinator_connected=True)
+    assert agent.hybrid_controller.get_drone_mode(0).value == "centralized"
+    assert 0.0 <= agent.hybrid_controller.get_alpha(0) <= 1.0
 
 
 def test_cached_mission_expires_and_altitude_is_bounded():

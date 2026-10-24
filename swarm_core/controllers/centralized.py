@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
+from swarm_core.safety import separation_guard_acceleration
 
 
 class CentralizedController:
@@ -86,5 +87,20 @@ class CentralizedController:
                     force = repulse_magnitude * direction
                     accel_commands[i] += force
                     accel_commands[j] -= force
+
+        local_neighbors = [[] for _ in range(num_drones)]
+        for i in range(num_drones):
+            for j in range(num_drones):
+                if i == j:
+                    continue
+                local_neighbors[i].append({
+                    "id": drones[j].id,
+                    "position": current_pos[j],
+                    "velocity": current_vel[j],
+                })
+            accel_commands[i] += separation_guard_acceleration(
+                current_pos[i], current_vel[i], local_neighbors[i],
+                max_accel_m_s2=drones[i].max_accel,
+            )
 
         return accel_commands

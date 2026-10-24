@@ -7,6 +7,7 @@ Requires no global coordinator; each drone relies strictly on 1-hop neighbor sta
 from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
+from swarm_core.safety import separation_guard_acceleration
 
 
 class DecentralizedController:
@@ -37,6 +38,8 @@ class DecentralizedController:
         measured_velocity: Optional[np.ndarray] = None,
         use_velocity_feedforward: bool = True,
         drag_coeff: float = 0.20,
+        stop_without_neighbors: bool = True,
+        reaction_time_s: float = 1.5,
     ) -> np.ndarray:
         """
         Compute control acceleration for a single drone given perceived neighbor data.
@@ -57,22 +60,11 @@ class DecentralizedController:
         vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
         accel = np.zeros(drone.dim, dtype=np.float64)
 
-        if not neighbor_states:
-            # Isolated drone - track goal directly if available
-            if goal_pos is not None:
-                accel += self.k_goal * (goal_pos - pos)
-                if goal_vel is not None:
-                    accel += 0.5 * self.k_goal * (goal_vel - vel)
-                    if use_velocity_feedforward and drag_coeff > 0:
-                        accel += drag_coeff * goal_vel
-            elif goal_vel is not None:
-                accel += 0.5 * self.k_goal * (goal_vel - vel)
-                if use_velocity_feedforward and drag_coeff > 0:
-                    accel += drag_coeff * goal_vel
-            else:
-                # Bounded failsafe: actively brake to hover when isolated without an active goal
-                accel -= self.k_align * vel
-            return accel
+        if not neighbor_states and stop_without_neighbors:
+            # A waypoint alone cannot establish safe motion when all peer state is
+            # unavailable. Stop advancing the mission and brake until local awareness
+            # returns; the independent SITL supervisor can additionally LAND on timeout.
+            return -self.k_align * vel
 
         effective_degree = 0.0
         f_sep = np.zeros(drone.dim, dtype=np.float64)
@@ -130,4 +122,9 @@ class DecentralizedController:
                 f_goal += drag_coeff * goal_vel
 
         total_accel = f_sep + f_align + f_form + f_goal
+        total_accel += separation_guard_acceleration(
+            pos, vel, neighbor_states,
+            reaction_time_s=reaction_time_s,
+            max_accel_m_s2=drone.max_accel,
+        )
         return total_accel
