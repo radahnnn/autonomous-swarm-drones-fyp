@@ -1,6 +1,6 @@
 # Autonomous Swarm Drones
 
-Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor: Dr. Abdul Ghafoor · Status summarized: 20 October 2026
+Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor: Dr. Abdul Ghafoor · Status summarized: 24 October 2026
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
@@ -34,10 +34,14 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The
 
 ## Branches and project state
 
+For the plain-language map of local folders, branches, and which copy to use, read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md). This experimental branch remains separate from stable `master`.
+
 | Branch or tag | Purpose | State |
 |---|---|---|
 | `master` | Standalone 2D demo baseline and run evidence | The earlier `demo-ready-2026-10-12` tag remains at `2620f585`; `demo-2d-verified-2026-10-12` marks the consolidated five-drone demo checkpoint. |
 | `work/decentralized-sitl-20261020` | Experimental per-agent control, hybrid recovery and process isolation | Changes and evidence committed separately from the stable demo. |
+| `work/corrected-phase2-20261020` | Corrected identification Phase 2 timing and profile study | Separate identification checkout; inspect its report for corrected metrics and limitations. |
+| `archive/*` | Preserved experimental working snapshots | Historical/recovery branches; not stable demo baselines. |
 | `hw-matched-identification` | SITL position-controller identification study | Kept separate from the demo branch. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
 | `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved locally as a historical savepoint; not part of the current GitHub demo baseline. |
 
@@ -58,7 +62,7 @@ These are results from local consolidated copies on one development machine. The
 
 ## Work kept separate
 
-Earlier experimental work and presentation drafts in the demo working copy are historical artifacts. The current experimental implementation is committed on the separate branch named above, with both failed and passing evidence retained. It has not been merged into the stable demo baseline. The uneven-timestamp timing correction and regression test also remain uncommitted in the identification working copy. Physical-aircraft communication and flight tests remain future work.
+Earlier experimental work and presentation drafts are historical artifacts. The current experimental implementation is committed on the separate branch named above, with both failed and passing evidence retained. It has not been merged into the stable demo baseline. The corrected timing work is on its separate identification branch. Physical-aircraft communication and flight tests remain future work.
 
 ## Quick start
 
