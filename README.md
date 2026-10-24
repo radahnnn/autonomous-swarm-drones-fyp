@@ -4,6 +4,15 @@ Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor:
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
+## Start here
+
+| Goal | Open |
+|---|---|
+| Reproduce the established five-drone 2D or 3D SITL demo | This `master` branch and the [console guide](docs/CONSOLE_GUIDE.md) |
+| Explore ten-drone 2D centralized, decentralized, and hybrid control | [Experimental branch](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/decentralized-sitl-20261020) and its [validation report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/decentralized-sitl-20261020/docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md) |
+| Study controller identification and corrected Phase 2 timing | [Identification study](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/hw-matched-identification) and [corrected rerun](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/corrected-phase2-20261020) |
+| Find local folders, branch roles, and preserved checkpoints | [Project state and history](docs/PROJECT_STATE.md) |
+
 ## Current implementation
 
 The default `master` branch is the demo-oriented baseline. It includes:
@@ -25,6 +34,9 @@ For the plain-language map of local folders, branches, and which copy to use, re
 | `master` | Standalone 2D demo baseline and run evidence | The earlier `demo-ready-2026-10-12` tag remains at `2620f585`; `demo-2d-verified-2026-10-12` marks the consolidated five-drone demo checkpoint. |
 | `work/decentralized-sitl-20261020` | Experimental 10-drone control and three-mode comparison | Separate from the demo baseline; includes 10-drone 2D work and generated Gazebo world support. |
 | `hw-matched-identification` | SITL position-controller identification study | Kept separate from the demo branch. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
+| `work/corrected-phase2-20261020` | Corrected timing and Phase 2 sensitivity rerun | Separate research line with its regression test, results, and limits. |
+| `archive/live-hybrid-checkpoint-20261020` | Earlier hybrid checkpoint | Preserved research snapshot. |
+| `archive/hw-identification-working-copy-20261024` | Earlier identification working copy | Preserved raw runs and local changes. |
 | `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved on GitHub as a historical savepoint; not part of the current demo baseline. |
 
 The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. The corrected S1 timing profile was used in a separate Phase 2 sensitivity rerun. The more accurate S4 cascade model has not yet been integrated into Phase 2; see the [corrected Phase 2 report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/corrected-phase2-20261020/docs/reports/PHASE2_CORRECTED_TIMING_2026-10-20.md).

@@ -1,6 +1,37 @@
 # Project state and where to work
 
-Last reconciled: 24 October 2026.
+Last reconciled: 25 October 2026.
+
+## GitHub branches
+
+All seven published branches belong to [one GitHub repository](https://github.com/radahnnn/autonomous-swarm-drones-fyp). The two local Git databases described below both use that same remote.
+
+| Branch | Meaning |
+|---|---|
+| [`master`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/master) | Stable five-drone demo and primary landing page. |
+| [`work/decentralized-sitl-20261020`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/decentralized-sitl-20261020) | Current 10-drone 2D experimental control line. |
+| [`hw-matched-identification`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/hw-matched-identification) | Original SITL controller-identification study. |
+| [`work/corrected-phase2-20261020`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/work/corrected-phase2-20261020) | Corrected step timing and Phase 2 sensitivity results. |
+| [`checkpoint/2d-working-savepoint`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/checkpoint/2d-working-savepoint) | Historical working 2D state. |
+| [`archive/live-hybrid-checkpoint-20261020`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/archive/live-hybrid-checkpoint-20261020) | Earlier live hybrid prototype and records. |
+| [`archive/hw-identification-working-copy-20261024`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/tree/archive/hw-identification-working-copy-20261024) | Preserved identification working copy and raw runs. |
+
+Older local branch tips such as `milestone/phase1-stable`, `unified-swarm-console`, and `verified-3d-20261020` are ancestors of `master`. Their commits remain in GitHub history. The historical tags below mark the useful restore points without seven more branch names.
+
+## How the project reached this state
+
+| Stage | Git checkpoint | Where to read more |
+|---|---|---|
+| Baseline audit and Phase 1 foundations | `v0-baseline`, `v1.0-phase1-complete` | [`docs/BASELINE_AUDIT.md`](BASELINE_AUDIT.md) |
+| Early 2D and three-drone formation work | `v1.0-savepoint-2d-working`, `v2.0-3drones-vformation` | [`docs/logs/FYP_RUNNING_LOG.md`](logs/FYP_RUNNING_LOG.md) |
+| Gazebo digital-twin assets | `v2.1-gazebo-3d-digital-twins` | [`docs/CONSOLE_GUIDE.md`](CONSOLE_GUIDE.md) |
+| Unified five-drone console, 12 October | `demo-ready-2026-10-12` | [`docs/CONSOLE_GUIDE.md`](CONSOLE_GUIDE.md) |
+| Verified five-drone 2D checkpoint, 14 October | `demo-2d-verified-2026-10-12` | [`docs/RUN_EVIDENCE.md`](RUN_EVIDENCE.md) |
+| Five-drone Gazebo flight, 20 October | `master` history | [3D validation report](reports/GAZEBO_5DRONE_VALIDATION_2026-10-20.md) |
+| Independent agents and 10-drone 2D modes, 24 October | `work/decentralized-sitl-20261020` | [10-drone report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/decentralized-sitl-20261020/docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md) |
+| Identification timing correction and Phase 2 rerun | `work/corrected-phase2-20261020` | [corrected Phase 2 report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/corrected-phase2-20261020/docs/reports/PHASE2_CORRECTED_TIMING_2026-10-20.md) |
+
+Tags and branches are retained for recovery. A tag identifies a historical commit; it does not mean every feature at that stage passed a later acceptance test.
 
 ## The short version
 
