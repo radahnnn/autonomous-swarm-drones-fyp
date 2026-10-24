@@ -2,11 +2,11 @@
 
 Final Year Project (BEE-60), Department of Electrical Engineering  
 Supervisor: Dr. Abdul Ghafoor  
-Status summarized: 24 October 2026
+Status summarized: 25 October 2026
 
-> **Repository state:** This is the separate hardware-matched identification Git repository. Use `hw-matched-identification` for the published study, `work/corrected-phase2-20261020` for the uneven-timestamp correction and rerun, and `archive/hw-identification-working-copy-20261024` as a preserved snapshot of the prior local working copy, including raw runs. The project-wide folder map is in the main repository at `docs/PROJECT_STATE.md`.
+> **Repository state:** This branch is checked out from a separate local Git database that uses the same GitHub repository. Use `hw-matched-identification` for the original study, this branch for the uneven-timestamp correction and rerun, and `archive/hw-identification-working-copy-20261024` for the preserved raw-run snapshot. See the [project-wide branch and folder map](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/master/docs/PROJECT_STATE.md).
 
-> **Important correction:** The old `sitl_fitted` profile (`tau=0.992 s`, `c_d=0.637 s^-1`) was fit using a time-step assumption invalid for unevenly spaced timestamps. Do not describe it as a validated ArduPilot parameter set. See the corrected timing report on this branch.
+> **Important correction:** The old `sitl_fitted` profile (`tau=0.992 s`, `c_d=0.637 s^-1`) was fit using a time-step assumption invalid for unevenly spaced timestamps. Do not describe it as a validated ArduPilot parameter set. See the [corrected timing report](docs/reports/PHASE2_CORRECTED_TIMING_2026-10-20.md).
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
@@ -26,11 +26,12 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md).
 
 | Branch or tag | Purpose | State |
 |---|---|---|
-| `master` | Demo baseline | Tagged `demo-ready-2026-10-12` at `2620f585`. This is the default branch and does not include the local-only consolidation fixes described below. |
-| `hw-matched-identification` | SITL position-controller identification study | Eight commits ahead of `master`; intentionally kept separate. Its report identifies a timing bug that made the old `tau=0.992 s`, `c_d=0.637 s^-1` fit an artifact. Do not present those values as validated parameters. |
+| `master` | Demo baseline | Current five-drone 2D and verified 3D baseline. The earlier `demo-ready-2026-10-12` tag remains at `2620f585`. |
+| `hw-matched-identification` | SITL position-controller identification study | Original study; its old `tau=0.992 s`, `c_d=0.637 s^-1` fit is a timing artifact. |
+| `work/corrected-phase2-20261020` | Timing correction and sensitivity rerun | This branch; contains the regression test, corrected run data, and Phase 2 report. |
 | `checkpoint/2d-working-savepoint` | Earlier 2D working state | Preserved as a historical savepoint, not the current demo baseline. |
 
-The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. The new model is not yet used in the simulator's Phase 2 experiments.
+The identification report compares several software models. An ArduPilot-like position/velocity cascade fit the recorded step responses best among those compared. In a five-drone SITL replay, it reported 13.1 cm mean horizontal RMSE versus 30.4 cm for the old fitted parameters, with an 85 cm worst single error. This branch reruns Phase 2 with a corrected S1 timing profile as a sensitivity comparison. The more accurate S4 cascade model has not yet been integrated into Phase 2.
 
 The identification results are preliminary: one default SITL airframe, two repeats per step condition, no confidence intervals, and horizontal motion only. The study does not identify physical mass, thrust, or inertia and has not been validated against real-flight logs. See [`docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md`](docs/reports/HW_MATCHED_IDENTIFICATION_REPORT.md) for methods, raw-data locations, comparisons, and limitations.
 
@@ -43,9 +44,9 @@ These are results from the local consolidated copies on one development machine,
 - Gazebo rendered the five-drone world on the NVIDIA GPU and all five SITL instances connected. The console then remained at EKF flags `0xa7` (GPS fix 6), so the EKF readiness gate blocked flight. Gazebo rendering and connection were checked; Gazebo flight was not verified.
 - No physical-airframe flight was performed as part of these checks.
 
-## Local consolidated-copy changes not yet on GitHub
+## Follow-up work on other branches
 
-The local consolidated working copies include path updates for running the project from its organized folder and a landing-shutdown fix. The identification copy also contains a timing correction and regression test for uneven timestamps. These are uncommitted local edits; this README does not imply that they are already present on either GitHub branch.
+The consolidated launch-path updates and landing-shutdown fix are in the current `master` history. This branch contains the timing correction and uneven-first-interval regression test. Earlier raw identification runs and local changes are preserved on `archive/hw-identification-working-copy-20261024`. These branches are published on GitHub and remain separate from one another.
 
 ## Quick start
 
@@ -71,7 +72,7 @@ For Gazebo, first start the matching Gazebo world/plugin as described in the con
 python3 sitl/swarm_console.py --drones 5 --gazebo
 ```
 
-Gazebo flight has not yet passed the console's EKF readiness gate on the tested laptop. Do not bypass arming or EKF checks to make a demo proceed.
+The five-drone Gazebo flight was later verified on the `master` branch. See its [validation report](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/master/docs/reports/GAZEBO_5DRONE_VALIDATION_2026-10-20.md) for the run and its limits.
 
 ## Main directories
 
