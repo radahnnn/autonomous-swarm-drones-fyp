@@ -9,6 +9,7 @@ import pytest
 
 from sitl.fleet import DATUM_LAT, MAX_DRONES, build_fleet
 from sitl.formation_library import MIN_SPACING, STYLES, assign_slots, slots_for
+import sitl.swarm_console as console_module
 from sitl.swarm_console import SwarmConsole, handle_command
 
 
@@ -145,7 +146,8 @@ def test_setpoints_go_only_to_airborne_drones_with_common_yaw():
         assert not args[4] & (1 << 10) and args[-2] == c.FORMATION_YAW_RAD
 
 
-def test_commands_move_morph_and_exit():
+def test_commands_move_morph_and_exit(monkeypatch):
+    monkeypatch.setattr(console_module, "_armed_state", lambda _conn: False)
     c = _console(3)
     start = c.centroid_pos.copy()
     assert handle_command(c, "w 10") is True
@@ -157,3 +159,13 @@ def test_commands_move_morph_and_exit():
     assert c.running is False
     for conn in c.connections:
         conn.set_mode.assert_called_with(9)
+
+
+def test_land_all_waits_for_every_vehicle_to_disarm(monkeypatch):
+    states = iter([True, False])
+    monkeypatch.setattr(console_module, "_armed_state", lambda _conn: next(states))
+    monkeypatch.setattr(console_module.time, "sleep", lambda _seconds: None)
+    c = _console(1)
+
+    assert c.land_all(timeout=1.0) is True
+    c.connections[0].mav.command_long_send.assert_called_once()

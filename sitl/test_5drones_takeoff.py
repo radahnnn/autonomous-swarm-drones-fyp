@@ -7,7 +7,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pymavlink import mavutil
 import sys
-sys.path.insert(0, "/home/drone/swarm_drones_fyp")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify
 
 drone_ports = [14552, 14562, 14572, 14582, 14592]

@@ -10,8 +10,9 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-VENV_PYTHON="/home/drone/venv-ardupilot/bin/python3"
-QGC_LAUNCHER="/home/drone/Documents/gemini work/launch_qgroundcontrol.sh"
+source "${SCRIPT_DIR}/consolidated_env.sh"
+VENV_PYTHON="${VENV_PYTHON:-python3}"
+QGC_LAUNCHER="${QGC_LAUNCHER}"
 RUN_DIR="${HOME}/.swarm"
 mkdir -p "${RUN_DIR}"
 
@@ -113,7 +114,7 @@ DISPLAY=:1 start_daemon console xterm -geometry 102x36+360+70 \
     -bg "#1e1e2e" -fg "#cdd6f4" \
     -T "Swarm Pilot Console (5 drones)" \
     -e bash -c "
-        source /home/drone/venv-ardupilot/bin/activate
+        source '${VENV_ACTIVATE}'
         cd '${PROJECT_DIR}'
         python3 -u sitl/swarm_console.py --drones 5 ${CONSOLE_FLAG} 2>&1 | tee -a '${RUN_DIR}/console.log'
         echo ''

@@ -3,9 +3,10 @@
 # start_swarm_5drones_2d.sh - Persistent daemon managing all 5 SITL drones (2D)
 # ==============================================================================
 
-ARDUPILOT_DIR="/home/drone/ardupilot"
-SWARM_PARAMS="/home/drone/swarm_drones_fyp/sitl/swarm_params.parm"
-VENV_PYTHON="/home/drone/venv-ardupilot/bin/python3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/consolidated_env.sh"
+ARDUPILOT_DIR="${ARDUPILOT_HOME}"
+SWARM_PARAMS="${FYP_PROJECT_DIR}/sitl/swarm_params.parm"
 
 # Cleanup function on exit
 cleanup() {
