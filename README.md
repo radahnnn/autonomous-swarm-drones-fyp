@@ -2,7 +2,11 @@
 
 Final Year Project (BEE-60), Department of Electrical Engineering  
 Supervisor: Dr. Abdul Ghafoor  
-Status summarized: 12 October 2026
+Status summarized: 24 October 2026
+
+> **Repository state:** This is the separate hardware-matched identification Git repository. Use `hw-matched-identification` for the published study, `work/corrected-phase2-20261020` for the uneven-timestamp correction and rerun, and `archive/hw-identification-working-copy-20261024` as a preserved snapshot of the prior local working copy, including raw runs. The project-wide folder map is in the main repository at `docs/PROJECT_STATE.md`.
+
+> **Important correction:** The old `sitl_fitted` profile (`tau=0.992 s`, `c_d=0.637 s^-1`) was fit using a time-step assumption invalid for unevenly spaced timestamps. Do not describe it as a validated ArduPilot parameter set. See the corrected timing report on this branch.
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
