@@ -1,0 +1,149 @@
+{
+  "kind": "external_agent_sitl_batch_summary",
+  "profile": {
+    "topology": "split-loopback",
+    "peer_loss": 0.0,
+    "peer_latency_ms": 25.0,
+    "peer_jitter_ms": 5.0,
+    "peer_burst_loss": true,
+    "peer_burst_start_rate": 0.02,
+    "peer_burst_continue_rate": 0.75,
+    "peer_duplicate_rate": 0.01,
+    "peer_reorder_rate": 0.05,
+    "peer_reorder_delay_ms": 150.0,
+    "operator_loss": true,
+    "operator_restart": false
+  },
+  "run_count": 5,
+  "passed_count": 5,
+  "failed_count": 0,
+  "observed_pass_fraction": 1.0,
+  "pass_fraction_wilson_95": [
+    0.5655175352168251,
+    1.0
+  ],
+  "all_runs_converged": true,
+  "all_runs_landed_disarmed": true,
+  "minimum_horizontal_separation_across_runs_m": 4.154691662677559,
+  "total_duplicate_packets": 279,
+  "total_reordered_packets": 1485,
+  "total_replay_rejections": 1062,
+  "total_dropped_loss_packets": 2349,
+  "total_accepted_for_impairment_queue": 29492,
+  "empirical_loss_fraction_across_runs": 0.07377280864294464,
+  "interpretation": "Observed outcomes for this exact same-host injected-network profile only; the interval is descriptive and does not establish LAN, radio, or flight reliability.",
+  "runs": [
+    {
+      "path": "runs/independent/external-sitl-20261024T061616.543861Z/external_agent_sitl_summary.json",
+      "seed": 178,
+      "passed": true,
+      "converged": true,
+      "all_five_landed_disarmed": true,
+      "minimum_horizontal_separation_m": 4.208984739447914,
+      "duplicate_packets": 58,
+      "reordered_packets": 273,
+      "replay_rejections": 211,
+      "dropped_loss_packets": 385,
+      "accepted_for_impairment_queue": 5919,
+      "empirical_loss_fraction": 0.06107233502538071,
+      "completed_utc": "2026-10-24T06:18:07.323171+00:00",
+      "operator_loss": {
+        "operator_process_killed": true,
+        "all_agents_were_airborne": true,
+        "all_agents_requested_mission_expiry_land": true,
+        "all_agents_landed_disarmed": true,
+        "seconds_after_operator_loss": 42.83
+      }
+    },
+    {
+      "path": "runs/independent/external-sitl-20261024T061925.055713Z/external_agent_sitl_summary.json",
+      "seed": 179,
+      "passed": true,
+      "converged": true,
+      "all_five_landed_disarmed": true,
+      "minimum_horizontal_separation_m": 4.166192796907114,
+      "duplicate_packets": 52,
+      "reordered_packets": 299,
+      "replay_rejections": 210,
+      "dropped_loss_packets": 453,
+      "accepted_for_impairment_queue": 5959,
+      "empirical_loss_fraction": 0.0706487835308796,
+      "completed_utc": "2026-10-24T06:21:16.851276+00:00",
+      "operator_loss": {
+        "operator_process_killed": true,
+        "all_agents_were_airborne": true,
+        "all_agents_requested_mission_expiry_land": true,
+        "all_agents_landed_disarmed": true,
+        "seconds_after_operator_loss": 42.98
+      }
+    },
+    {
+      "path": "runs/independent/external-sitl-20261024T062127.817625Z/external_agent_sitl_summary.json",
+      "seed": 180,
+      "passed": true,
+      "converged": true,
+      "all_five_landed_disarmed": true,
+      "minimum_horizontal_separation_m": 4.202830103417405,
+      "duplicate_packets": 48,
+      "reordered_packets": 290,
+      "replay_rejections": 194,
+      "dropped_loss_packets": 470,
+      "accepted_for_impairment_queue": 5837,
+      "empirical_loss_fraction": 0.07452037418741081,
+      "completed_utc": "2026-10-24T06:23:18.626168+00:00",
+      "operator_loss": {
+        "operator_process_killed": true,
+        "all_agents_were_airborne": true,
+        "all_agents_requested_mission_expiry_land": true,
+        "all_agents_landed_disarmed": true,
+        "seconds_after_operator_loss": 42.83
+      }
+    },
+    {
+      "path": "runs/independent/external-sitl-20261024T062329.477319Z/external_agent_sitl_summary.json",
+      "seed": 181,
+      "passed": true,
+      "converged": true,
+      "all_five_landed_disarmed": true,
+      "minimum_horizontal_separation_m": 4.180930478907933,
+      "duplicate_packets": 61,
+      "reordered_packets": 299,
+      "replay_rejections": 218,
+      "dropped_loss_packets": 471,
+      "accepted_for_impairment_queue": 5925,
+      "empirical_loss_fraction": 0.07363977485928705,
+      "completed_utc": "2026-10-24T06:25:21.239667+00:00",
+      "operator_loss": {
+        "operator_process_killed": true,
+        "all_agents_were_airborne": true,
+        "all_agents_requested_mission_expiry_land": true,
+        "all_agents_landed_disarmed": true,
+        "seconds_after_operator_loss": 42.94
+      }
+    },
+    {
+      "path": "runs/independent/external-sitl-20261024T062532.807947Z/external_agent_sitl_summary.json",
+      "seed": 182,
+      "passed": true,
+      "converged": true,
+      "all_five_landed_disarmed": true,
+      "minimum_horizontal_separation_m": 4.154691662677559,
+      "duplicate_packets": 60,
+      "reordered_packets": 324,
+      "replay_rejections": 229,
+      "dropped_loss_packets": 570,
+      "accepted_for_impairment_queue": 5852,
+      "empirical_loss_fraction": 0.08875739644970414,
+      "completed_utc": "2026-10-24T06:27:24.607925+00:00",
+      "operator_loss": {
+        "operator_process_killed": true,
+        "all_agents_were_airborne": true,
+        "all_agents_requested_mission_expiry_land": true,
+        "all_agents_landed_disarmed": true,
+        "seconds_after_operator_loss": 42.94
+      }
+    }
+  ],
+  "operator_loss_checks_all_passed": true,
+  "maximum_seconds_to_landed_disarmed_after_operator_loss": 42.98
+}

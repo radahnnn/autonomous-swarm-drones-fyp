@@ -44,13 +44,17 @@ one-hop graph is preconfigured by the SITL harness: links connect nearby formati
 simulated failure, the harness updates the active peer graph while retaining the failed vehicle's
 slot. Each controller receives only its own state and one-hop peer states.
 
-The software still runs on one computer. The harness centrally prepares slot configuration and
-peer links, and broadcasts the mission goal. Peer state passes through `PeerStateBus`, which
-emulates one-hop messages with configurable delay, loss, stale-data expiry, and directed link
-blocking. The harness still observes all MAVLink telemetry and runs all agents in one process.
-This does not run code on each flight controller, prove a drone-to-drone radio link, or establish
-physical-flight safety. Treat it as an emulation of local per-drone control logic in SITL, with a
-tested input boundary between agents.
+The software still runs on one computer. In the default `local` agent runtime, the harness
+centrally prepares slot configuration and peer links, broadcasts the mission goal, and
+`PeerStateBus` emulates one-hop messages with configurable delay, loss, stale-data expiry, and
+directed link blocking. In `--agent-runtime process`, each controller runs in a separate OS
+process and sends peer-state datagrams directly to its configured neighbors over localhost UDP; the
+host no longer relays peer state, but still owns all MAVLink links, supplies each agent's own
+telemetry, and provisions slots and neighbor rosters. Process mode can inject configured packet
+loss, latency, jitter, and burst loss at each sender; these are software impairments, not a physical
+radio model. Neither runtime runs an agent on each flight controller, proves a drone-to-drone radio
+link, nor establishes physical-flight safety. Treat process runtime as a closer software boundary
+for decentralized control logic, not as a completed onboard architecture.
 
 ## Stage 1 limits
 
@@ -138,3 +142,214 @@ goals/slots. Rejoin uses a conservative corridor check. `--agent-runtime process
 controller workers using the [versioned IPC protocol](AGENT_PROTOCOL.md). This partially implements
 the process/protocol steps above; independent onboard flight-controller ownership and real radio
 transport are still future work. Existing live results above describe their original source state.
+
+## Independent MAVLink-owner runtime — added 2026-10-21
+
+The earlier `local` and `process` runtimes above still use a host-owned MAVLink harness. A newer,
+separate experimental path gives every SITL vehicle an independent agent process that owns that
+vehicle's MAVLink connection and setpoint loop:
+
+```bash
+PYTHONPATH=. python3 -m sitl.swarm_console --drones 5 --standalone \
+  --control-mode decentralized --agent-runtime independent \
+  --peer-loss 0.1 --peer-latency-ms 50 --peer-seed 44
+```
+
+The operator broadcasts common versioned mission intent directly to each node. Each node combines
+the goal with its provisioned slot and exchanges state with its one-hop peers over direct UDP
+loopback; no host process relays peer state or computes per-drone movement targets. Nodes cache the
+last valid mission between broadcasts. The current 30-second intent lease expires into a LAND
+request. See [the protocol notes](AGENT_PROTOCOL.md) for local ports and message behavior.
+
+One live five-drone standalone SITL run passed: all vehicles took off to about 5 m, followed a 2 m
+north goal, held the goal while mission updates were paused for about 5 seconds, then landed on
+operator command. Peer traffic used 10% configured application-level loss and 50 ms mean delay;
+minimum observed horizontal separation was about 4.136 m. Raw record:
+`runs/independent/20261021T134539.157325Z/`. A first failed run is preserved at
+`runs/independent/20261021T134330.833134Z/`; it exposed and led to a fix for a false heartbeat
+timeout immediately after synchronous takeoff checks. Full details are in
+[the independent SITL report](reports/DECENTRALIZED_INDEPENDENT_SITL_2026-10-21.md).
+
+A corrected operator-process-kill trial passed with explicit disarm confirmation. SITL stayed alive
+after the operator was killed in flight; all five agents continued their accepted mission, then
+entered LAND when the 30-second intent lease expired. All five reported `landed`, disarmed, and were
+at ground altitude within 42.98 seconds after operator loss; no emergency fallback was sent.
+Configuration: 10% peer loss, 50 ms mean latency, seed 52, minimum time-aligned horizontal
+separation 4.179 m. Evidence: `runs/independent/20261021T161122.758370Z/`. After the agent's
+accepted-mission expiry was changed to a monotonic deadline, seed 89 repeated this coordinator-loss
+scenario against the updated code: all five agents reported landed and disarmed 42.99 seconds after
+operator loss, without fallback; minimum time-aligned separation was 4.20 m. Evidence:
+`runs/independent/20261021T162235.986244Z/`. These were the first two confirmed local SITL trials,
+not a reliability or safety guarantee. The earlier seed-50 run reached ground but omitted armed state, so
+it is not used as disarm evidence. A later regression run (seed 90) exposed a false peer-timeout
+LAND during staggered takeoff and failed to complete the mission; it is preserved at
+`runs/independent/20261021T163346.001631Z/`. A five-second flight-monitor startup grace was added,
+while preflight continues to require a valid mission and fresh required peers. The seed-91 repeat
+then completed operator-loss landing: all five landed and disarmed 43.03 seconds after operator
+loss, with no emergency fallback and 4.199 m minimum time-aligned separation. Evidence:
+`runs/independent/20261021T163704.820929Z/`. Two further strict repeats (seeds 92 and 93) landed
+and disarmed without fallback. Five confirmed operator-loss runs now exist (seeds 52, 89, 91, 92,
+93); the failed seed 90 remains visible and excluded. The current-status gate also excludes an older
+run that reported vehicles on the ground while they were still armed. Aggregate metrics and method:
+`runs/independent/operator_loss_batch_summary_20261021.json`.
+
+The direct UDP path also passed one directed-link-fault trial with `--peer-block 1:2`, 10% random
+loss, 50 ms mean latency, and seed 52. Only drone 1 to drone 2 peer datagrams were blocked; the
+reverse edge and other links remained active. The swarm completed a 2 m north move, then all five
+vehicles were confirmed disarmed and grounded before SITL shutdown. The selected sender recorded
+406 blocked datagrams; minimum observed horizontal separation was 4.171 m. Evidence:
+`runs/independent/20261021T141447.196880Z/`.
+
+This is a process boundary on one host, not a multi-computer or onboard deployment. The operator
+kill tests demonstrate expiry-to-LAND in three local trials. Fixed startup slots/rosters,
+unauthenticated localhost UDP, no actual second-computer routing test, and no hardware remain
+limitations. Startup estimates clock offsets through five NTP-style probes and requires every node
+to acknowledge the map; offsets are remeasured every 60 seconds while the console is active. Five
+fake endpoints with clocks skewed by up to six seconds and a simulated post-start 0.4-second clock
+change passed this path. A second-computer run with real network asymmetry and host clock changes
+remains untested. A restarted airborne agent now commands LAND and announces the request to peers
+rather than resuming a mission from lost process state. Five live five-SITL restart trials succeeded:
+the restarted node landed, its landing request propagated through the peer graph, and all five
+disarmed at ground level. See `runs/independent/20261021T165833.817892Z/`,
+`runs/independent/20261021T170858.201957Z/`, `runs/independent/20261021T171445.160289Z/`,
+`runs/independent/20261021T171843.179183Z/`, and
+`runs/independent/20261021T172005.327854Z/`. See
+`runs/independent/agent_restart_batch_summary_20261021.json` for the five-trial metrics and method.
+Five seeds on one host are not a general reliability estimate. The prior experiment summaries in
+this document describe their original host-owned runtime and remain useful as separate baseline
+evidence.
+
+## Software-only realism checks added on 2026-10-21
+
+The independent agent now sends MAVLink GCS heartbeats. Use
+`--sitl-gcs-failsafe` to generate a run-local parameter profile that tells ArduCopter SITL to
+switch to LAND after five seconds without an agent heartbeat. A live five-drone agent-kill trial
+observed the failed drone's flight controller switch to LAND and disarm at ground level without
+operator rescue. The option is independent-runtime SITL only; it does not alter shared or hardware
+parameter files. See `runs/independent/20261021T142748.189010Z/`.
+
+While airborne, use `link-block <sender> <recipient>` and `link-restore <sender> <recipient>` to
+inject and restore one directed peer edge for network testing. A live trial cut both directions
+between D1 and D2, restored them, and confirmed peer messages resumed; all aircraft landed with a
+minimum observed separation of 4.198 m. Evidence: `runs/independent/20261021T143211.872887Z/`.
+
+Agents send liveness heartbeats separately from position samples, so a heartbeat cannot refresh an
+old position used for guidance. If a required peer has no heartbeat for 1.5 seconds and remains
+missing for a further 2-second grace period, the affected airborne agent commands its own LAND.
+Nine five-drone standalone SITL partition trials passed: one interactive run and eight scripted seeds
+(67–71, 75–77). Seeds 67–68 used 2% loss and 25 ms mean latency; 69–70 used 5% loss and 50 ms mean
+latency; seed 71 enabled burst loss with the 2% / 25 ms profile. Cutting both D2↔D4 directions
+caused D2 and D4 to land autonomously, while the other three remained airborne until operator
+LAND. All five then disarmed. Scripted failsafe status appeared 3.71–3.75 seconds after the cuts;
+endpoint touchdown took about 16.96 seconds. Evidence:
+`runs/independent/20261021T144908.936448Z/`,
+`runs/independent/20261021T145947.252933Z/`, and
+`runs/independent/20261021T150113.677325Z/`,
+`runs/independent/20261021T150539.157149Z/`,
+`runs/independent/20261021T150705.602130Z/`, and
+`runs/independent/20261021T150843.755075Z/`. A further run combined the partition with 5% duplicate
+injection and 25% reordering at seed 75; it logged 172 duplicated datagrams, 791 reorder delays,
+and 468 rejected replays. Both endpoints still landed autonomously and the other three remained
+airborne until operator LAND. Evidence: `runs/independent/20261021T153950.467547Z/` and
+`runs/independent/peer_partition_trials.json`. Seed 77 reran the default local transport after the
+operator-channel changes; both isolated endpoints landed, touchdown was 16.97 seconds after the cut,
+and all five disarmed. Evidence: `runs/independent/20261021T155633.517618Z/`. These are local
+fail-safe checks, not distributed consensus, automatic graph repair, or a physical-radio result;
+the nine runs are not a reliability estimate.
+
+## Independent-agent Gazebo 3D result
+
+One five-drone run completed with the independent agents in the Gazebo Harmonic
+`cinewhoop_5drones.sdf` world. EKF readiness took 206 seconds. All five vehicles armed, climbed to
+about 5 m, followed a 2 m north mission, and landed/disarmed. Peer settings were 2% injected loss,
+25 ms mean latency, seed 65. Minimum time-aligned horizontal separation was about 4.173 m. Evidence
+is in `runs/independent/20261021T143853.501763Z/`. A telemetry-timeout LAND was observed while one
+vehicle was on the ground before operator launch; that aircraft later armed and flew, and no
+in-flight timeout LAND was recorded. The earlier sandboxed attempt is preserved at
+`runs/independent/20261021T143620.815628Z/` and did not proceed to flight because the OpenGL context
+failed to initialize.
+
+The project suite now passes 224 tests after adding restart detection, peer landing propagation,
+stable landed-status coverage, and clock-offset handling. The peer protocol is version 3: in addition to session/replay
+handling, state packets carry a landing flag. A node that restarts while its vehicle is armed and
+airborne commands LAND; other airborne nodes propagate that landing request. Five standalone SITL
+trials used the console's `restart 3` command while airborne (seeds 105–109).
+The restarted D3 agent reported `landed_after_process_restart`; the other four entered
+`peer_landing_failsafe`; all five reported disarmed at ground level. Evidence:
+`runs/independent/20261021T165833.817892Z/`,
+`runs/independent/20261021T170858.201957Z/`, and
+`runs/independent/20261021T171445.160289Z/`,
+`runs/independent/20261021T171843.179183Z/`, and
+`runs/independent/20261021T172005.327854Z/`. Two earlier observer attempts remain preserved but are
+not counted as successful repetitions. The sandbox-only socket failure for seed 108 is preserved
+at `runs/independent/20261021T171751.927006Z/` and excluded from behavioral results. Current results
+include local 2D, three
+independent-agent 3D Gazebo runs, and nine standalone SITL trials of the local peer-timeout LAND
+policy; they do not establish real radio behavior, multi-computer operation, calibrated sensor
+fidelity, broad reliability, distributed partition agreement, or physical-flight safety.
+
+## Static peer addresses and packet authentication
+
+The independent UDP peer transport now accepts `--peer-roster` with a per-agent bind address,
+advertised IPv4 address, and port. `--peer-auth-key-file` enables HMAC-SHA256 verification for
+peer state and heartbeat datagrams; invalid signatures are counted as `rejected_auth`. Localhost
+and unauthenticated behavior remain the defaults for development.
+
+Seed 76 completed a five-drone standalone SITL partition trial with peer endpoints at distinct
+loopback addresses `127.0.0.2` through `127.0.0.6`, all using UDP port 20000, with a shared
+test-only HMAC key, 2% injected peer loss, and 25 ms mean latency. Both isolated endpoints landed
+autonomously, all five disarmed, and no invalid authentication packets were observed. A wrong-key
+rejection and matching-key acceptance are also covered by transport tests. Evidence:
+
+```text
+runs/independent/20261021T154647.684138Z/events.jsonl
+runs/independent/configs/loopback-five-agent-roster.json
+runs/independent/peer_partition_trials.json
+```
+
+This is still a one-PC loopback test. The operator channel can now use rostered remote addresses and
+external-agent mode, but has not been verified across computers. The shared HMAC key does not
+provide per-drone identity. See
+[`PEER_NETWORK_SETUP.md`](PEER_NETWORK_SETUP.md) for the roster format, security limits, and work
+needed before attempting a two-computer run.
+
+## Declared sensor and wind stress profile (2026-10-21)
+
+The independent runtime accepts `--sitl-sensor-profile stress`. It creates a run-local ArduPilot
+parameter file and leaves `sitl/swarm_params.parm` unchanged. The stress settings used here were
+GPS horizontal wander 0.50 m, vertical GPS sine-noise amplitude 0.30 m, GPS lag 250 ms, GPS
+accuracy setting 0.60, accelerometer noise setting 0.60, and wind 2.0 m/s from 180 degrees with
+0.50 turbulence. These are declared software stress assumptions, not measurements or calibrated
+models of the physical Matek aircraft. ArduPilot's [SITL simulation parameter reference](https://ardupilot.org/dev/docs/sitl-parameters.html)
+describes these simulator controls; in particular, `SIM_GPS1_NOISE` is not horizontal white noise.
+
+The profile completed a five-aircraft standalone SITL mission and a five-aircraft Gazebo Harmonic
+3D mission. In both runs all vehicles became EKF-ready, armed, climbed to about 5 m, accepted a
+2 m northward shared mission intent, and were confirmed landed/disarmed. Minimum time-aligned
+horizontal separation was 3.97 m in standalone SITL and 3.99 m in Gazebo. EKF readiness took
+about 211 seconds in Gazebo; all five vehicles remained `safety=nominal` in the recorded runs.
+Both runs also injected 2% peer packet loss and 25 ms mean peer latency. Evidence:
+
+```text
+runs/independent/20261021T151239.716950Z/events.jsonl
+runs/independent/20261021T151239.716950Z/independent_profile.parm
+runs/independent/20261021T151552.260273Z/events.jsonl
+runs/independent/20261021T151552.260273Z/independent_profile.parm
+```
+
+This is one stress run per simulator path. A follow-up five-drone Gazebo stress run captured
+3,090 world-statistics samples. During the interval when vehicles were airborne, Gazebo advanced
+49.81 simulation seconds in 50.19 wall-clock seconds (integrated RTF 0.992; median reported RTF
+1.000). The entire sample window, which includes the slow EKF startup, averaged 0.331 integrated
+RTF. The five agents became ready after 211 wall-clock seconds, then completed a 2 m mission and
+landed; minimum observed horizontal separation was 3.946 m. Evidence:
+
+```text
+runs/independent/20261021T152633.911550Z/events.jsonl
+runs/independent/20261021T152633.911550Z/gazebo_world_stats.jsonl
+runs/independent/20261021T152633.911550Z/gazebo_rtf_summary.json
+```
+
+The RTF recorder is `experiments/record_gazebo_rtf.py`; it stores raw Gazebo statistics and can
+align an airborne-only RTF window with agent events. These runs do not prove physical sensor
+fidelity, broad repeatability, or flight safety.

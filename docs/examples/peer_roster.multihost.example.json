@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "agents": [
+    {"id": 0, "bind_host": "0.0.0.0", "host": "192.168.1.101", "port": 20000, "command_bind_host": "0.0.0.0", "command_host": "192.168.1.101", "command_port": 21000, "status_host": "192.168.1.10", "status_port": 22000},
+    {"id": 1, "bind_host": "0.0.0.0", "host": "192.168.1.102", "port": 20000, "command_bind_host": "0.0.0.0", "command_host": "192.168.1.102", "command_port": 21000, "status_host": "192.168.1.10", "status_port": 22001},
+    {"id": 2, "bind_host": "0.0.0.0", "host": "192.168.1.103", "port": 20000, "command_bind_host": "0.0.0.0", "command_host": "192.168.1.103", "command_port": 21000, "status_host": "192.168.1.10", "status_port": 22002},
+    {"id": 3, "bind_host": "0.0.0.0", "host": "192.168.1.104", "port": 20000, "command_bind_host": "0.0.0.0", "command_host": "192.168.1.104", "command_port": 21000, "status_host": "192.168.1.10", "status_port": 22003},
+    {"id": 4, "bind_host": "0.0.0.0", "host": "192.168.1.105", "port": 20000, "command_bind_host": "0.0.0.0", "command_host": "192.168.1.105", "command_port": 21000, "status_host": "192.168.1.10", "status_port": 22004}
+  ]
+}

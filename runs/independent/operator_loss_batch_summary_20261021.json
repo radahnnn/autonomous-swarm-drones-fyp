@@ -1,0 +1,49 @@
+{
+  "kind": "operator_loss_batch_summary",
+  "scenario": "Kill the operator after all five agents accept a 2 m north mission; verify each agent independently lands and disarms after its mission lease expires.",
+  "configuration": {
+    "vehicles": 5,
+    "peer_loss_fraction": 0.1,
+    "mean_peer_latency_ms": 50,
+    "emergency_land_fallback": false
+  },
+  "behavioral_trials": 5,
+  "all_five_landed_and_disarmed": 5,
+  "seeds": [52, 89, 91, 92, 93],
+  "results": [
+    {"seed": 52, "run": "20261021T161122.758370Z", "all_five_disarmed": true, "seconds_after_operator_loss": 42.98, "minimum_sampled_horizontal_separation_m": 4.198},
+    {"seed": 89, "run": "20261021T162235.986244Z", "all_five_disarmed": true, "seconds_after_operator_loss": 42.99, "minimum_sampled_horizontal_separation_m": 4.200},
+    {"seed": 91, "run": "20261021T163704.820929Z", "all_five_disarmed": true, "seconds_after_operator_loss": 43.03, "minimum_sampled_horizontal_separation_m": 4.199},
+    {"seed": 92, "run": "20261021T172351.377001Z", "all_five_disarmed": true, "seconds_after_operator_loss": 43.08, "minimum_sampled_horizontal_separation_m": 4.126},
+    {"seed": 93, "run": "20261021T172733.900395Z", "all_five_disarmed": true, "seconds_after_operator_loss": 43.03, "minimum_sampled_horizontal_separation_m": 4.164}
+  ],
+  "aggregate": {
+    "seconds_after_operator_loss_mean": 43.022,
+    "seconds_after_operator_loss_range": [42.98, 43.08],
+    "minimum_sampled_horizontal_separation_m_mean": 4.177,
+    "minimum_sampled_horizontal_separation_m_range": [4.126, 4.2]
+  },
+  "measurement_method": {
+    "completion_time": "Harness wall time from operator process termination until all five fresh current statuses explicitly report command=landed, armed=false, airborne=false, and ground altitude.",
+    "separation": "Across airborne agent_status records in events.jsonl, compare each position to each other vehicle's nearest event timestamp when the samples differ by at most 0.4 seconds; report the minimum horizontal N/E distance. This is sampled evidence, not a continuous collision bound."
+  },
+  "excluded_or_inconclusive_evidence": [
+    {
+      "run": "20261021T160844.987834Z",
+      "reason": "The legacy summary says all_landed but has no all_disarmed confirmation; its latest recorded statuses show all five still armed near ground with command=landing:mission_expired. Excluded from the five strict successes."
+    },
+    {
+      "run": "20261021T163346.001631Z",
+      "reason": "Seed-90 regression: the staggered-takeoff peer watchdog caused premature landing and the mission did not complete. Retained as a failed trial."
+    },
+    {
+      "run": "20261021T140630.833617Z",
+      "reason": "The earlier seed-50 observer did not record armed state, so it proves reaching ground but not disarm."
+    }
+  ],
+  "limitations": [
+    "Five seeds validate this scenario on one host; they do not establish broad reliability or real-network behavior.",
+    "The minimum separation is based on timestamp-matched telemetry samples and can miss motion between samples.",
+    "This scenario demonstrates lease-expiry LAND after operator loss, not distributed consensus or physical-flight safety."
+  ]
+}

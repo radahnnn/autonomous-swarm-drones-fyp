@@ -1,0 +1,38 @@
+{
+  "kind": "agent_restart_batch_summary",
+  "scenario": "Restart D3's independent controller while all five ArduPilot SITL vehicles are airborne; verify the restarted node and its four peers land and disarm.",
+  "environment": "Five standalone ArduCopter SITL instances and five independent agent processes on one host.",
+  "successes": 5,
+  "behavioral_trials": 5,
+  "seeds": [105, 106, 107, 108, 109],
+  "results": [
+    {"seed": 105, "run": "20261021T165833.817892Z", "all_five_landed": true, "fleet_landing_after_restart_s": 16.92, "minimum_sampled_horizontal_separation_m": 3.926},
+    {"seed": 106, "run": "20261021T170858.201957Z", "all_five_landed": true, "fleet_landing_after_restart_s": 17.977, "minimum_sampled_horizontal_separation_m": 3.874},
+    {"seed": 107, "run": "20261021T171445.160289Z", "all_five_landed": true, "fleet_landing_after_restart_s": 17.848, "minimum_sampled_horizontal_separation_m": 3.917},
+    {"seed": 108, "run": "20261021T171843.179183Z", "all_five_landed": true, "fleet_landing_after_restart_s": 17.85, "minimum_sampled_horizontal_separation_m": 3.903},
+    {"seed": 109, "run": "20261021T172005.327854Z", "all_five_landed": true, "fleet_landing_after_restart_s": 17.81, "minimum_sampled_horizontal_separation_m": 3.833}
+  ],
+  "aggregate": {
+    "fleet_landing_after_restart_s_mean": 17.681,
+    "fleet_landing_after_restart_s_median": 17.848,
+    "fleet_landing_after_restart_s_range": [16.92, 17.977],
+    "minimum_sampled_horizontal_separation_m_mean": 3.891,
+    "minimum_sampled_horizontal_separation_m_range": [3.833, 3.926]
+  },
+  "measurement_method": {
+    "landing_time": "Elapsed wall time from the agent_process_restarted event to the first logged landed/disarmed status from each vehicle; fleet time is the latest of the five first confirmations.",
+    "separation": "For each logged position sample after restart, compare each other vehicle's nearest timestamped position when the samples differ by at most 0.4 seconds; report the minimum horizontal N/E distance. This is a telemetry-sampled estimate, not a continuous collision bound."
+  },
+  "excluded_attempts": [
+    {
+      "seed": 108,
+      "run": "20261021T171751.927006Z",
+      "reason": "The sandbox denied localhost socket creation before agent startup. This is an environment-permission failure, not a behavioral SITL trial; a rerun with local network permission passed as 20261021T171843.179183Z."
+    }
+  ],
+  "limitations": [
+    "Five seeds on one host are a small scenario-specific sample, not a general reliability estimate.",
+    "The run tests restart-triggered landing and peer propagation; it does not estimate mission tracking error or physical-aircraft safety.",
+    "The position-derived separation is sampled and timestamp-matched within 0.4 seconds; fast motion between samples may be missed."
+  ]
+}

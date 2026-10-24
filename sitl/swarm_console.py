@@ -23,6 +23,7 @@ import argparse
 import atexit
 import math
 import os
+import socket
 import subprocess
 import threading
 import time
@@ -93,6 +94,7 @@ class SwarmConsole:
         self.frame = CommonCoordinateFrame(DATUM_LAT, DATUM_LON, DATUM_ALT)
         self.use_gazebo = use_gazebo
         self.force_restart = force_restart
+        self.sitl_params_file = None
 
         # Swarm state. busy[i]: a worker thread owns drone i's MAVLink connection and the
         # guidance thread must not read it (pymavlink connections are not thread-safe).
@@ -157,6 +159,15 @@ class SwarmConsole:
             return False
 
     @staticmethod
+    def tcp_endpoint_available(host: str, port: int, timeout: float = 1.0) -> bool:
+        """Check a TCP endpoint with a bounded connect time before pymavlink opens it."""
+        try:
+            with socket.create_connection((host, int(port)), timeout=max(0.05, float(timeout))):
+                return True
+        except OSError:
+            return False
+
+    @staticmethod
     def kill_existing_sitl():
         try:
             subprocess.run(["pkill", "-9", "-f", "arducopter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -195,23 +206,24 @@ class SwarmConsole:
                 return
         except Exception:
             pass
-        try:
-            probe = mavutil.mavlink_connection(f"tcp:127.0.0.1:{self.fleet[0].tcp_port}")
-            alive = probe.wait_heartbeat(timeout=1.5)
-            probe.close()
-            if alive:
-                print(f">> [OK] Detected active SITL instances on TCP {self.fleet[0].tcp_port}...; connecting to them.")
-                self.use_tcp = True
-                return
-        except Exception:
-            pass
+        if self.tcp_endpoint_available("127.0.0.1", self.fleet[0].tcp_port, timeout=1.0):
+            try:
+                probe = mavutil.mavlink_connection(f"tcp:127.0.0.1:{self.fleet[0].tcp_port}")
+                alive = probe.wait_heartbeat(timeout=1.5)
+                probe.close()
+                if alive:
+                    print(f">> [OK] Detected active SITL instances on TCP {self.fleet[0].tcp_port}...; connecting to them.")
+                    self.use_tcp = True
+                    return
+            except Exception:
+                pass
 
         consolidated_sitl_bin = self.repo_root.parent.parent / "dependencies" / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
         default_sitl_bin = consolidated_sitl_bin if consolidated_sitl_bin.exists() else Path.home() / "ardupilot" / "build" / "sitl" / "bin" / "arducopter"
         sitl_bin = Path(os.environ.get("ARDUCOPTER_BIN", str(default_sitl_bin)))
         if not sitl_bin.exists():
             raise FileNotFoundError(f"ArduCopter binary not found at: {sitl_bin} (set ARDUCOPTER_BIN)")
-        params_file = str(self.repo_root / "sitl" / "swarm_params.parm")
+        params_file = str(self.sitl_params_file or (self.repo_root / "sitl" / "swarm_params.parm"))
 
         if is_gazebo:
             print(f">> [3D GAZEBO] Launching {self.n} SITL JSON instances (FDM ports {[d.fdm_port for d in self.fleet]})...")
@@ -224,7 +236,10 @@ class SwarmConsole:
             else:
                 cmd += ["--model", "quad", "--home", spec.home_standalone]
             cmd += ["--defaults", params_file, "--speedup", "1"]
-            self.procs.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+            # Keep the simulated vehicles alive if the operator/manager process is lost.
+            # Normal shutdown still terminates these direct child PIDs in cleanup().
+            self.procs.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                               start_new_session=True))
         self.use_tcp = True  # our own instances only expose ArduPilot's TCP server
         atexit.register(self.cleanup)
         time.sleep(2.5)
@@ -252,6 +267,12 @@ class SwarmConsole:
             for attempt in range(10):
                 candidate = None
                 try:
+                    if self.use_tcp and not self.tcp_endpoint_available(
+                            "127.0.0.1", spec.tcp_port, timeout=1.0):
+                        if attempt == 9:
+                            print(f"  [RETRY] {spec.label} TCP endpoint {spec.tcp_port} is unreachable.")
+                        time.sleep(0.5)
+                        continue
                     candidate = mavutil.mavlink_connection(endpoint)
                     if candidate.wait_heartbeat(timeout=3.0):
                         conn = candidate
@@ -855,8 +876,11 @@ class SwarmConsole:
                           for i in fresh_ids for j in fresh_ids if i < j), default=None)
         print(f" Fresh telemetry: {len(fresh_ids)}/{self.n}; all-visible horizontal separation: {separation}")
         for i in range(self.n):
-            peers = (len(self.decentralized_guidance.peer_bus.neighbors(i, now))
-                     if self.decentralized_guidance else 0)
+            if self.decentralized_guidance and self.decentralized_guidance.agent_runtime == "process":
+                peers = len(self.decentralized_guidance.agents[i].last_peer_ids)
+            else:
+                peers = (len(self.decentralized_guidance.peer_bus.neighbors(i, now))
+                         if self.decentralized_guidance else 0)
             recovery = "climbing" if self.busy[i] else ("slot reserved" if self.simulated_faults[i] else "none")
             print(f" D{i+1}: peers={peers}, telemetry age={now-self.last_pos_at[i]:.2f}s, recovery={recovery}")
         print("=" * 72 + "\n")
@@ -991,7 +1015,7 @@ def handle_command(console: SwarmConsole, cmd: str) -> bool:
     return True
 
 
-def _print_help(n: int, control_mode: str = "centralized"):
+def _print_help(n: int, control_mode: str = "centralized", agent_runtime: str = "local"):
     print("\n" + "=" * 76)
     print(f"      SWARM FLIGHT CONSOLE ({n} DRONES)")
     print("=" * 76)
@@ -999,7 +1023,11 @@ def _print_help(n: int, control_mode: str = "centralized"):
     print(" Formations:  v V  l Line  k Column  x Diamond  o Ring  e Echelon  tri Triangle")
     if control_mode == "decentralized":
         print(" Decentralized stage: choose the shape before takeoff; rejoin is staged into the reserved slot.")
-        print(" Each local controller uses its own state and one-hop peer states (SITL host emulation).")
+        if agent_runtime == "process":
+            print(" Each agent process exchanges one-hop peer state directly over impaired UDP loopback.")
+            print(" The host still owns MAVLink telemetry, mission input, and initial slots/topology.")
+        else:
+            print(" Each local controller uses its own state and one-hop peer states (SITL host emulation).")
     elif control_mode == "hybrid":
         print(" Hybrid stage: central waypoints with per-agent peer-guidance fallback on coordinator loss.")
         print(" Use 'coord off' / 'coord on' to demonstrate fallback and hysteretic recovery.")
@@ -1025,24 +1053,94 @@ def main():
                         help="decentralized SITL only: independent one-hop packet loss probability (0-1)")
     parser.add_argument("--peer-latency-ms", type=float, default=30.0,
                         help="decentralized SITL only: mean one-hop peer-message latency in milliseconds")
+    parser.add_argument("--peer-jitter-ms", type=float, default=None,
+                        help="independent runtime only: standard deviation of one-hop peer delay in milliseconds (default 5 when mean delay is nonzero)")
     parser.add_argument("--peer-seed", type=int, default=None,
                         help="decentralized SITL only: reproducible peer-channel random seed")
     parser.add_argument("--peer-burst-loss", action="store_true",
                         help="decentralized/hybrid SITL only: add bursty Gilbert-Elliott packet loss")
-    parser.add_argument("--agent-runtime", choices=("local", "process"), default="local",
-                        help="run each experimental controller in its own process")
+    parser.add_argument("--peer-duplicate-rate", type=float, default=0.0,
+                        help="independent runtime only: duplicate probability per peer datagram (0-1)")
+    parser.add_argument("--peer-reorder-rate", type=float, default=0.0,
+                        help="independent runtime only: probability of extra delay that can reorder peer datagrams (0-1)")
+    parser.add_argument("--peer-reorder-delay-ms", type=float, default=150.0,
+                        help="independent runtime only: variable extra delay scale for reordered datagrams")
+    parser.add_argument("--peer-roster", type=Path, default=None,
+                        help="independent runtime only: shared JSON file with per-agent peer bind/advertised addresses")
+    parser.add_argument("--peer-auth-key-file", type=Path, default=None,
+                        help="independent runtime only: shared HMAC key file for direct peer datagrams")
+    parser.add_argument("--external-agents", action="store_true",
+                        help="independent runtime only: run operator console without launching SITL or agent processes")
+    parser.add_argument("--operator-bind-host", default="127.0.0.1",
+                        help="independent runtime only: local interface for agent status UDP sockets (use 0.0.0.0 for remote agents)")
+    parser.add_argument("--agent-runtime", choices=("local", "process", "independent"), default="local",
+                        help="run experimental controllers in processes, or give every drone its own MAVLink connection")
+    parser.add_argument("--formation", choices=tuple(STYLES), default="v",
+                        help="starting formation for independent agent runtime")
     parser.add_argument("--auto-recover", action="store_true",
                         help="after heartbeat loss, rejoin only when the link is stable 3s and disarm is confirmed")
     parser.add_argument("--peer-block", type=str, default=None,
-                        help="decentralized SITL only: drop one directed link, e.g. 2:4")
+                        help="decentralized SITL only: directed link(s) to drop, e.g. 2:4 or 1:2,2:1")
+    parser.add_argument("--sitl-gcs-failsafe", action="store_true",
+                        help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
+    parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress"), default="baseline",
+                        help="independent runtime only: use run-local SITL sensor/environment profile; stress values are assumptions, not hardware-calibrated")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
-    if not 0.0 <= args.peer_loss <= 1.0 or args.peer_latency_ms < 0:
-        parser.error("--peer-loss must be 0..1 and --peer-latency-ms must be non-negative")
-    if args.agent_runtime == "process" and args.control_mode == "centralized":
-        parser.error("--agent-runtime process requires decentralized or hybrid control")
+    if (not math.isfinite(args.peer_loss) or not 0.0 <= args.peer_loss <= 1.0 or
+            not math.isfinite(args.peer_latency_ms) or args.peer_latency_ms < 0):
+        parser.error("--peer-loss must be 0..1 and --peer-latency-ms finite and non-negative")
+    if (args.peer_jitter_ms is not None and
+            (not math.isfinite(args.peer_jitter_ms) or args.peer_jitter_ms < 0)):
+        parser.error("--peer-jitter-ms must be finite and non-negative")
+    if args.peer_jitter_ms is not None and args.agent_runtime != "independent":
+        parser.error("--peer-jitter-ms requires --agent-runtime independent")
+    if (not math.isfinite(args.peer_duplicate_rate) or
+            not 0.0 <= args.peer_duplicate_rate <= 1.0 or
+            not math.isfinite(args.peer_reorder_rate) or
+            not 0.0 <= args.peer_reorder_rate <= 1.0 or
+            not math.isfinite(args.peer_reorder_delay_ms) or
+            args.peer_reorder_delay_ms < 0):
+        parser.error("peer duplicate/reorder rates must be finite 0..1 and extra delay finite/non-negative")
+    if (args.peer_duplicate_rate or args.peer_reorder_rate) and args.agent_runtime != "independent":
+        parser.error("peer duplicate/reorder injection currently requires --agent-runtime independent")
+    if (args.peer_roster is not None or args.peer_auth_key_file is not None) and args.agent_runtime != "independent":
+        parser.error("peer roster and authentication options require --agent-runtime independent")
+    if args.agent_runtime in ("process", "independent") and args.control_mode == "centralized":
+        parser.error(f"--agent-runtime {args.agent_runtime} requires decentralized or hybrid control")
+    if args.agent_runtime == "independent":
+        if args.control_mode != "decentralized":
+            parser.error("--agent-runtime independent currently supports --control-mode decentralized only")
+        if args.auto_recover:
+            parser.error("--auto-recover is not implemented for independent UDP nodes yet")
+        if args.external_agents and (args.peer_roster is None or args.peer_auth_key_file is None):
+            parser.error("--external-agents requires --peer-roster and --peer-auth-key-file")
+        if args.external_agents and (args.peer_loss or args.peer_latency_ms != 30.0 or
+                                     args.peer_burst_loss or args.peer_seed is not None or
+                                     args.peer_block or args.peer_duplicate_rate or
+                                     args.peer_reorder_rate or args.peer_jitter_ms is not None or
+                                     args.sitl_gcs_failsafe or
+                                     args.sitl_sensor_profile != "baseline"):
+            parser.error("network fault injection is configured on external agents, not the operator console")
+        if args.peer_block:
+            try:
+                links = [tuple(int(value) for value in link.split(":"))
+                         for link in args.peer_block.split(",")]
+            except (TypeError, ValueError):
+                parser.error("--peer-block must contain directed links like 2:4,3:5 (1-indexed IDs)")
+            if any(len(link) != 2 or not (1 <= link[0] <= args.drones and
+                                           1 <= link[1] <= args.drones) or link[0] == link[1]
+                   for link in links):
+                parser.error("--peer-block IDs must be different valid drone IDs")
+        from sitl.independent_swarm_console import run_independent_console
+        run_independent_console(args)
+        return
+    if args.sitl_gcs_failsafe or args.sitl_sensor_profile != "baseline":
+        parser.error("--sitl-gcs-failsafe and --sitl-sensor-profile require --agent-runtime independent")
+    if args.sitl_gcs_failsafe:
+        parser.error("--sitl-gcs-failsafe is currently supported only with --agent-runtime independent")
     use_gazebo = True if args.gazebo else (False if args.standalone else None)
 
     console = SwarmConsole(n=args.drones, use_gazebo=use_gazebo, force_restart=args.restart,
@@ -1053,12 +1151,19 @@ def main():
     mode = "gazebo" if use_gazebo else "standalone" if use_gazebo is False else "auto"
     console.evidence = RunEvidence(console.repo_root, args.drones, mode, console.hb_timeout, args.evidence_dir)
     console.evidence.event("control_mode", mode=args.control_mode,
-                           architecture=("hybrid supervisory waypoints with local peer fallback"
-                                         if args.control_mode == "hybrid" else
-                                         "host-emulated per-agent 1-hop guidance over impaired peer bus"),
+                           architecture=(
+                               f"{args.control_mode} per-agent processes with direct impaired UDP peer state; host-owned MAVLink"
+                               if args.agent_runtime == "process" else
+                               "hybrid supervisory waypoints with local peer fallback"
+                               if args.control_mode == "hybrid" else
+                               "host-emulated per-agent 1-hop guidance over impaired peer bus"
+                           ),
                            peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
                            peer_seed=args.peer_seed, peer_block=args.peer_block,
                            peer_burst_loss=args.peer_burst_loss,
+                           peer_duplicate_rate=args.peer_duplicate_rate,
+                           peer_reorder_rate=args.peer_reorder_rate,
+                           peer_reorder_delay_ms=args.peer_reorder_delay_ms,
                            auto_recover=args.auto_recover, agent_runtime=args.agent_runtime)
     print(f">> Run evidence: {console.evidence.directory}")
     try:
@@ -1068,7 +1173,7 @@ def main():
         console.guidance_thread = threading.Thread(target=console.guidance_loop, daemon=True)
         console.guidance_thread.start()
 
-        _print_help(args.drones, args.control_mode)
+        _print_help(args.drones, args.control_mode, args.agent_runtime)
         if args.auto_launch:
             console.launch_swarm(wait=True)
         else:
@@ -1103,6 +1208,20 @@ def main():
                                    dropped_stale_source=console.decentralized_guidance.peer_bus.rejected_stale_source,
                                    rejected_out_of_order=console.decentralized_guidance.peer_bus.rejected_out_of_order,
                                    blocked_links=sorted(console.decentralized_guidance.peer_bus.blocked_links))
+            if console.decentralized_guidance.agent_runtime == "process":
+                agents = console.decentralized_guidance.agents
+                keys = ("queued", "sent", "dropped_loss", "received", "rejected_stale",
+                        "rejected_replay", "rejected_invalid")
+                totals = {key: sum(int(agent.last_peer_metrics.get(key, 0)) for agent in agents)
+                          for key in keys}
+                console.evidence.event(
+                    "direct_peer_udp_summary",
+                    agents=[{"drone": i + 1,
+                             "last_peers": list(agent.last_peer_ids),
+                             **agent.last_peer_metrics}
+                            for i, agent in enumerate(agents)],
+                    totals=totals,
+                )
             if console.control_mode == "hybrid":
                 console.evidence.event("hybrid_summary", coordinator_connected=console.coordinator_connected,
                                        agents=[{

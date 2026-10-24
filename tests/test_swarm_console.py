@@ -2,6 +2,8 @@
 
 import itertools
 import math
+import socket
+import time
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -14,6 +16,72 @@ from sitl.swarm_console import SwarmConsole, handle_command
 
 
 # ---------------------------------------------------------------- formation library
+def test_tcp_endpoint_probe_is_bounded_and_reports_listener_state():
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    try:
+        assert SwarmConsole.tcp_endpoint_available("127.0.0.1", port, timeout=0.2)
+    finally:
+        listener.close()
+    assert not SwarmConsole.tcp_endpoint_available("127.0.0.1", port, timeout=0.2)
+
+
+def test_independent_shutdown_requires_disarmed_ground_confirmation():
+    from sitl.independent_swarm_console import IndependentSwarmConsole
+
+    assert not IndependentSwarmConsole._status_confirms_landed({
+        "command": "landing:operator", "armed": True, "airborne": False,
+        "position": [0.0, 0.0, -0.35], "timestamp": time.time(),
+    })
+    assert not IndependentSwarmConsole._status_confirms_landed({
+        "command": "landed", "armed": False, "airborne": False,
+        "position": [0.0, 0.0, -1.0], "timestamp": time.time(),
+    })
+    assert IndependentSwarmConsole._status_confirms_landed({
+        "command": "landed", "armed": False, "airborne": False,
+        "position": [0.0, 0.0, -0.01], "timestamp": time.time(),
+    })
+
+
+def test_independent_profile_is_run_local_and_gcs_failsafe_overrides_only_sitl_copy(tmp_path):
+    from pathlib import Path
+    from sitl.independent_swarm_console import IndependentSwarmConsole
+
+    console = object.__new__(IndependentSwarmConsole)
+    console.root = Path(__file__).resolve().parents[1]
+    console.run_dir = tmp_path
+    original = (console.root / "sitl" / "swarm_params.parm").read_text()
+
+    profile = console._write_sitl_profile(enable_gcs_failsafe=True)
+    text = profile.read_text()
+    assert "FS_GCS_ENABLE       5" in text
+    assert "FS_GCS_TIMEOUT      5.0" in text
+    assert "FS_OPTIONS          0" in text
+    assert (console.root / "sitl" / "swarm_params.parm").read_text() == original
+
+
+def test_independent_sensor_stress_profile_has_declared_values_and_preserves_baseline(tmp_path):
+    from pathlib import Path
+    from sitl.independent_swarm_console import IndependentSwarmConsole
+
+    console = object.__new__(IndependentSwarmConsole)
+    console.root = Path(__file__).resolve().parents[1]
+    console.run_dir = tmp_path
+    original = (console.root / "sitl" / "swarm_params.parm").read_text()
+
+    profile = console._write_sitl_profile(sensor_profile="stress")
+    text = profile.read_text()
+    assert "SIM_GPS1_HNSE       0.50" in text
+    assert "SIM_GPS1_NOISE      0.30" in text
+    assert "SIM_GPS1_LAG_MS     250" in text
+    assert "SIM_GPS1_ACC        0.60" in text
+    assert "SIM_WIND_SPD        2.00" in text
+    assert "SIM_WIND_TURB       0.50" in text
+    assert (console.root / "sitl" / "swarm_params.parm").read_text() == original
+
+
 @pytest.mark.parametrize("style", STYLES)
 @pytest.mark.parametrize("n", range(1, MAX_DRONES + 1))
 def test_slots_have_right_shape_and_safe_spacing(style, n):

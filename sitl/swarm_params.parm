@@ -94,6 +94,7 @@ INS_ACC2OFFS_Z      0.001
 SIM_WIND_SPD        0.00    # Wind speed in m/s (Calm baseline)
 SIM_WIND_DIR        180.0   # Wind direction in degrees from North
 SIM_WIND_TURB       0.00    # Wind turbulence factor
-SIM_GPS1_NOISE      0.00    # GPS 1 horizontal noise standard deviation in meters
+SIM_GPS1_HNSE       0.00    # GPS 1 horizontal slow-wander radius in meters (ArduPilot SITL)
+SIM_GPS1_NOISE      0.00    # GPS 1 vertical sinusoidal error amplitude in meters (ArduPilot SITL)
 SIM_GPS1_LAG_MS     100     # GPS latency simulation in milliseconds
 SIM_GPS1_ACC        0.30    # GPS reported horizontal accuracy in meters

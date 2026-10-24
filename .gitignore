@@ -32,6 +32,13 @@ mav.tlog.raw
 *.log
 *.raw
 /runs/console/
+# Timestamped SITL evidence directories are local artifacts. Keep compact batch summaries,
+# reproducible configs, and the evidence index under runs/ available for version control.
+/runs/independent/[0-9]*/
+/runs/independent/external-sitl-*/
+/runs/independent/multihost-sitl-*/
+# Per-run HMAC secrets are reproducible test material; never publish them with evidence logs.
+/runs/independent/**/*.key
 
 # Local Archives & Backups
 *.tar.gz

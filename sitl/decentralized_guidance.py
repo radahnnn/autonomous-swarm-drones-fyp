@@ -15,6 +15,7 @@ from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController
 from swarm_core.drone import Drone
 from sitl.peer_state_bus import PeerStateBus
+from sitl.mission_intent import MissionIntent
 
 
 def _limit(vector: np.ndarray, maximum: float) -> np.ndarray:
@@ -48,15 +49,40 @@ class LocalDroneAgent:
         self.last_position: Optional[np.ndarray] = None
         self.last_sample_time: Optional[float] = None
         self.velocity = np.zeros(2, dtype=float)
+        self.last_mission_sequence = 0
+        self.cached_mission_intent = None
+        self.cached_slot_offset = None
 
     def command(self, position, sample_time: float, goal, neighbor_states,
                 desired_offsets: Dict[int, np.ndarray], dt: float,
-                coordinator_connected: bool = True, now: Optional[float] = None) -> np.ndarray:
+                coordinator_connected: bool = True, now: Optional[float] = None,
+                mission_intent=None, slot_offset=None) -> np.ndarray:
         """Return a short-horizon local position target in the shared N/E frame."""
         self.update_local_state(position, sample_time)
         pos = np.asarray(position, dtype=float)[:2]
-        goal = np.asarray(goal, dtype=float)[:2]
         now = time.time() if now is None else now
+        if mission_intent is not None:
+            intent = MissionIntent.from_dict(mission_intent, now)
+            if intent.sequence <= self.last_mission_sequence:
+                raise ValueError("replayed mission intent")
+            slot = np.asarray(slot_offset, dtype=float)
+            if slot.shape != (2,) or not np.isfinite(slot).all():
+                raise ValueError("invalid local formation slot")
+            self.last_mission_sequence = intent.sequence
+            self.cached_mission_intent = mission_intent
+            self.cached_slot_offset = slot.copy()
+        elif self.cached_mission_intent is not None:
+            intent = MissionIntent.from_dict(self.cached_mission_intent, now)
+            slot = self.cached_slot_offset
+        else:
+            intent = None
+            slot = None
+        if intent is not None:
+            if slot_offset is not None and mission_intent is None:
+                slot = np.asarray(slot_offset, dtype=float)
+            goal = np.asarray(intent.goal_ne, dtype=float) + slot
+        else:
+            goal = np.asarray(goal, dtype=float)[:2]
         if self.hybrid_controller is not None:
             if coordinator_connected:
                 self.coordinator_sequence += 1
@@ -126,9 +152,18 @@ class DecentralizedGuidance:
             raise ValueError("agent_runtime must be local or process")
         self.cached_goal = None
         self.cached_slots = None
-        self.agents = [agent_class(i, safe_radius=safe_radius,
+        self.peer_port_base = 20000
+        if agent_runtime == "process":
+            self.agents = [agent_class(i, safe_radius=safe_radius,
+                                       hybrid=control_mode == "hybrid", peer_count=count,
+                                       peer_port_base=self.peer_port_base, peer_loss=peer_loss,
+                                       peer_latency_ms=peer_latency_ms, peer_seed=peer_seed,
+                                       peer_burst_loss=peer_burst_loss) for i in range(count)]
+        else:
+            self.agents = [agent_class(i, safe_radius=safe_radius,
                                        hybrid=control_mode == "hybrid") for i in range(count)]
         self.last_time: Optional[float] = None
+        self.mission_sequence = 0
         self.peer_bus = PeerStateBus(
             count, packet_loss_rate=peer_loss,
             latency_mean=max(0.0, peer_latency_ms / 1000.0),
@@ -194,6 +229,13 @@ class DecentralizedGuidance:
             else:
                 goal = self.cached_goal.copy()
                 slots = [slot.copy() for slot in self.cached_slots]
+        self.mission_sequence += 1
+        intent = MissionIntent(
+            sequence=self.mission_sequence,
+            issued_at=now,
+            expires_at=now + 1.0,
+            goal_ne=(float(goal[0]), float(goal[1])),
+        ).to_dict()
         graph = self._one_hop_graph(slots, active)
         self.peer_bus.set_graph(graph)
         outputs = [None] * self.count
@@ -202,22 +244,28 @@ class DecentralizedGuidance:
         for i in range(self.count):
             if active[i] and fresh[i]:
                 self.agents[i].update_local_state(pos[i], sample_times[i])
-        self.peer_bus.publish(pos, [agent.velocity for agent in self.agents], active, now,
-                              source_times=sample_times)
+        if self.agent_runtime == "local":
+            self.peer_bus.publish(pos, [agent.velocity for agent in self.agents], active, now,
+                                  source_times=sample_times)
 
         for i in range(self.count):
             if not active[i] or not fresh[i]:
                 continue
-            neighbors = self.peer_bus.neighbors(i, now)
+            neighbors = self.peer_bus.neighbors(i, now) if self.agent_runtime == "local" else []
             desired_offsets = {
                 j: slots[i][:2] - slots[j][:2] for j in sorted(graph.get(i, ()))
             }
             if i in self.agent_errors:
                 continue
             try:
+                agent_args = (pos[i], sample_times[i], None, neighbors,
+                              desired_offsets, dt)
                 horizontal = self.agents[i].command(
-                    pos[i], sample_times[i], goal[:2] + slots[i][:2], neighbors,
-                    desired_offsets, dt, coordinator_connected=coordinator_connected, now=now,
+                    *agent_args,
+                    coordinator_connected=coordinator_connected, now=now,
+                    mission_intent=intent, slot_offset=slots[i][:2],
+                    **({"peer_ids": sorted(graph.get(i, ()))}
+                       if self.agent_runtime == "process" else {}),
                 )
             except (RuntimeError, ValueError, OSError) as exc:
                 self.agent_errors[i] = str(exc)
