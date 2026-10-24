@@ -34,7 +34,7 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The
 
 ## Branches and project state
 
-For the plain-language map of local folders, branches, and which copy to use, read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md). This experimental branch remains separate from stable `master`.
+For the plain-language map of local folders, branches, and which copy to use, read the [project state guide on `master`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/master/docs/PROJECT_STATE.md). This experimental branch remains separate from stable `master`. For the current ten-drone evidence, read the [2D validation report](docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md).
 
 | Branch or tag | Purpose | State |
 |---|---|---|
