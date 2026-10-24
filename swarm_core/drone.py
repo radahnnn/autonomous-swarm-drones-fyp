@@ -8,6 +8,9 @@ import numpy as np
 
 
 from swarm_core.config import get_active_profile, get_profile
+from swarm_core.autopilot_tracking import (
+    AutopilotTrackingModel, AutopilotTrackingParams, inverse_sqrt_controller,
+)
 
 
 class Drone:
@@ -49,6 +52,20 @@ class Drone:
         self.drag_coeff = float(cfg.get("drag_coeff") if drag_coeff is None else drag_coeff)
         self.measurement_noise_std = float(cfg.get("gps_noise_std") if measurement_noise_std is None else measurement_noise_std)
         self.wind_vector = np.zeros(self.dim, dtype=np.float64)
+        self.dynamics_model = cfg.get("dynamics_model", "lagged_acceleration")
+        self._s4_model = None
+        self._s4_setpoint = None
+        if self.dynamics_model == "s4_setpoint_bridge":
+            if self.dim != 2:
+                raise ValueError("The identified S4 tracker covers horizontal 2D motion only")
+            s4_params = AutopilotTrackingParams(
+                k_pos=float(cfg.get("s4_k_pos")), kv=float(cfg.get("s4_kv")),
+                a_max=float(cfg.get("s4_a_max")), tau_a=float(cfg.get("s4_tau_a")),
+                td=float(cfg.get("s4_td")), v_max=self.max_speed,
+            )
+            self._s4_model = AutopilotTrackingModel(self.position, s4_params)
+            self._s4_model.v = self.velocity.copy()
+            self._s4_setpoint = self.position.copy()
         
         # Historical trajectory tracking for metrics/plotting
         self.trajectory = [self.position.copy()]
@@ -62,6 +79,18 @@ class Drone:
             self.commanded_accel = (accel / norm_a) * self.max_accel
         else:
             self.commanded_accel = accel
+        if self._s4_model is not None:
+            # Phase 2 controllers output acceleration. Invert the identified
+            # velocity and sqrt-position loops to obtain a position setpoint.
+            # This bridge is an experimental interface, not a MAVLink command.
+            prm = self._s4_model.params
+            desired_velocity = self.velocity + self.commanded_accel / prm.kv
+            speed = float(np.linalg.norm(desired_velocity))
+            if speed > prm.v_max:
+                desired_velocity *= prm.v_max / speed
+            self._s4_setpoint = self.position + inverse_sqrt_controller(
+                desired_velocity, prm.k_pos, prm.a_max,
+            )
 
     def get_measured_position(
         self,
@@ -95,6 +124,14 @@ class Drone:
         2. Aerodynamic rotor drag opposes velocity: -c_d * v.
         3. Net acceleration integrates velocity and position.
         """
+        if self._s4_model is not None:
+            self._s4_model.step(dt, self._s4_setpoint)
+            self.position = self._s4_model.position.copy()
+            self.velocity = self._s4_model.velocity.copy()
+            self.acceleration = self._s4_model.a.copy()
+            self.trajectory.append(self.position.copy())
+            self.velocity_history.append(self.velocity.copy())
+            return
         # 1. First-order lag response
         if self.attitude_tau > 1e-4:
             alpha_lag = dt / (self.attitude_tau + dt)

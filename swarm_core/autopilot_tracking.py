@@ -42,6 +42,17 @@ def sqrt_controller(err: np.ndarray, k: float, a_lim: float) -> np.ndarray:
     return err / mag * speed
 
 
+def inverse_sqrt_controller(velocity: np.ndarray, k: float, a_lim: float) -> np.ndarray:
+    """Position error that makes the S4 sqrt controller request ``velocity``."""
+    velocity = np.asarray(velocity, dtype=float)
+    speed = float(np.linalg.norm(velocity))
+    if speed < 1e-9:
+        return np.zeros_like(velocity)
+    transition_speed = a_lim / k
+    distance = speed / k if speed <= transition_speed else speed * speed / (2.0 * a_lim) + a_lim / (2.0 * k * k)
+    return velocity / speed * distance
+
+
 class AutopilotTrackingModel:
     """One drone's setpoint tracking. Call step(dt, setpoint) repeatedly; read .position / .velocity."""
 

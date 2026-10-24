@@ -1,0 +1,184 @@
+{
+  "training_sets": [
+    "step_5m_r1",
+    "step_5m_r2"
+  ],
+  "holdout_groups": [
+    "2 m north",
+    "8 m north",
+    "5 m east",
+    "5 m diagonal (NE)"
+  ],
+  "models": {
+    "legacy_irregular_s1": {
+      "tau": 0.400595839049723,
+      "c_d": 0.23056805486856513,
+      "td": 0.1
+    },
+    "structure_s1": {
+      "tau": 0.20645803925310416,
+      "c_d": 0.010000000000000002,
+      "td": 0.20442121882319045
+    },
+    "s4_cascade": {
+      "k_pos": 0.9229225621852046,
+      "Kv": 2.3495619944191124,
+      "a_max": 2.6567262973713275,
+      "tau_a": 0.12193266584560684,
+      "td": 0.30336992459602186
+    }
+  },
+  "scores": {
+    "5 m north (train)": {
+      "step_5m_r1": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.10635015303682913,
+          "velocity_rmse_mps": 0.10493350093232122
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.04388618084593042,
+          "velocity_rmse_mps": 0.04713058404852504
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.03670695080236456,
+          "velocity_rmse_mps": 0.0477502033137703
+        }
+      },
+      "step_5m_r2": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.11277551863342193,
+          "velocity_rmse_mps": 0.1077692346997696
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.04781575147972528,
+          "velocity_rmse_mps": 0.047310310195389026
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.03597284294846725,
+          "velocity_rmse_mps": 0.04248905006117082
+        }
+      }
+    },
+    "2 m north": {
+      "step_2m_r1": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.07879342224137877,
+          "velocity_rmse_mps": 0.15001330595170587
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.09387844728413088,
+          "velocity_rmse_mps": 0.15056909587263032
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.08654944913476267,
+          "velocity_rmse_mps": 0.14311411386901685
+        }
+      },
+      "step_2m_r2": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.09525906091552078,
+          "velocity_rmse_mps": 0.165463561013811
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.09212599805557195,
+          "velocity_rmse_mps": 0.15882606951672024
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.0828418940143888,
+          "velocity_rmse_mps": 0.15161430325046985
+        }
+      }
+    },
+    "8 m north": {
+      "step_8m_r1": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.15445754006673806,
+          "velocity_rmse_mps": 0.11434385408163597
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.07829974921952529,
+          "velocity_rmse_mps": 0.06769971164849536
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.05364722641143239,
+          "velocity_rmse_mps": 0.04530683451948812
+        }
+      },
+      "step_8m_r2": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.2376048847960401,
+          "velocity_rmse_mps": 0.1544934497286638
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.1643227538126452,
+          "velocity_rmse_mps": 0.12106399305447797
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.14080370537601578,
+          "velocity_rmse_mps": 0.09612807903904964
+        }
+      }
+    },
+    "5 m east": {
+      "step_5m_E_r1": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.08578519335128028,
+          "velocity_rmse_mps": 0.11113429430217506
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.030114557985776735,
+          "velocity_rmse_mps": 0.06021305643678363
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.03633124187313519,
+          "velocity_rmse_mps": 0.061238686799585475
+        }
+      },
+      "step_5m_E_r2": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.10578568498672672,
+          "velocity_rmse_mps": 0.16133271376042596
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.043394347487489965,
+          "velocity_rmse_mps": 0.06653949052643802
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.048758799551266725,
+          "velocity_rmse_mps": 0.07058275900042035
+        }
+      }
+    },
+    "5 m diagonal (NE)": {
+      "step_5m_NE_r1": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.09460715945648666,
+          "velocity_rmse_mps": 0.10682263935761281
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.03106935733810721,
+          "velocity_rmse_mps": 0.053921064409519597
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.02463980493071973,
+          "velocity_rmse_mps": 0.0540325845493377
+        }
+      },
+      "step_5m_NE_r2": {
+        "legacy_irregular_s1": {
+          "position_rmse_m": 0.08654262711815068,
+          "velocity_rmse_mps": 0.10459325820497897
+        },
+        "structure_s1": {
+          "position_rmse_m": 0.03175479257822266,
+          "velocity_rmse_mps": 0.05546541591677039
+        },
+        "s4_cascade": {
+          "position_rmse_m": 0.03046197230965523,
+          "velocity_rmse_mps": 0.06001001892925318
+        }
+      }
+    }
+  },
+  "method_note": "Legacy S1 uses each irregular observed interval, a discrete onset delay, Drone.step's lag update, and mean(position RMSE + 0.5 velocity RMSE). Structure S1/S4 use 0.01 s Euler integration, an interpolated delay, and least-squares residuals. The models share train and holdout recordings but their integration/objective definitions differ."
+}

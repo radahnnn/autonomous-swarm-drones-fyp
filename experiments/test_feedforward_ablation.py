@@ -20,6 +20,7 @@ import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 from simulator.engine import SwarmSimulation
+from experiments.initial_positions import formation_start
 
 
 def run_feedforward_trial(
@@ -28,13 +29,19 @@ def run_feedforward_trial(
     num_drones: int = 5,
     seed: int = 42,
     sim_duration: float = 12.0,
+    initial_layout: str = "scattered",
 ) -> Dict[str, any]:
     rng = np.random.default_rng(seed)
-    positions = []
-    while len(positions) < num_drones:
-        cand = rng.uniform(-3.0, 3.0, size=2)
-        if all(np.linalg.norm(cand - p) >= 1.2 for p in positions):
-            positions.append(cand)
+    if initial_layout == "formation":
+        positions = formation_start(num_drones, rng)
+    elif initial_layout == "scattered":
+        positions = []
+        while len(positions) < num_drones:
+            cand = rng.uniform(-3.0, 3.0, size=2)
+            if all(np.linalg.norm(cand - p) >= 1.2 for p in positions):
+                positions.append(cand)
+    else:
+        raise ValueError(f"unknown initial layout: {initial_layout}")
 
     drones = [Drone(drone_id=i, initial_position=positions[i], measurement_noise_std=0.0) for i in range(num_drones)]
 
@@ -49,7 +56,8 @@ def run_feedforward_trial(
         seed=seed,
     )
 
-    sim.set_formation(FormationType.V_SHAPE, centroid=np.array([0.0, 0.0]))
+    sim.set_formation(FormationType.V_SHAPE, centroid=np.array([0.0, 0.0]),
+                      spacing=3.0 if initial_layout == "formation" else None)
 
     steps = int(sim_duration / sim.dt)
     centroid = np.array([0.0, 0.0], dtype=np.float64)

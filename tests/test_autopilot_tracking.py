@@ -5,7 +5,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from swarm_core.autopilot_tracking import AutopilotTrackingModel, AutopilotTrackingParams, sqrt_controller
+from swarm_core.autopilot_tracking import (
+    AutopilotTrackingModel, AutopilotTrackingParams,
+    inverse_sqrt_controller, sqrt_controller,
+)
+from swarm_core.drone import Drone
 
 DATA = Path(__file__).resolve().parent.parent / "docs" / "reports" / "hw_matched_identification" / "steps" / "step_5m_r1" / "sitl_step_response.csv"
 
@@ -59,6 +63,29 @@ def test_sqrt_controller_is_linear_near_target_and_limited_far_away():
     far = np.linalg.norm(sqrt_controller(np.array([100.0, 0.0]), 1.0, 2.5))
     assert far == pytest.approx(np.sqrt(2 * 2.5 * (100.0 - 2.5 / 2)))
     assert np.all(sqrt_controller(np.zeros(2), 1.0, 2.5) == 0.0)
+
+
+def test_inverse_sqrt_controller_recovers_requested_velocity():
+    for velocity in (np.array([0.2, 0.0]), np.array([2.2, -1.1])):
+        error = inverse_sqrt_controller(velocity, 0.923, 2.657)
+        np.testing.assert_allclose(sqrt_controller(error, 0.923, 2.657), velocity)
+
+
+def test_phase2_s4_bridge_adds_setpoint_delay_and_changes_dynamics():
+    s4 = Drone(0, np.zeros(2), profile="sitl_s4_bridge")
+    s1 = Drone(1, np.zeros(2), profile="sitl_corrected_s1")
+    for _ in range(4):
+        for drone in (s4, s1):
+            drone.set_control_input(np.array([1.0, 0.0]))
+            drone.step(0.05)
+    np.testing.assert_allclose(s4.position, 0.0, atol=1e-12)
+    assert s1.position[0] > 0.0
+    for _ in range(80):
+        s4.set_control_input(np.array([1.0, 0.0]))
+        s4.step(0.05)
+    assert s4.position[0] > 0.0
+    assert np.isfinite(s4.position).all()
+    assert len(s4.trajectory) == 85
 
 
 @pytest.mark.skipif(not DATA.exists(), reason="recorded SITL step not available")

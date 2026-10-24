@@ -1,0 +1,5482 @@
+{
+  "seeds": [
+    100,
+    123,
+    146,
+    169,
+    192,
+    215,
+    238,
+    261,
+    284,
+    307,
+    330,
+    353,
+    376,
+    399,
+    422,
+    445,
+    468,
+    491,
+    514,
+    537
+  ],
+  "profiles": [
+    "sitl_s4_bridge"
+  ],
+  "s4_interface": "synthetic inverse acceleration-to-position-setpoint bridge; not live MAVLink",
+  "raw": [
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 100,
+      "error_m": 1.3439013102094128,
+      "separation_m": 0.7254114599941535,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 123,
+      "error_m": 1.6362410815212818,
+      "separation_m": 1.5179482016619197,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 146,
+      "error_m": 1.6147504569715103,
+      "separation_m": 1.115232163145157,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 169,
+      "error_m": 1.8326075012896617,
+      "separation_m": 1.9745732593853518,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 192,
+      "error_m": 1.8723484416533482,
+      "separation_m": 1.2588132215967076,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 215,
+      "error_m": 2.458050587001539,
+      "separation_m": 0.5630403369316497,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 238,
+      "error_m": 2.4899891044049216,
+      "separation_m": 1.0855520458515444,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 261,
+      "error_m": 1.6942359790292925,
+      "separation_m": 1.0068920408328599,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 284,
+      "error_m": 1.4898597041012005,
+      "separation_m": 0.7158021600196001,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 307,
+      "error_m": 0.9775962125420313,
+      "separation_m": 1.2637803646449637,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 330,
+      "error_m": 1.3176699246561199,
+      "separation_m": 1.2669324634332433,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 353,
+      "error_m": 2.4700118062532637,
+      "separation_m": 1.3208869067740834,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 376,
+      "error_m": 2.7717015979362896,
+      "separation_m": 0.7634780203101202,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 399,
+      "error_m": 1.1506016657121665,
+      "separation_m": 1.402489996319871,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 422,
+      "error_m": 1.1135486566517487,
+      "separation_m": 1.3549366343675557,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 445,
+      "error_m": 2.7394097524429677,
+      "separation_m": 1.0898360967533465,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 468,
+      "error_m": 1.1821654269474626,
+      "separation_m": 0.6557096523087286,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 491,
+      "error_m": 0.9320640739144072,
+      "separation_m": 0.40591920109288443,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 514,
+      "error_m": 1.8544373180271747,
+      "separation_m": 0.9425379401323939,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.0,
+      "seed": 537,
+      "error_m": 4.0704638457478755,
+      "separation_m": 1.2515872158500898,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 100,
+      "error_m": 1.3509731516266414,
+      "separation_m": 0.72686470066176,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 123,
+      "error_m": 1.6052028374103469,
+      "separation_m": 1.5309046989569381,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 146,
+      "error_m": 1.595854920358812,
+      "separation_m": 1.1350940054836718,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 169,
+      "error_m": 1.8333690602330968,
+      "separation_m": 1.9997496516526512,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 192,
+      "error_m": 1.8713046682971817,
+      "separation_m": 1.2999837068975089,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 215,
+      "error_m": 2.4615987288151957,
+      "separation_m": 0.5313084703126327,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 238,
+      "error_m": 2.4850567280834834,
+      "separation_m": 1.1305116142130083,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 261,
+      "error_m": 1.7234456161461071,
+      "separation_m": 0.9920181619541066,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 284,
+      "error_m": 1.497766558021368,
+      "separation_m": 0.7033369663658966,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 307,
+      "error_m": 0.9838352936681255,
+      "separation_m": 1.263792017589153,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 330,
+      "error_m": 1.3432861557585807,
+      "separation_m": 1.219360608710536,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 353,
+      "error_m": 2.4955685462146486,
+      "separation_m": 1.311118480394501,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 376,
+      "error_m": 2.8119653841738583,
+      "separation_m": 0.7544861558066257,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 399,
+      "error_m": 1.1366337284273913,
+      "separation_m": 1.3594290570732868,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 422,
+      "error_m": 1.139975934445057,
+      "separation_m": 1.286234104557524,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 445,
+      "error_m": 2.7619748218343156,
+      "separation_m": 1.0831009561368634,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 468,
+      "error_m": 1.1461511934652824,
+      "separation_m": 0.6642563792838235,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 491,
+      "error_m": 0.9317010975665605,
+      "separation_m": 0.36979620752176534,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 514,
+      "error_m": 1.839853138793988,
+      "separation_m": 0.9188487000099765,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": 0.5,
+      "seed": 537,
+      "error_m": 4.10700740010067,
+      "separation_m": 1.2514892397254456,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 100,
+      "error_m": 1.4631213968393786,
+      "separation_m": 0.5912969251927578,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 123,
+      "error_m": 1.5858640877645152,
+      "separation_m": 1.4504254958709706,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 146,
+      "error_m": 1.4366957785582215,
+      "separation_m": 0.8986509854052794,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 169,
+      "error_m": 1.9104045500070361,
+      "separation_m": 1.9672630409386769,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 192,
+      "error_m": 1.8119750214384431,
+      "separation_m": 1.269325786124603,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 215,
+      "error_m": 2.8033309124677954,
+      "separation_m": 0.44971793305047214,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 238,
+      "error_m": 2.371001545634988,
+      "separation_m": 0.9390662350233138,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 261,
+      "error_m": 2.1293195138499885,
+      "separation_m": 0.9283905894507725,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 284,
+      "error_m": 1.570405012090741,
+      "separation_m": 0.700775358811356,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 307,
+      "error_m": 1.1494836851818404,
+      "separation_m": 1.1595981999146168,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 330,
+      "error_m": 1.5746763445271172,
+      "separation_m": 0.9363567744207411,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 353,
+      "error_m": 2.808155492077308,
+      "separation_m": 1.3208869067740834,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 376,
+      "error_m": 3.0933421863544357,
+      "separation_m": 0.5942939371841011,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 399,
+      "error_m": 1.1561887402916526,
+      "separation_m": 1.0367435493013226,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 422,
+      "error_m": 1.388492211922734,
+      "separation_m": 1.3117875344726335,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 445,
+      "error_m": 2.9678027229023414,
+      "separation_m": 0.8530951101581575,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 468,
+      "error_m": 0.9910890568948579,
+      "separation_m": 0.5969886549864989,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 491,
+      "error_m": 1.152734852750265,
+      "separation_m": 0.36944158256141313,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 514,
+      "error_m": 1.6646830157477135,
+      "separation_m": 0.8681579254493154,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.0,
+      "seed": 537,
+      "error_m": 4.466399277953867,
+      "separation_m": 1.2535493035016734,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 100,
+      "error_m": 1.473643827768852,
+      "separation_m": 0.5735064801743287,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 123,
+      "error_m": 1.5624405573551974,
+      "separation_m": 1.373663308970943,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 146,
+      "error_m": 1.4139087958967282,
+      "separation_m": 0.912296887994111,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 169,
+      "error_m": 1.8976397385697832,
+      "separation_m": 1.9831106394626774,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 192,
+      "error_m": 1.8574321199377768,
+      "separation_m": 1.2910466449325526,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 215,
+      "error_m": 2.834019217089157,
+      "separation_m": 0.43012352806352594,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 238,
+      "error_m": 2.3294065710459204,
+      "separation_m": 1.0151632057155728,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 261,
+      "error_m": 2.1443445003945807,
+      "separation_m": 0.8927634430432241,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 284,
+      "error_m": 1.5773738157124508,
+      "separation_m": 0.7221805886472641,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 307,
+      "error_m": 1.1665740346696747,
+      "separation_m": 1.1905564197883174,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 330,
+      "error_m": 1.595544074238128,
+      "separation_m": 0.8988542604719684,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 353,
+      "error_m": 2.8346617312466145,
+      "separation_m": 1.3208869067740834,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 376,
+      "error_m": 3.1268843772742363,
+      "separation_m": 0.6031352803622382,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 399,
+      "error_m": 1.173098771805039,
+      "separation_m": 0.9997674111295365,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 422,
+      "error_m": 1.408420554179631,
+      "separation_m": 1.2482366084543919,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 445,
+      "error_m": 3.005349496890363,
+      "separation_m": 0.7991287409266128,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 468,
+      "error_m": 0.9449659725841976,
+      "separation_m": 0.5877902057649882,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 491,
+      "error_m": 1.1822369740914178,
+      "separation_m": 0.34247988657164297,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 514,
+      "error_m": 1.6628053429483602,
+      "separation_m": 0.8502399921281988,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": 0.5,
+      "seed": 537,
+      "error_m": 4.517013903937755,
+      "separation_m": 1.2535493035016734,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 100,
+      "error_m": 1.3439013102094128,
+      "separation_m": 0.7254114599941535,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 123,
+      "error_m": 1.6362410815212818,
+      "separation_m": 1.5179482016619197,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 146,
+      "error_m": 1.6147504569715103,
+      "separation_m": 1.115232163145157,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 169,
+      "error_m": 1.8326075012896617,
+      "separation_m": 1.9745732593853518,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 192,
+      "error_m": 1.8723484416533482,
+      "separation_m": 1.2588132215967076,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 215,
+      "error_m": 2.458050587001539,
+      "separation_m": 0.5630403369316497,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 238,
+      "error_m": 2.4899891044049216,
+      "separation_m": 1.0855520458515444,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 261,
+      "error_m": 1.6942359790292925,
+      "separation_m": 1.0068920408328599,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 284,
+      "error_m": 1.4898597041012005,
+      "separation_m": 0.7158021600196001,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 307,
+      "error_m": 0.9775962125420313,
+      "separation_m": 1.2637803646449637,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 330,
+      "error_m": 1.3176699246561199,
+      "separation_m": 1.2669324634332433,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 353,
+      "error_m": 2.4700118062532637,
+      "separation_m": 1.3208869067740834,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 376,
+      "error_m": 2.7717015979362896,
+      "separation_m": 0.7634780203101202,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 399,
+      "error_m": 1.1506016657121665,
+      "separation_m": 1.402489996319871,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 422,
+      "error_m": 1.1135486566517487,
+      "separation_m": 1.3549366343675557,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 445,
+      "error_m": 2.7394097524429677,
+      "separation_m": 1.0898360967533465,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 468,
+      "error_m": 1.1821654269474626,
+      "separation_m": 0.6557096523087286,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 491,
+      "error_m": 0.9320640739144072,
+      "separation_m": 0.40591920109288443,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 514,
+      "error_m": 1.8544373180271747,
+      "separation_m": 0.9425379401323939,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.0,
+      "seed": 537,
+      "error_m": 4.0704638457478755,
+      "separation_m": 1.2515872158500898,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 100,
+      "error_m": 1.3537088285822287,
+      "separation_m": 0.72686470066176,
+      "switches": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 123,
+      "error_m": 1.6052028374103469,
+      "separation_m": 1.5309046989569381,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 146,
+      "error_m": 1.595854920358812,
+      "separation_m": 1.1350940054836718,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 169,
+      "error_m": 1.8333690602330968,
+      "separation_m": 1.9997496516526512,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 192,
+      "error_m": 1.8091158871137314,
+      "separation_m": 1.2999837068975089,
+      "switches": 2.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 215,
+      "error_m": 2.4615987288151957,
+      "separation_m": 0.5313084703126327,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 238,
+      "error_m": 2.484987982516067,
+      "separation_m": 1.1305116142130083,
+      "switches": 2.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 261,
+      "error_m": 1.7234456161461071,
+      "separation_m": 0.9920181619541066,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 284,
+      "error_m": 1.497766558021368,
+      "separation_m": 0.7033369663658966,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 307,
+      "error_m": 0.9837957305541207,
+      "separation_m": 1.263792017589153,
+      "switches": 2.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 330,
+      "error_m": 1.3432861557585807,
+      "separation_m": 1.219360608710536,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 353,
+      "error_m": 2.4955685462146486,
+      "separation_m": 1.311118480394501,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 376,
+      "error_m": 2.8119653841738583,
+      "separation_m": 0.7544861558066257,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 399,
+      "error_m": 1.1366337284273913,
+      "separation_m": 1.3594290570732868,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 422,
+      "error_m": 1.139975934445057,
+      "separation_m": 1.286234104557524,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 445,
+      "error_m": 2.7619748218343156,
+      "separation_m": 1.0831009561368634,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 468,
+      "error_m": 1.1461448172707556,
+      "separation_m": 0.6642563792838235,
+      "switches": 2.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 491,
+      "error_m": 0.9317010975665605,
+      "separation_m": 0.36979620752176534,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 514,
+      "error_m": 1.839853138793988,
+      "separation_m": 0.9188487000099765,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": 0.5,
+      "seed": 537,
+      "error_m": 4.10700740010067,
+      "separation_m": 1.2514892397254456,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 100,
+      "error_m": 1.3439013102094128,
+      "separation_m": 0.7254114599941535,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 123,
+      "error_m": 1.6362410815212818,
+      "separation_m": 1.5179482016619197,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 146,
+      "error_m": 1.6147504569715103,
+      "separation_m": 1.115232163145157,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 169,
+      "error_m": 1.8326075012896617,
+      "separation_m": 1.9745732593853518,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 192,
+      "error_m": 1.8723484416533482,
+      "separation_m": 1.2588132215967076,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 215,
+      "error_m": 2.458050587001539,
+      "separation_m": 0.5630403369316497,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 238,
+      "error_m": 2.4899891044049216,
+      "separation_m": 1.0855520458515444,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 261,
+      "error_m": 1.6942359790292925,
+      "separation_m": 1.0068920408328599,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 284,
+      "error_m": 1.4898597041012005,
+      "separation_m": 0.7158021600196001,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 307,
+      "error_m": 0.9775962125420313,
+      "separation_m": 1.2637803646449637,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 330,
+      "error_m": 1.3176699246561199,
+      "separation_m": 1.2669324634332433,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 353,
+      "error_m": 2.4700118062532637,
+      "separation_m": 1.3208869067740834,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 376,
+      "error_m": 2.7717015979362896,
+      "separation_m": 0.7634780203101202,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 399,
+      "error_m": 1.1506016657121665,
+      "separation_m": 1.402489996319871,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 422,
+      "error_m": 1.1135486566517487,
+      "separation_m": 1.3549366343675557,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 445,
+      "error_m": 2.7394097524429677,
+      "separation_m": 1.0898360967533465,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 468,
+      "error_m": 1.1821654269474626,
+      "separation_m": 0.6557096523087286,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 491,
+      "error_m": 0.9320640739144072,
+      "separation_m": 0.40591920109288443,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 514,
+      "error_m": 1.8544373180271747,
+      "separation_m": 0.9425379401323939,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.0,
+      "seed": 537,
+      "error_m": 4.0704638457478755,
+      "separation_m": 1.2515872158500898,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 100,
+      "error_m": 1.3816421474992808,
+      "separation_m": 0.7445570433370619,
+      "switches": 277.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 123,
+      "error_m": 1.5159760267455902,
+      "separation_m": 1.4877856230160464,
+      "switches": 297.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 146,
+      "error_m": 1.5147180958386566,
+      "separation_m": 1.1010749876820605,
+      "switches": 297.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 169,
+      "error_m": 1.8670351944632992,
+      "separation_m": 2.0914745368999066,
+      "switches": 301.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 192,
+      "error_m": 1.878870108245768,
+      "separation_m": 1.4037564594220828,
+      "switches": 293.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 215,
+      "error_m": 2.4861850969600026,
+      "separation_m": 0.37954079811948443,
+      "switches": 300.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 238,
+      "error_m": 2.477012428855031,
+      "separation_m": 1.1188366310773623,
+      "switches": 313.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 261,
+      "error_m": 1.7963703878673725,
+      "separation_m": 0.9228883326271715,
+      "switches": 298.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 284,
+      "error_m": 1.5380017044991348,
+      "separation_m": 0.6653440925382661,
+      "switches": 288.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 307,
+      "error_m": 1.0149439206887598,
+      "separation_m": 1.263792017589153,
+      "switches": 315.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 330,
+      "error_m": 1.4959593553442971,
+      "separation_m": 1.2386866761016746,
+      "switches": 289.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 353,
+      "error_m": 2.621769637211345,
+      "separation_m": 1.2850782270924217,
+      "switches": 284.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 376,
+      "error_m": 2.961253999794845,
+      "separation_m": 0.6967789654972288,
+      "switches": 309.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 399,
+      "error_m": 1.0756302476427604,
+      "separation_m": 1.3531923997983915,
+      "switches": 293.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 422,
+      "error_m": 1.2848719467912055,
+      "separation_m": 1.2516554828094675,
+      "switches": 278.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 445,
+      "error_m": 2.8365866168327316,
+      "separation_m": 1.0803047453748587,
+      "switches": 283.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 468,
+      "error_m": 1.0623581781557998,
+      "separation_m": 0.6292245597177455,
+      "switches": 297.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 491,
+      "error_m": 0.9410076207993656,
+      "separation_m": 0.34263863340225265,
+      "switches": 289.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 514,
+      "error_m": 1.7978276886647642,
+      "separation_m": 0.9073174839789153,
+      "switches": 292.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": 0.5,
+      "seed": 537,
+      "error_m": 4.344563069636133,
+      "separation_m": 1.2514892397254456,
+      "switches": 312.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 100,
+      "error_m": 1.344898778630769,
+      "separation_m": 0.7203284444123877,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 123,
+      "error_m": 1.6343470088526504,
+      "separation_m": 1.606515953712841,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 146,
+      "error_m": 1.6134356667260168,
+      "separation_m": 1.3129592452178656,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 169,
+      "error_m": 1.8322828316683513,
+      "separation_m": 1.8365635983288966,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 192,
+      "error_m": 1.8730147480553985,
+      "separation_m": 0.7643570556679927,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 215,
+      "error_m": 2.457992459482087,
+      "separation_m": 0.5623103841267876,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 238,
+      "error_m": 2.4912207896806717,
+      "separation_m": 0.8811591803823494,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 261,
+      "error_m": 1.695862422676898,
+      "separation_m": 0.9193868386134217,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 284,
+      "error_m": 1.4910342905953768,
+      "separation_m": 0.7309016618111942,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 307,
+      "error_m": 0.9786003880899419,
+      "separation_m": 1.2861843835090798,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 330,
+      "error_m": 1.3191369750264936,
+      "separation_m": 0.8209150474986232,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 353,
+      "error_m": 2.474046883334825,
+      "separation_m": 0.8464335963550118,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 376,
+      "error_m": 2.7750245930864073,
+      "separation_m": 0.8926384806886394,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 399,
+      "error_m": 1.1501369029540456,
+      "separation_m": 1.2493734368212255,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 422,
+      "error_m": 1.1165004413770534,
+      "separation_m": 1.2241557297005798,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 445,
+      "error_m": 2.741496338395893,
+      "separation_m": 1.2599291571905407,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 468,
+      "error_m": 1.180154895155756,
+      "separation_m": 0.6449901070920493,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 491,
+      "error_m": 0.9323354592733833,
+      "separation_m": 0.412675895149871,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 514,
+      "error_m": 1.8602508277775318,
+      "separation_m": 0.8400499365606947,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 1.0,
+      "seed": 537,
+      "error_m": 4.072191582010677,
+      "separation_m": 0.8476847180686624,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 100,
+      "error_m": 1.3690168211178122,
+      "separation_m": 0.7203284444123877,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 123,
+      "error_m": 1.5579447859241902,
+      "separation_m": 1.367332388938405,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 146,
+      "error_m": 1.5622875207195621,
+      "separation_m": 1.3059583780580781,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 169,
+      "error_m": 1.8520001734879012,
+      "separation_m": 1.8365635983288966,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 192,
+      "error_m": 1.8740943269182286,
+      "separation_m": 0.6670617937142637,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 215,
+      "error_m": 2.453289443255787,
+      "separation_m": 0.37392529774104305,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 238,
+      "error_m": 2.5307901222661466,
+      "separation_m": 1.356355486756418,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 261,
+      "error_m": 1.7014674779907182,
+      "separation_m": 1.0279151478706228,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 284,
+      "error_m": 1.54588757866069,
+      "separation_m": 0.7309016618111942,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 307,
+      "error_m": 0.9897466357839969,
+      "separation_m": 1.3417084212032606,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 330,
+      "error_m": 1.4300825634301795,
+      "separation_m": 0.5802286138625098,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 353,
+      "error_m": 2.483752399816192,
+      "separation_m": 0.8464335963550118,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 376,
+      "error_m": 2.835414501650234,
+      "separation_m": 0.794752952675348,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 399,
+      "error_m": 1.166048360011634,
+      "separation_m": 1.4045331448065168,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 422,
+      "error_m": 1.1385003535943248,
+      "separation_m": 1.1899308279673675,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 445,
+      "error_m": 2.81481231239773,
+      "separation_m": 1.2744921530342588,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 468,
+      "error_m": 1.1269337172359342,
+      "separation_m": 0.6442964336249305,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 491,
+      "error_m": 0.9117656706731949,
+      "separation_m": 0.4522483446432822,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 514,
+      "error_m": 1.8467668927974197,
+      "separation_m": 0.8400499365606947,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": 3.0,
+      "seed": 537,
+      "error_m": 4.0979915550752715,
+      "separation_m": 0.8476847180686624,
+      "switches": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 100,
+      "error_m": 1.34968726812458,
+      "separation_m": 0.7203681273135584,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 123,
+      "error_m": 1.6147809883594715,
+      "separation_m": 1.559177094912194,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 146,
+      "error_m": 1.6052345758489155,
+      "separation_m": 1.376252546902567,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 169,
+      "error_m": 1.8316208931491857,
+      "separation_m": 1.8365635983288966,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 192,
+      "error_m": 1.8731274800107967,
+      "separation_m": 0.8050899795207684,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 215,
+      "error_m": 2.453296662646277,
+      "separation_m": 0.4333788598871453,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 238,
+      "error_m": 2.4991881296771394,
+      "separation_m": 1.356355486756418,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 261,
+      "error_m": 1.6957341304193947,
+      "separation_m": 1.0279151478706228,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 284,
+      "error_m": 1.5053431044142673,
+      "separation_m": 0.7309016618111942,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 307,
+      "error_m": 0.9819999173748798,
+      "separation_m": 1.3417084212032606,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 330,
+      "error_m": 1.337190998177563,
+      "separation_m": 0.7194358144507911,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 353,
+      "error_m": 2.4704720232433566,
+      "separation_m": 0.8464335963550118,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 376,
+      "error_m": 2.783420327264081,
+      "separation_m": 0.8478184659647364,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 399,
+      "error_m": 1.1505370272516642,
+      "separation_m": 1.4019540284812289,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 422,
+      "error_m": 1.1244728251396223,
+      "separation_m": 1.2030288357911452,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 445,
+      "error_m": 2.746481438773519,
+      "separation_m": 1.2744921530342588,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 468,
+      "error_m": 1.1700893720041843,
+      "separation_m": 0.6526640112785376,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 491,
+      "error_m": 0.9299109151210304,
+      "separation_m": 0.4480350267648695,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 514,
+      "error_m": 1.8551014274320705,
+      "separation_m": 0.8400499365606947,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 1.0,
+      "seed": 537,
+      "error_m": 4.0732891526856685,
+      "separation_m": 0.8476847180686624,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 100,
+      "error_m": 1.3535946666106913,
+      "separation_m": 0.7203681273135584,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 123,
+      "error_m": 1.5723138966109744,
+      "separation_m": 1.6328597298769958,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 146,
+      "error_m": 1.5932787223896039,
+      "separation_m": 1.31448485017306,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 169,
+      "error_m": 1.822205111458816,
+      "separation_m": 1.8365635983288966,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 192,
+      "error_m": 1.8756495166872935,
+      "separation_m": 0.8070038298806506,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 215,
+      "error_m": 2.4482694992507037,
+      "separation_m": 0.46477695597869206,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 238,
+      "error_m": 2.5131408852965293,
+      "separation_m": 1.10404474176107,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 261,
+      "error_m": 1.6989904981962691,
+      "separation_m": 1.0279151478706228,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 284,
+      "error_m": 1.5273190673519819,
+      "separation_m": 0.6877796533196304,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 307,
+      "error_m": 0.986673962198024,
+      "separation_m": 1.1993578063470178,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 330,
+      "error_m": 1.374284789871237,
+      "separation_m": 0.7981062465348878,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 353,
+      "error_m": 2.4698691474349395,
+      "separation_m": 0.8464335963550118,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 376,
+      "error_m": 2.798855816893253,
+      "separation_m": 0.8434643188828993,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 399,
+      "error_m": 1.149217719036378,
+      "separation_m": 1.2920364381949396,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 422,
+      "error_m": 1.1681626990180145,
+      "separation_m": 1.21083941978154,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 445,
+      "error_m": 2.7623741666396735,
+      "separation_m": 1.2687281119634817,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 468,
+      "error_m": 1.1584971703383184,
+      "separation_m": 0.6529699338564466,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 491,
+      "error_m": 0.9273453221354364,
+      "separation_m": 0.41964163422823875,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 514,
+      "error_m": 1.8574791394508305,
+      "separation_m": 0.8400499365606947,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": 3.0,
+      "seed": 537,
+      "error_m": 4.079611613012974,
+      "separation_m": 0.8476847180686624,
+      "switches": 10.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 100,
+      "error_m": 0.3882385432638776,
+      "separation_m": 1.7538652798601027,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 123,
+      "error_m": 0.36229597122249013,
+      "separation_m": 1.797005056177082,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 146,
+      "error_m": 0.3630859965594625,
+      "separation_m": 1.4611263791489144,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 169,
+      "error_m": 0.4083754956174427,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 192,
+      "error_m": 0.39080371080264303,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 215,
+      "error_m": 0.3965657890244863,
+      "separation_m": 1.6952230510293633,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 238,
+      "error_m": 0.3918740518823313,
+      "separation_m": 1.4951616375174273,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 261,
+      "error_m": 0.411197301001638,
+      "separation_m": 1.3853113705821398,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 284,
+      "error_m": 0.40757483192718763,
+      "separation_m": 1.8189965520432254,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 307,
+      "error_m": 0.37626249535074957,
+      "separation_m": 1.3336572268696172,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 330,
+      "error_m": 0.4140921439820885,
+      "separation_m": 1.3146214900681807,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 353,
+      "error_m": 0.42017039524894867,
+      "separation_m": 1.325243952605242,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 376,
+      "error_m": 0.4407902448040411,
+      "separation_m": 1.1482763531575269,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 399,
+      "error_m": 0.38282201182644743,
+      "separation_m": 1.5040887954192028,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 422,
+      "error_m": 0.42076859295262237,
+      "separation_m": 1.1326353713997919,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 445,
+      "error_m": 0.4379755472489736,
+      "separation_m": 1.652447169973955,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 468,
+      "error_m": 0.3528963762023519,
+      "separation_m": 1.8767052178454788,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 491,
+      "error_m": 0.3788763628839592,
+      "separation_m": 1.5765968763960847,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 514,
+      "error_m": 0.37812962736302047,
+      "separation_m": 1.076086964769417,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 0.04,
+      "seed": 537,
+      "error_m": 0.4837246161370201,
+      "separation_m": 1.2614346823187215,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 100,
+      "error_m": 1.337471051337704,
+      "separation_m": 0.7202949299249359,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 123,
+      "error_m": 1.58611896925086,
+      "separation_m": 1.633037435557586,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 146,
+      "error_m": 1.461174784102799,
+      "separation_m": 1.3236954863477,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 169,
+      "error_m": 2.090930460547531,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 192,
+      "error_m": 1.9598010859772668,
+      "separation_m": 0.7541225179897052,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 215,
+      "error_m": 2.233315192494996,
+      "separation_m": 0.5611392099170279,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 238,
+      "error_m": 2.6012332356982935,
+      "separation_m": 0.8880556210740431,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 261,
+      "error_m": 1.464631449621345,
+      "separation_m": 0.9403029334274439,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 284,
+      "error_m": 1.6256916857998234,
+      "separation_m": 0.7309016618111942,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 307,
+      "error_m": 1.2131365986616909,
+      "separation_m": 1.2798975559049106,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 330,
+      "error_m": 1.7378358162175787,
+      "separation_m": 0.7869323674396994,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 353,
+      "error_m": 2.3252119683395245,
+      "separation_m": 0.8464335963550118,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 376,
+      "error_m": 2.821958324109795,
+      "separation_m": 0.8918292589154754,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 399,
+      "error_m": 0.9335366660474558,
+      "separation_m": 1.2466160255496508,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 422,
+      "error_m": 1.407647321261135,
+      "separation_m": 1.1910980714985573,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 445,
+      "error_m": 2.5597294196890696,
+      "separation_m": 1.2744921530342588,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 468,
+      "error_m": 1.36434757012039,
+      "separation_m": 0.6570196365759488,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 491,
+      "error_m": 1.003904162613868,
+      "separation_m": 0.41438857779381755,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 514,
+      "error_m": 1.8529213399646929,
+      "separation_m": 0.8400499365606947,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 1.5,
+      "seed": 537,
+      "error_m": 4.374975038674929,
+      "separation_m": 0.8476847180686624,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 100,
+      "error_m": 2.2065455220169,
+      "separation_m": 0.6578542606193913,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 123,
+      "error_m": 2.812832235294277,
+      "separation_m": 1.1459415650093079,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 146,
+      "error_m": 2.5749974030938643,
+      "separation_m": 0.6638038287178161,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 169,
+      "error_m": 3.4347103355854363,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 192,
+      "error_m": 3.31630849204643,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 215,
+      "error_m": 3.727456558112857,
+      "separation_m": 0.2341862107669154,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 238,
+      "error_m": 4.307055580760546,
+      "separation_m": 0.8021447781500108,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 261,
+      "error_m": 2.3879133249472346,
+      "separation_m": 0.16562339986836508,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 284,
+      "error_m": 2.6199584787926473,
+      "separation_m": 0.015656165455582738,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 307,
+      "error_m": 2.09139392818818,
+      "separation_m": 0.903897465112481,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 330,
+      "error_m": 2.732029186034928,
+      "separation_m": 0.31157626820439616,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 353,
+      "error_m": 3.741521237795882,
+      "separation_m": 0.15818354717208896,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 376,
+      "error_m": 4.43533733727265,
+      "separation_m": 0.09607053834303722,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 399,
+      "error_m": 1.6255384827625776,
+      "separation_m": 0.742970609928284,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 422,
+      "error_m": 2.199758443221125,
+      "separation_m": 0.7285831445626828,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 445,
+      "error_m": 4.1560990890028435,
+      "separation_m": 0.6736481930195876,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 468,
+      "error_m": 2.4707590869058174,
+      "separation_m": 0.5481809852839302,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 491,
+      "error_m": 1.7452039645899469,
+      "separation_m": 0.46997889395833614,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 514,
+      "error_m": 2.8900539831896754,
+      "separation_m": 0.42005372860383816,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": 2.5,
+      "seed": 537,
+      "error_m": 7.063892258738306,
+      "separation_m": 0.2726694418084553,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 100,
+      "error_m": 0.9904835059369518,
+      "separation_m": 1.7365381005573055,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 123,
+      "error_m": 0.9520122753283703,
+      "separation_m": 1.6287002596485471,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 146,
+      "error_m": 0.9862556294242946,
+      "separation_m": 1.4611263791489144,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 169,
+      "error_m": 1.003057521089471,
+      "separation_m": 1.7507222819222699,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 192,
+      "error_m": 0.980990136725294,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 215,
+      "error_m": 0.967263490060169,
+      "separation_m": 1.6546163178367856,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 238,
+      "error_m": 0.999996764817846,
+      "separation_m": 1.5042487444499633,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 261,
+      "error_m": 1.0004510427945306,
+      "separation_m": 1.3860842672143163,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 284,
+      "error_m": 1.0027946644273757,
+      "separation_m": 1.670142593370398,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 307,
+      "error_m": 0.9725230400206306,
+      "separation_m": 1.3411698520981883,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 330,
+      "error_m": 1.0242267455366347,
+      "separation_m": 1.3146214900681807,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 353,
+      "error_m": 1.0123414532394392,
+      "separation_m": 1.6843830030524418,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 376,
+      "error_m": 1.0292038520736202,
+      "separation_m": 1.22162720453036,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 399,
+      "error_m": 0.9692587321740695,
+      "separation_m": 1.5040887954192028,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 422,
+      "error_m": 1.0389734778779154,
+      "separation_m": 1.4036943976277498,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 445,
+      "error_m": 1.0449184203571067,
+      "separation_m": 1.6527733850625839,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 468,
+      "error_m": 0.9492277010061466,
+      "separation_m": 1.6871246681368437,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 491,
+      "error_m": 0.9778741907273734,
+      "separation_m": 1.5788111679156798,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 514,
+      "error_m": 0.9534661230791063,
+      "separation_m": 1.0592581491891346,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 0.04,
+      "seed": 537,
+      "error_m": 1.1041853924944747,
+      "separation_m": 1.296372926304237,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 100,
+      "error_m": 1.6228890620523935,
+      "separation_m": 0.5596945623791745,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 123,
+      "error_m": 1.3775483857382915,
+      "separation_m": 1.4777787616257727,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 146,
+      "error_m": 1.1680618864907557,
+      "separation_m": 1.2551458876319297,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 169,
+      "error_m": 2.228780341059233,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 192,
+      "error_m": 2.329493525147566,
+      "separation_m": 0.5490606013170662,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 215,
+      "error_m": 2.1643777613292037,
+      "separation_m": 0.4551618914738917,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 238,
+      "error_m": 2.8663329897602954,
+      "separation_m": 0.6002064703037114,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 261,
+      "error_m": 1.7968937554653772,
+      "separation_m": 0.6711349203992136,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 284,
+      "error_m": 2.1048885610237176,
+      "separation_m": 0.5827060502330377,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 307,
+      "error_m": 1.1288448407417304,
+      "separation_m": 0.9666170567265455,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 330,
+      "error_m": 2.330650601037688,
+      "separation_m": 0.6312648341185925,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 353,
+      "error_m": 2.7021807281535786,
+      "separation_m": 0.8836779765293671,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 376,
+      "error_m": 3.3391002289213385,
+      "separation_m": 0.6770578351481656,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 399,
+      "error_m": 1.0843167152333233,
+      "separation_m": 0.912082292478112,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 422,
+      "error_m": 1.910451301954159,
+      "separation_m": 1.1233742404178533,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 445,
+      "error_m": 3.29976381132203,
+      "separation_m": 1.1128183698691005,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 468,
+      "error_m": 0.9517732870173063,
+      "separation_m": 0.5961282615940047,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 491,
+      "error_m": 1.142239369575229,
+      "separation_m": 0.3788373585483956,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 514,
+      "error_m": 1.824959749017807,
+      "separation_m": 0.07471361448130132,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 1.5,
+      "seed": 537,
+      "error_m": 4.9660453058785325,
+      "separation_m": 0.8659967354587073,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 100,
+      "error_m": 2.4128099790980615,
+      "separation_m": 0.25609241861710486,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 123,
+      "error_m": 2.476362848836688,
+      "separation_m": 1.2658005191946098,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 146,
+      "error_m": 2.2205236388887513,
+      "separation_m": 0.4231572708202791,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 169,
+      "error_m": 3.6249249129413497,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 192,
+      "error_m": 3.871799972530934,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 215,
+      "error_m": 3.568111617633559,
+      "separation_m": 0.40010782572391124,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 238,
+      "error_m": 4.707110459838658,
+      "separation_m": 0.9228109397056101,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 261,
+      "error_m": 2.519321705859342,
+      "separation_m": 0.07399150466936845,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 284,
+      "error_m": 3.3279573290146485,
+      "separation_m": 0.09506351437614119,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 307,
+      "error_m": 1.981691705828318,
+      "separation_m": 0.4873081700553346,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 330,
+      "error_m": 3.4721175250987915,
+      "separation_m": 0.044476844728615184,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 353,
+      "error_m": 4.073692051755685,
+      "separation_m": 0.17613113591930096,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 376,
+      "error_m": 5.292453332972413,
+      "separation_m": 0.13181602384511099,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 399,
+      "error_m": 1.564240143336123,
+      "separation_m": 0.40452799183991145,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 422,
+      "error_m": 2.7794963417493435,
+      "separation_m": 0.7630025951878194,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 445,
+      "error_m": 5.020136471936191,
+      "separation_m": 0.6777214402247819,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 468,
+      "error_m": 2.092560345428375,
+      "separation_m": 0.6168440551267876,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 491,
+      "error_m": 1.822923947995467,
+      "separation_m": 0.5152189367556615,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 514,
+      "error_m": 2.8407410639230823,
+      "separation_m": 0.4886293113541226,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": 2.5,
+      "seed": 537,
+      "error_m": 7.926670698630781,
+      "separation_m": 0.3217081301867537,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 100,
+      "error_m": 0.3882385432638776,
+      "separation_m": 1.7538652798601027,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 123,
+      "error_m": 0.36229597122249013,
+      "separation_m": 1.797005056177082,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 146,
+      "error_m": 0.3630859965594625,
+      "separation_m": 1.4611263791489144,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 169,
+      "error_m": 0.4083754956174427,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 192,
+      "error_m": 0.39080371080264303,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 215,
+      "error_m": 0.3965657890244863,
+      "separation_m": 1.6952230510293633,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 238,
+      "error_m": 0.3918740518823313,
+      "separation_m": 1.4951616375174273,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 261,
+      "error_m": 0.411197301001638,
+      "separation_m": 1.3853113705821398,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 284,
+      "error_m": 0.40757483192718763,
+      "separation_m": 1.8189965520432254,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 307,
+      "error_m": 0.37626249535074957,
+      "separation_m": 1.3336572268696172,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 330,
+      "error_m": 0.4140921439820885,
+      "separation_m": 1.3146214900681807,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 353,
+      "error_m": 0.42017039524894867,
+      "separation_m": 1.325243952605242,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 376,
+      "error_m": 0.4407902448040411,
+      "separation_m": 1.1482763531575269,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 399,
+      "error_m": 0.38282201182644743,
+      "separation_m": 1.5040887954192028,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 422,
+      "error_m": 0.42076859295262237,
+      "separation_m": 1.1326353713997919,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 445,
+      "error_m": 0.4379755472489736,
+      "separation_m": 1.652447169973955,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 468,
+      "error_m": 0.3528963762023519,
+      "separation_m": 1.8767052178454788,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 491,
+      "error_m": 0.3788763628839592,
+      "separation_m": 1.5765968763960847,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 514,
+      "error_m": 0.37812962736302047,
+      "separation_m": 1.076086964769417,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 0.04,
+      "seed": 537,
+      "error_m": 0.4837246161370201,
+      "separation_m": 1.2614346823187215,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 100,
+      "error_m": 1.337471051337704,
+      "separation_m": 0.7202949299249359,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 123,
+      "error_m": 1.58611896925086,
+      "separation_m": 1.633037435557586,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 146,
+      "error_m": 1.461174784102799,
+      "separation_m": 1.3236954863477,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 169,
+      "error_m": 2.090930460547531,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 192,
+      "error_m": 1.9598010859772668,
+      "separation_m": 0.7541225179897052,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 215,
+      "error_m": 2.233315192494996,
+      "separation_m": 0.5611392099170279,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 238,
+      "error_m": 2.6012332356982935,
+      "separation_m": 0.8880556210740431,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 261,
+      "error_m": 1.464631449621345,
+      "separation_m": 0.9403029334274439,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 284,
+      "error_m": 1.6256916857998234,
+      "separation_m": 0.7309016618111942,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 307,
+      "error_m": 1.2131365986616909,
+      "separation_m": 1.2798975559049106,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 330,
+      "error_m": 1.7378358162175787,
+      "separation_m": 0.7869323674396994,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 353,
+      "error_m": 2.3252119683395245,
+      "separation_m": 0.8464335963550118,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 376,
+      "error_m": 2.821958324109795,
+      "separation_m": 0.8918292589154754,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 399,
+      "error_m": 0.9335366660474558,
+      "separation_m": 1.2466160255496508,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 422,
+      "error_m": 1.407647321261135,
+      "separation_m": 1.1910980714985573,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 445,
+      "error_m": 2.5597294196890696,
+      "separation_m": 1.2744921530342588,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 468,
+      "error_m": 1.36434757012039,
+      "separation_m": 0.6570196365759488,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 491,
+      "error_m": 1.003904162613868,
+      "separation_m": 0.41438857779381755,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 514,
+      "error_m": 1.8529213399646929,
+      "separation_m": 0.8400499365606947,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 1.5,
+      "seed": 537,
+      "error_m": 4.374975038674929,
+      "separation_m": 0.8476847180686624,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 100,
+      "error_m": 2.2065455220169,
+      "separation_m": 0.6578542606193913,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 123,
+      "error_m": 2.812832235294277,
+      "separation_m": 1.1459415650093079,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 146,
+      "error_m": 2.5749974030938643,
+      "separation_m": 0.6638038287178161,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 169,
+      "error_m": 3.4347103355854363,
+      "separation_m": 1.8365635983288966,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 192,
+      "error_m": 3.31630849204643,
+      "separation_m": 1.3106380739524373,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 215,
+      "error_m": 3.727456558112857,
+      "separation_m": 0.2341862107669154,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 238,
+      "error_m": 4.307055580760546,
+      "separation_m": 0.8021447781500108,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 261,
+      "error_m": 2.3879133249472346,
+      "separation_m": 0.16562339986836508,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 284,
+      "error_m": 2.6199584787926473,
+      "separation_m": 0.015656165455582738,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 307,
+      "error_m": 2.09139392818818,
+      "separation_m": 0.903897465112481,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 330,
+      "error_m": 2.732029186034928,
+      "separation_m": 0.31157626820439616,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 353,
+      "error_m": 3.741521237795882,
+      "separation_m": 0.15818354717208896,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 376,
+      "error_m": 4.43533733727265,
+      "separation_m": 0.09607053834303722,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 399,
+      "error_m": 1.6255384827625776,
+      "separation_m": 0.742970609928284,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 422,
+      "error_m": 2.199758443221125,
+      "separation_m": 0.7285831445626828,
+      "collision": 0.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 445,
+      "error_m": 4.1560990890028435,
+      "separation_m": 0.6736481930195876,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 468,
+      "error_m": 2.4707590869058174,
+      "separation_m": 0.5481809852839302,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 491,
+      "error_m": 1.7452039645899469,
+      "separation_m": 0.46997889395833614,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 514,
+      "error_m": 2.8900539831896754,
+      "separation_m": 0.42005372860383816,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": 2.5,
+      "seed": 537,
+      "error_m": 7.063892258738306,
+      "separation_m": 0.2726694418084553,
+      "collision": 1.0
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 100,
+      "error_m": 1.8382495266450827,
+      "separation_m": 0.7183845883448969
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 123,
+      "error_m": 1.2020644760718746,
+      "separation_m": 1.5233025272987804
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 146,
+      "error_m": 1.1602671102992792,
+      "separation_m": 1.1208853080299923
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 169,
+      "error_m": 2.5578786818494517,
+      "separation_m": 1.8365635983288966
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 192,
+      "error_m": 2.1343136727670142,
+      "separation_m": 1.259549423961507
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 215,
+      "error_m": 2.4904406414507374,
+      "separation_m": 0.5630362789055056
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 238,
+      "error_m": 2.7822769178851225,
+      "separation_m": 0.9161448542086078
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 261,
+      "error_m": 2.233845802202341,
+      "separation_m": 1.0033947303671098
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 284,
+      "error_m": 2.2843278811217225,
+      "separation_m": 0.7262955628545831
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 307,
+      "error_m": 1.313953746268038,
+      "separation_m": 1.3417084212032606
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 330,
+      "error_m": 2.61279640909267,
+      "separation_m": 1.2664315766715946
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 353,
+      "error_m": 3.052540138956998,
+      "separation_m": 0.7908690282990354
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 376,
+      "error_m": 3.674256547171146,
+      "separation_m": 0.7639489423988969
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 399,
+      "error_m": 1.2756324595620199,
+      "separation_m": 1.322151096108574
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 422,
+      "error_m": 2.35068199382734,
+      "separation_m": 1.3552045956087573
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 445,
+      "error_m": 3.388735080711801,
+      "separation_m": 1.0901203227103642
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 468,
+      "error_m": 0.7708594732134032,
+      "separation_m": 0.651876408990486
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 491,
+      "error_m": 1.3306617306772792,
+      "separation_m": 0.4057931451471522
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 514,
+      "error_m": 1.6783064795125895,
+      "separation_m": 0.9407407673372203
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": false,
+      "seed": 537,
+      "error_m": 5.252331164922045,
+      "separation_m": 0.8418130630046191
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 100,
+      "error_m": 1.3529741907059096,
+      "separation_m": 0.7203250726291393
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 123,
+      "error_m": 1.66197205108623,
+      "separation_m": 1.5194281079952416
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 146,
+      "error_m": 1.466063504698907,
+      "separation_m": 1.1173440674369541
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 169,
+      "error_m": 2.116886332420207,
+      "separation_m": 1.8365635983288966
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 192,
+      "error_m": 1.980493912080662,
+      "separation_m": 1.2594513559031864
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 215,
+      "error_m": 2.25305175886875,
+      "separation_m": 0.5630435793703701
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 238,
+      "error_m": 2.5458112231308325,
+      "separation_m": 0.9162543732216624
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 261,
+      "error_m": 1.4447938690061486,
+      "separation_m": 1.0293217540496413
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 284,
+      "error_m": 1.6071099145655325,
+      "separation_m": 0.7291963432145236
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 307,
+      "error_m": 1.207370447305826,
+      "separation_m": 1.3417084212032606
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 330,
+      "error_m": 1.7135255836745815,
+      "separation_m": 1.2666367707626325
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 353,
+      "error_m": 2.316700647178569,
+      "separation_m": 0.8463590480420821
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 376,
+      "error_m": 2.801177233048638,
+      "separation_m": 0.7638618682083764
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 399,
+      "error_m": 0.8937787643985099,
+      "separation_m": 1.4024899906872539
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 422,
+      "error_m": 1.4343863749953598,
+      "separation_m": 1.3309401526256237
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 445,
+      "error_m": 2.531968123145458,
+      "separation_m": 1.0899631578703457
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 468,
+      "error_m": 1.4038127506552183,
+      "separation_m": 0.6557525931330044
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 491,
+      "error_m": 1.0361475788279728,
+      "separation_m": 0.4061770716592647
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 514,
+      "error_m": 1.782153706506625,
+      "separation_m": 0.8402905281078427
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": true,
+      "seed": 537,
+      "error_m": 4.370077417915963,
+      "separation_m": 0.8494801527363167
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 100,
+      "error_m": 1.8382495266450827,
+      "separation_m": 0.7183845883448969
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 123,
+      "error_m": 1.2020644760718746,
+      "separation_m": 1.5233025272987804
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 146,
+      "error_m": 1.1602671102992792,
+      "separation_m": 1.1208853080299923
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 169,
+      "error_m": 2.5578786818494517,
+      "separation_m": 1.8365635983288966
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 192,
+      "error_m": 2.1343136727670142,
+      "separation_m": 1.259549423961507
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 215,
+      "error_m": 2.4904406414507374,
+      "separation_m": 0.5630362789055056
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 238,
+      "error_m": 2.7822769178851225,
+      "separation_m": 0.9161448542086078
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 261,
+      "error_m": 2.233845802202341,
+      "separation_m": 1.0033947303671098
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 284,
+      "error_m": 2.2843278811217225,
+      "separation_m": 0.7262955628545831
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 307,
+      "error_m": 1.313953746268038,
+      "separation_m": 1.3417084212032606
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 330,
+      "error_m": 2.61279640909267,
+      "separation_m": 1.2664315766715946
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 353,
+      "error_m": 3.052540138956998,
+      "separation_m": 0.7908690282990354
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 376,
+      "error_m": 3.674256547171146,
+      "separation_m": 0.7639489423988969
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 399,
+      "error_m": 1.2756324595620199,
+      "separation_m": 1.322151096108574
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 422,
+      "error_m": 2.35068199382734,
+      "separation_m": 1.3552045956087573
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 445,
+      "error_m": 3.388735080711801,
+      "separation_m": 1.0901203227103642
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 468,
+      "error_m": 0.7708594732134032,
+      "separation_m": 0.651876408990486
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 491,
+      "error_m": 1.3306617306772792,
+      "separation_m": 0.4057931451471522
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 514,
+      "error_m": 1.6783064795125895,
+      "separation_m": 0.9407407673372203
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": false,
+      "seed": 537,
+      "error_m": 5.252331164922045,
+      "separation_m": 0.8418130630046191
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 100,
+      "error_m": 1.3529741907059096,
+      "separation_m": 0.7203250726291393
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 123,
+      "error_m": 1.66197205108623,
+      "separation_m": 1.5194281079952416
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 146,
+      "error_m": 1.466063504698907,
+      "separation_m": 1.1173440674369541
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 169,
+      "error_m": 2.116886332420207,
+      "separation_m": 1.8365635983288966
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 192,
+      "error_m": 1.980493912080662,
+      "separation_m": 1.2594513559031864
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 215,
+      "error_m": 2.25305175886875,
+      "separation_m": 0.5630435793703701
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 238,
+      "error_m": 2.5458112231308325,
+      "separation_m": 0.9162543732216624
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 261,
+      "error_m": 1.4447938690061486,
+      "separation_m": 1.0293217540496413
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 284,
+      "error_m": 1.6071099145655325,
+      "separation_m": 0.7291963432145236
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 307,
+      "error_m": 1.207370447305826,
+      "separation_m": 1.3417084212032606
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 330,
+      "error_m": 1.7135255836745815,
+      "separation_m": 1.2666367707626325
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 353,
+      "error_m": 2.316700647178569,
+      "separation_m": 0.8463590480420821
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 376,
+      "error_m": 2.801177233048638,
+      "separation_m": 0.7638618682083764
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 399,
+      "error_m": 0.8937787643985099,
+      "separation_m": 1.4024899906872539
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 422,
+      "error_m": 1.4343863749953598,
+      "separation_m": 1.3309401526256237
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 445,
+      "error_m": 2.531968123145458,
+      "separation_m": 1.0899631578703457
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 468,
+      "error_m": 1.4038127506552183,
+      "separation_m": 0.6557525931330044
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 491,
+      "error_m": 1.0361475788279728,
+      "separation_m": 0.4061770716592647
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 514,
+      "error_m": 1.782153706506625,
+      "separation_m": 0.8402905281078427
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": true,
+      "seed": 537,
+      "error_m": 4.370077417915963,
+      "separation_m": 0.8494801527363167
+    }
+  ],
+  "summary": [
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": "False",
+      "n": 20,
+      "error_m": {
+        "mean": 2.2692209967103976,
+        "ci95_low": 1.7747472344689301,
+        "ci95_high": 2.763694758951865
+      },
+      "separation_m": {
+        "mean": 1.021910711988992,
+        "ci95_low": 0.854663406962945,
+        "ci95_high": 1.189158017015039
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "centralized",
+      "condition": "True",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8960127692107953,
+        "ci95_low": 1.5292436243237488,
+        "ci95_high": 2.262781914097842
+      },
+      "separation_m": {
+        "mean": 1.024229400359281,
+        "ci95_low": 0.855981156485731,
+        "ci95_high": 1.1924776442328306
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": "False",
+      "n": 20,
+      "error_m": {
+        "mean": 2.2692209967103976,
+        "ci95_low": 1.7747472344689301,
+        "ci95_high": 2.763694758951865
+      },
+      "separation_m": {
+        "mean": 1.021910711988992,
+        "ci95_low": 0.854663406962945,
+        "ci95_high": 1.189158017015039
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "feedforward",
+      "mode": "hybrid",
+      "condition": "True",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8960127692107953,
+        "ci95_low": 1.5292436243237488,
+        "ci95_high": 2.262781914097842
+      },
+      "separation_m": {
+        "mean": 1.024229400359281,
+        "ci95_low": 0.855981156485731,
+        "ci95_high": 1.1924776442328306
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": "0.04",
+      "n": 20,
+      "error_m": {
+        "mean": 0.4003260052650891,
+        "ci95_low": 0.3857260175894809,
+        "ci95_high": 0.4149259929406973
+      },
+      "separation_m": {
+        "mean": 1.4877842549731404,
+        "ci95_low": 1.3695674214573725,
+        "ci95_high": 1.6060010884889082
+      },
+      "collision": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": "1.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8977786070265374,
+        "ci95_low": 1.5278071699664153,
+        "ci95_high": 2.2677500440866596
+      },
+      "separation_m": {
+        "mean": 0.9832277646037613,
+        "ci95_low": 0.8148043608221314,
+        "ci95_high": 1.1516511683853912
+      },
+      "collision": {
+        "mean": 0.15,
+        "ci95_low": -0.021455930469841594,
+        "ci95_high": 0.32145593046984156
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "centralized",
+      "condition": "2.5",
+      "n": 20,
+      "error_m": {
+        "mean": 3.1269682464176065,
+        "ci95_low": 2.5455434323365846,
+        "ci95_high": 3.7083930604986284
+      },
+      "separation_m": {
+        "mean": 0.6079112348432919,
+        "ci95_low": 0.396707825683674,
+        "ci95_high": 0.8191146440029098
+      },
+      "collision": {
+        "mean": 0.65,
+        "ci95_low": 0.4209722431203126,
+        "ci95_high": 0.8790277568796874
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": "0.04",
+      "n": 20,
+      "error_m": {
+        "mean": 0.9979752079595411,
+        "ci95_low": 0.980376108710588,
+        "ci95_high": 1.0155743072084942
+      },
+      "separation_m": {
+        "mean": 1.492337102875277,
+        "ci95_low": 1.4013525543572034,
+        "ci95_high": 1.5833216513933506
+      },
+      "collision": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": "1.5",
+      "n": 20,
+      "error_m": {
+        "mean": 2.1169796103459775,
+        "ci95_low": 1.6577706735312108,
+        "ci95_high": 2.5761885471607444
+      },
+      "separation_m": {
+        "mean": 0.810501065953142,
+        "ci95_low": 0.6207008003784391,
+        "ci95_high": 1.0003013315278448
+      },
+      "collision": {
+        "mean": 0.55,
+        "ci95_low": 0.31111712307711625,
+        "ci95_high": 0.7888828769228838
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "decentralized",
+      "condition": "2.5",
+      "n": 20,
+      "error_m": {
+        "mean": 3.379782304664828,
+        "ci95_low": 2.6721715670178634,
+        "ci95_high": 4.087393042311793
+      },
+      "separation_m": {
+        "mean": 0.5605805150306279,
+        "ci95_low": 0.3415888468346797,
+        "ci95_high": 0.7795721832265761
+      },
+      "collision": {
+        "mean": 0.75,
+        "ci95_low": 0.5420791436865546,
+        "ci95_high": 0.9579208563134454
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": "0.04",
+      "n": 20,
+      "error_m": {
+        "mean": 0.4003260052650891,
+        "ci95_low": 0.3857260175894809,
+        "ci95_high": 0.4149259929406973
+      },
+      "separation_m": {
+        "mean": 1.4877842549731404,
+        "ci95_low": 1.3695674214573725,
+        "ci95_high": 1.6060010884889082
+      },
+      "collision": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": "1.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8977786070265374,
+        "ci95_low": 1.5278071699664153,
+        "ci95_high": 2.2677500440866596
+      },
+      "separation_m": {
+        "mean": 0.9832277646037613,
+        "ci95_low": 0.8148043608221314,
+        "ci95_high": 1.1516511683853912
+      },
+      "collision": {
+        "mean": 0.15,
+        "ci95_low": -0.021455930469841594,
+        "ci95_high": 0.32145593046984156
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "gps_noise",
+      "mode": "hybrid_proposed",
+      "condition": "2.5",
+      "n": 20,
+      "error_m": {
+        "mean": 3.1269682464176065,
+        "ci95_low": 2.5455434323365846,
+        "ci95_high": 3.7083930604986284
+      },
+      "separation_m": {
+        "mean": 0.6079112348432919,
+        "ci95_low": 0.396707825683674,
+        "ci95_high": 0.8191146440029098
+      },
+      "collision": {
+        "mean": 0.65,
+        "ci95_low": 0.4209722431203126,
+        "ci95_high": 0.8790277568796874
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": "0.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8505827223506839,
+        "ci95_low": 1.4847158892031045,
+        "ci95_high": 2.2164495554982633
+      },
+      "separation_m": {
+        "mean": 1.0840679690703112,
+        "ci95_low": 0.9094374219872636,
+        "ci95_high": 1.2586985161533588
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "centralized",
+      "condition": "0.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8561262481720355,
+        "ci95_low": 1.4854640801279881,
+        "ci95_high": 2.226788416216083
+      },
+      "separation_m": {
+        "mean": 1.0765841941653838,
+        "ci95_low": 0.8987195139239745,
+        "ci95_high": 1.254448874406793
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": "0.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.9747582702627622,
+        "ci95_low": 1.5659247551216449,
+        "ci95_high": 2.3835917854038797
+      },
+      "separation_m": {
+        "mean": 0.974790591429638,
+        "ci95_low": 0.7939838926792275,
+        "ci95_high": 1.1555972901800484
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "decentralized",
+      "condition": "0.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.9853882188817935,
+        "ci95_low": 1.570349106437937,
+        "ci95_high": 2.40042733132565
+      },
+      "separation_m": {
+        "mean": 0.9644239871438927,
+        "ci95_low": 0.7826313973428958,
+        "ci95_high": 1.1462165769448895
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": "0.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8505827223506839,
+        "ci95_low": 1.4847158892031045,
+        "ci95_high": 2.2164495554982633
+      },
+      "separation_m": {
+        "mean": 1.0840679690703112,
+        "ci95_low": 0.9094374219872636,
+        "ci95_high": 1.2586985161533588
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_naive",
+      "condition": "0.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8946291736268068,
+        "ci95_low": 1.4998278035532393,
+        "ci95_high": 2.2894305437003744
+      },
+      "separation_m": {
+        "mean": 1.0607708467903498,
+        "ci95_low": 0.8673071981897751,
+        "ci95_high": 1.2542344953909246
+      },
+      "switches": {
+        "mean": 295.25,
+        "ci95_low": 290.0942894197706,
+        "ci95_high": 300.4057105802294
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": "0.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8505827223506839,
+        "ci95_low": 1.4847158892031045,
+        "ci95_high": 2.2164495554982633
+      },
+      "separation_m": {
+        "mean": 1.0840679690703112,
+        "ci95_low": 0.9094374219872636,
+        "ci95_high": 1.2586985161533588
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "loss",
+      "mode": "hybrid_proposed",
+      "condition": "0.5",
+      "n": 20,
+      "error_m": {
+        "mean": 1.853147858716845,
+        "ci95_low": 1.4825006603851327,
+        "ci95_high": 2.2237950570485574
+      },
+      "separation_m": {
+        "mean": 1.0765841941653838,
+        "ci95_low": 0.8987195139239745,
+        "ci95_high": 1.254448874406793
+      },
+      "switches": {
+        "mean": 0.45,
+        "ci95_low": 0.06361762695588458,
+        "ci95_high": 0.8363823730441154
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": "1.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8516982141425111,
+        "ci95_low": 1.4855416095048346,
+        "ci95_high": 2.2178548187801876
+      },
+      "separation_m": {
+        "mean": 0.9829756425454358,
+        "ci95_low": 0.8157044690939107,
+        "ci95_high": 1.150246815996961
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "centralized_hold",
+      "condition": "3.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8644296606403572,
+        "ci95_low": 1.492670284188788,
+        "ci95_high": 2.2361890370919264
+      },
+      "separation_m": {
+        "mean": 0.9801350670216579,
+        "ci95_low": 0.8001249058959636,
+        "ci95_high": 1.160145228147352
+      },
+      "switches": {
+        "mean": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": "1.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.8525489328558833,
+        "ci95_low": 1.4862595179308176,
+        "ci95_high": 2.2188383477809492
+      },
+      "separation_m": {
+        "mean": 1.0134653755628285,
+        "ci95_low": 0.8343689847483072,
+        "ci95_high": 1.1925617663773496
+      },
+      "switches": {
+        "mean": 10.0,
+        "ci95_low": 10.0,
+        "ci95_high": 10.0
+      }
+    },
+    {
+      "profile": "sitl_s4_bridge",
+      "study": "outage",
+      "mode": "hybrid_proposed",
+      "condition": "3.0",
+      "n": 20,
+      "error_m": {
+        "mean": 1.856856670494097,
+        "ci95_low": 1.4902258905803094,
+        "ci95_high": 2.2234874504078848
+      },
+      "separation_m": {
+        "mean": 0.9907554397638499,
+        "ci95_low": 0.8194640990330382,
+        "ci95_high": 1.1620467804946617
+      },
+      "switches": {
+        "mean": 10.0,
+        "ci95_low": 10.0,
+        "ci95_high": 10.0
+      }
+    }
+  ]
+}

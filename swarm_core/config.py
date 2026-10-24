@@ -9,6 +9,7 @@ Profiles:
 1. "assumed_baseline": Fast multirotor attitude model (tau=0.18s, cd=0.20/s) with ideal sensors.
 2. "sitl_default_quad": Historical fit (tau=0.992s, cd=0.637/s) invalidated by an uneven-timestamp bug. (Alias: "sitl_fitted")
 3. "sitl_corrected_s1": Corrected first-order fit for a SITL setpoint-tracking sensitivity study; not physical airframe parameters.
+4. "sitl_s4_bridge": Identified S4 setpoint tracker behind an explicit acceleration-to-setpoint bridge for Phase 2 sensitivity work.
 """
 
 from dataclasses import dataclass, field
@@ -394,12 +395,51 @@ def _build_sitl_corrected_s1_profile() -> SwarmConfigProfile:
     )
 
 
+def _build_sitl_s4_bridge_profile() -> SwarmConfigProfile:
+    """S4 SITL setpoint tracker with an inverse-controller bridge for acceleration-output experiments."""
+    base = _build_sitl_corrected_s1_profile()
+    params = dict(base.parameters)
+    values = {
+        "s4_k_pos": (0.9229225621852046, "1/s"),
+        "s4_kv": (2.3495619944191124, "1/s"),
+        "s4_a_max": (2.6567262973713275, "m/s^2"),
+        "s4_tau_a": (0.12193266584560684, "s"),
+        "s4_td": (0.30336992459602186, "s"),
+    }
+    for key, (value, unit) in values.items():
+        params[key] = ParameterProvenance(
+            name=key, value=value, unit=unit,
+            meaning="Effective S4 ArduPilot setpoint-tracking parameter",
+            provenance="fitted on two 5 m north SITL steps",
+            notes="Validated only on held-out SITL steps; not a physical-airframe parameter.",
+            reference="docs/reports/hw_matched_identification/generalization.json",
+        )
+    params["dynamics_model"] = ParameterProvenance(
+        name="dynamics_model", value="s4_setpoint_bridge", unit="mode",
+        meaning="Convert acceleration-controller output to an S4 position setpoint",
+        provenance="experimental Phase 2 adapter",
+        notes="Synthetic inverse-controller bridge; the Phase 2 controller does not natively emit MAVLink position setpoints.",
+    )
+    params["max_accel"] = ParameterProvenance(
+        name="max_accel", value=values["s4_a_max"][0], unit="m/s^2",
+        meaning="S4 effective horizontal acceleration limit",
+        provenance="fitted on two 5 m north SITL steps",
+        notes="Effective setpoint-tracking limit, not a measured airframe thrust limit.",
+    )
+    return SwarmConfigProfile(
+        name="sitl_s4_bridge",
+        description="S4 setpoint-tracking sensitivity profile with an explicit inverse acceleration-to-setpoint bridge.",
+        parameters=params,
+    )
+
+
 # Registry of available configuration profiles
 PROFILES: Dict[str, SwarmConfigProfile] = {
     "assumed_baseline": _build_assumed_baseline_profile(),
     "sitl_default_quad": _build_sitl_default_quad_profile("sitl_default_quad"),
     "sitl_fitted": _build_sitl_default_quad_profile("sitl_fitted"),  # Backward-compatible alias
     "sitl_corrected_s1": _build_sitl_corrected_s1_profile(),
+    "sitl_s4_bridge": _build_sitl_s4_bridge_profile(),
 }
 
 # Active profile global state
