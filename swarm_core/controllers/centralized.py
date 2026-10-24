@@ -36,6 +36,7 @@ class CentralizedController:
         drag_coeff: float = 0.20,
         measured_positions: Optional[Dict[int, np.ndarray]] = None,
         measured_velocities: Optional[Dict[int, np.ndarray]] = None,
+        separation_minimum_m: float = 2.5,
     ) -> np.ndarray:
         """
         Compute acceleration commands for all drones.
@@ -100,6 +101,7 @@ class CentralizedController:
                 })
             accel_commands[i] += separation_guard_acceleration(
                 current_pos[i], current_vel[i], local_neighbors[i],
+                minimum_separation_m=separation_minimum_m,
                 max_accel_m_s2=drones[i].max_accel,
             )
 

@@ -40,6 +40,7 @@ class DecentralizedController:
         drag_coeff: float = 0.20,
         stop_without_neighbors: bool = True,
         reaction_time_s: float = 1.5,
+        separation_minimum_m: float = 2.5,
     ) -> np.ndarray:
         """
         Compute control acceleration for a single drone given perceived neighbor data.
@@ -124,6 +125,7 @@ class DecentralizedController:
         total_accel = f_sep + f_align + f_form + f_goal
         total_accel += separation_guard_acceleration(
             pos, vel, neighbor_states,
+            minimum_separation_m=separation_minimum_m,
             reaction_time_s=reaction_time_s,
             max_accel_m_s2=drone.max_accel,
         )

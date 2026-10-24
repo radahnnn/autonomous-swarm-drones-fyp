@@ -20,7 +20,7 @@ def ci(values):
     return dict(mean=float(a.mean()), low=float(a.mean()-half), high=float(a.mean()+half))
 
 
-def trial(mode, seed, scenario, count):
+def trial(mode, seed, scenario, count, separation_guard_m=2.5):
     rng = np.random.default_rng(seed)
     offsets = FormationGenerator.get_formation_offsets(FormationType.V_SHAPE, count, spacing=3.0)
     positions = offsets + rng.normal(0, .12, offsets.shape)
@@ -29,7 +29,8 @@ def trial(mode, seed, scenario, count):
                          comm_range=12, packet_loss_rate=.1, latency_mean=.05,
                          gps_noise_std=.08, gps_common_mode_fraction=.6, seed=seed,
                          use_gilbert_elliott=scenario == 'burst_repeated_outage',
-                         fallback_strategy='hold_target')
+                         fallback_strategy='hold_target',
+                         separation_minimum_m=separation_guard_m)
     sim.set_formation(FormationType.V_SHAPE, centroid=np.zeros(2), spacing=3)
     for step in range(600):
         now = step * .05
@@ -53,15 +54,19 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--trials',type=int,default=10)
     parser.add_argument('--drones',type=int,default=5,help='swarm size, 1..10')
+    parser.add_argument('--separation-guard-m',type=float,default=2.5,
+                        help='local separation guard activation distance in metres')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     if args.trials < 2: parser.error('need at least two trials')
     if not 1 <= args.drones <= 10: parser.error('--drones must be between 1 and 10')
+    if not np.isfinite(args.separation_guard_m) or args.separation_guard_m <= 0:
+        parser.error('--separation-guard-m must be finite and positive')
     results=[]; summary={}
     for scenario in ('nominal_impaired','repeated_outage','burst_repeated_outage'):
         for seed in range(20261020,20261020+args.trials):
             for mode in MODES:
-                results.append(trial(mode,seed,scenario,args.drones))
+                results.append(trial(mode,seed,scenario,args.drones,args.separation_guard_m))
         summary[scenario]={}
         for mode in MODES:
             rows=[r for r in results if r['scenario']==scenario and r['mode']==mode]
@@ -89,10 +94,12 @@ def main():
                                      tracked_diff_sha256=hashlib.sha256(tracked_diff).hexdigest()),
                 conditions=dict(drones=args.drones,spacing_m=3,dt_s=.05,duration_s=30,
                                 packet_loss=.1,latency_mean_s=.05,gps_noise_std_m=.08,
+                                separation_guard_m=args.separation_guard_m,
                                 mission='hold 2s, north .4m/s until 20s, hold to 30s',
                                 outages_s=[[5,8],[15,18]],
                                 trials_per_cell=args.trials),
                 criteria=dict(minimum_separation_m=2.5,steady_p95_error_m=1),
+                safety_guard_minimum_m=args.separation_guard_m,
                 caveats=['Identical seeds/configuration, not guaranteed identical delivered packets: distances affect transport.',
                          'All modes use centrally supplied goals; decentralized refers to local control.',
                          'Engine controllers differ from SITL adapter; no reliability claim beyond these trials.'],

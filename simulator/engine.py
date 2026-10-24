@@ -52,6 +52,7 @@ class SwarmSimulation:
         profile: Optional[Union[str, SwarmConfigProfile]] = None,
         fallback_strategy: str = "consensus",
         dead_reckon_duration: float = 1.5,
+        separation_minimum_m: float = 2.5,
     ):
         self.drones = drones
         self.num_drones = len(drones)
@@ -62,6 +63,9 @@ class SwarmSimulation:
         self.use_velocity_feedforward = bool(use_velocity_feedforward)
         self.fallback_strategy = str(fallback_strategy).lower()
         self.dead_reckon_duration = float(dead_reckon_duration)
+        self.separation_minimum_m = float(separation_minimum_m)
+        if not np.isfinite(self.separation_minimum_m) or self.separation_minimum_m <= 0:
+            raise ValueError("separation_minimum_m must be finite and positive")
 
         # Profile resolution: explicit arg > drone profile > active global profile
         if profile is not None:
@@ -171,6 +175,7 @@ class SwarmSimulation:
             spacing=self.formation_spacing,
             use_velocity_feedforward=self.use_velocity_feedforward,
             drag_coeff=float(self.profile.get("drag_coeff")),
+            separation_minimum_m=self.separation_minimum_m,
         )
         self.last_central_accel: Dict[int, np.ndarray] = {
             d.id: init_accels[i].copy() for i, d in enumerate(self.drones)
@@ -339,6 +344,7 @@ class SwarmSimulation:
             drag_coeff=float(self.profile.get("drag_coeff")),
             measured_positions=measured_positions,
             measured_velocities=measured_velocities,
+            separation_minimum_m=self.separation_minimum_m,
         )
 
         drone_ids = [d.id for d in self.drones]
@@ -455,6 +461,7 @@ class SwarmSimulation:
                         "position": measured_positions[other.id],
                         "velocity": measured_velocities[other.id],
                     } for other in self.drones if other.id != d.id],
+                    minimum_separation_m=self.separation_minimum_m,
                     max_accel_m_s2=d.max_accel,
                 )
                 d.set_control_input(u_cmd)
@@ -482,6 +489,7 @@ class SwarmSimulation:
                     measured_velocity=measured_velocities[d.id],
                     use_velocity_feedforward=self.use_velocity_feedforward,
                     drag_coeff=float(self.profile.get("drag_coeff")),
+                    separation_minimum_m=self.separation_minimum_m,
                 )
                 d.set_control_input(accel_i)
 
@@ -503,6 +511,7 @@ class SwarmSimulation:
                     drag_coeff=float(self.profile.get("drag_coeff")),
                     measured_position=measured_positions[d.id],
                     measured_velocity=measured_velocities[d.id],
+                    separation_minimum_m=self.separation_minimum_m,
                 )
                 d.set_control_input(accel_i)
 

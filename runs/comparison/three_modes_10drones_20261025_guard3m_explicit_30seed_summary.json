@@ -1,0 +1,143 @@
+{
+  "scope": "Pure Python engine; not console/SITL or hardware validation",
+  "source_revision": "2802a22a099be260aec584c40c50e79529eba6c5",
+  "criteria": {
+    "minimum_separation_m": 2.5,
+    "steady_p95_error_m": 1
+  },
+  "advisory_clearance_buffer_m": 0.25,
+  "groups": {
+    "burst_repeated_outage": {
+      "centralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.750950759497056,
+        "worst_minimum_separation_m": 2.605223665863121,
+        "worst_clearance_margin_m": 0.10522366586312115,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.16161392144609815,
+        "failures": []
+      },
+      "decentralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.729027689642309,
+        "worst_minimum_separation_m": 2.602618447940876,
+        "worst_clearance_margin_m": 0.10261844794087605,
+        "advisory_buffer_shortfalls": 19,
+        "mean_steady_p95_error_m": 0.29528136623289764,
+        "failures": []
+      },
+      "hybrid": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.7311681483162515,
+        "worst_minimum_separation_m": 2.6031118771215858,
+        "worst_clearance_margin_m": 0.10311187712158576,
+        "advisory_buffer_shortfalls": 18,
+        "mean_steady_p95_error_m": 0.1689385370730446,
+        "failures": []
+      }
+    },
+    "nominal_impaired": {
+      "centralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.7533008216012655,
+        "worst_minimum_separation_m": 2.605223665863121,
+        "worst_clearance_margin_m": 0.10522366586312115,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.1615438134421794,
+        "failures": []
+      },
+      "decentralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.7487243734510374,
+        "worst_minimum_separation_m": 2.602618447940876,
+        "worst_clearance_margin_m": 0.10261844794087605,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.20491151113060183,
+        "failures": []
+      },
+      "hybrid": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.749182106217687,
+        "worst_minimum_separation_m": 2.6031118771215858,
+        "worst_clearance_margin_m": 0.10311187712158576,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.16770456534290482,
+        "failures": []
+      }
+    },
+    "repeated_outage": {
+      "centralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.7535391964504807,
+        "worst_minimum_separation_m": 2.605223665863121,
+        "worst_clearance_margin_m": 0.10522366586312115,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.16155811813024368,
+        "failures": []
+      },
+      "decentralized": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.7501021516633215,
+        "worst_minimum_separation_m": 2.602618447940876,
+        "worst_clearance_margin_m": 0.10261844794087605,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.26219509918942413,
+        "failures": []
+      },
+      "hybrid": {
+        "n": 30,
+        "passes": 30,
+        "pass_rate_wilson95": [
+          0.8864829086095221,
+          1.0
+        ],
+        "mean_minimum_separation_m": 2.749318400952983,
+        "worst_minimum_separation_m": 2.6031118771215858,
+        "worst_clearance_margin_m": 0.10311187712158576,
+        "advisory_buffer_shortfalls": 13,
+        "mean_steady_p95_error_m": 0.1688828696854584,
+        "failures": []
+      }
+    }
+  }
+}

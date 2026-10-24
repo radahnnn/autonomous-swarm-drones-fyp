@@ -34,7 +34,7 @@ The console usage guide is [`docs/CONSOLE_GUIDE.md`](docs/CONSOLE_GUIDE.md). The
 
 ## Branches and project state
 
-For the plain-language map of local folders, branches, and which copy to use, read the [project state guide on `master`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/master/docs/PROJECT_STATE.md). This experimental branch remains separate from stable `master`. For the ten-drone evidence, read the [live 2D validation report](docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md) and the [30-seed repeated comparison](docs/reports/TEN_DRONE_2D_REPEATED_VALIDATION_2026-10-25.md). The repeated comparison passes its numerical gates but has only a 2 mm worst clearance margin under burst outages.
+For the plain-language map of local folders, branches, and which copy to use, read the [project state guide on `master`](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/master/docs/PROJECT_STATE.md). This experimental branch remains separate from stable `master`. For the ten-drone evidence, read the [live 2D validation report](docs/reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md) and the [30-seed repeated comparison](docs/reports/TEN_DRONE_2D_REPEATED_VALIDATION_2026-10-25.md). At the default 2.5 m guard, that comparison passes its numerical gates but has only a 2 mm worst clearance margin under burst outages. An optional 3.0 m guard-distance sensitivity improves the observed worst margin to about 10 cm; the default was intentionally left unchanged, and this still does not establish a safety guarantee.
 
 | Branch or tag | Purpose | State |
 |---|---|---|

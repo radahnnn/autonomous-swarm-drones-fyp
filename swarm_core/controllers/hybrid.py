@@ -240,6 +240,7 @@ class HybridController:
         drag_coeff: float = 0.20,
         measured_position: Optional[np.ndarray] = None,
         measured_velocity: Optional[np.ndarray] = None,
+        separation_minimum_m: float = 2.5,
     ) -> np.ndarray:
         """
         Computes smoothly blended control command:
@@ -331,6 +332,7 @@ class HybridController:
             # Hybrid blends the local controller with its own always-on guard;
             # keep the shared guard horizon aligned to that blend's safety term.
             reaction_time_s=1.0,
+            separation_minimum_m=separation_minimum_m,
         )
 
         # 3. Always-on local decentralized APF safety barrier (degree-normalised)
@@ -349,6 +351,7 @@ class HybridController:
         u_safe_apf = u_safe_apf / deg
         u_safe_apf += separation_guard_acceleration(
             pos, vel, neighbor_states,
+            minimum_separation_m=separation_minimum_m,
             max_accel_m_s2=drone.max_accel,
         )
 

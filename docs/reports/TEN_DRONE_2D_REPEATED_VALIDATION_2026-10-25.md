@@ -41,6 +41,33 @@ summary is in `runs/comparison/three_modes_10drones_20261025_30seed_summary.json
 The comparison code had no tracked changes during the run; its dirty-tree flag
 records an untracked analysis script added while it was running.
 
+## Clearance sensitivity at a 3 m guard
+
+To examine the thin burst-loss margin, the same 30-seed comparison was rerun
+with an explicit 3.0 m minimum-distance input to the acceleration safety
+guard. This is a selectable simulation parameter; the default remains 2.5 m.
+It does not change formation slot spacing, and it is not a collision guarantee.
+
+| Scenario | Mode | Passes | Worst pair distance | Margin over 2.5 m | Runs below 2.75 m buffer | Mean steady p95 error |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Nominal impaired | Centralized | 30/30 | 2.605 m | 0.105 m | 13/30 | 0.162 m |
+| Nominal impaired | Decentralized | 30/30 | 2.603 m | 0.103 m | 13/30 | 0.205 m |
+| Nominal impaired | Hybrid | 30/30 | 2.603 m | 0.103 m | 13/30 | 0.168 m |
+| Repeated outage | Centralized | 30/30 | 2.605 m | 0.105 m | 13/30 | 0.162 m |
+| Repeated outage | Decentralized | 30/30 | 2.603 m | 0.103 m | 13/30 | 0.262 m |
+| Repeated outage | Hybrid | 30/30 | 2.603 m | 0.103 m | 13/30 | 0.169 m |
+| Burst repeated outage | Centralized | 30/30 | 2.605 m | 0.105 m | 13/30 | 0.162 m |
+| Burst repeated outage | Decentralized | 30/30 | 2.603 m | 0.103 m | 19/30 | 0.295 m |
+| Burst repeated outage | Hybrid | 30/30 | 2.603 m | 0.103 m | 18/30 | 0.169 m |
+
+This improves the worst sampled separation in the burst case from 2.502 m to
+2.603 m, while all 30 seeds per mode meet the existing 2.5 m gate. The margin
+is still only about 10 cm, and many seeds remain below the separate 2.75 m
+advisory buffer. Decentralized tracking error also rises in outage cases.
+Treat 3 m as a sensitivity result, not a recommended flight setting. Raw data
+and summary are in `runs/comparison/three_modes_10drones_20261025_guard3m_explicit_30seed.json`
+and `runs/comparison/three_modes_10drones_20261025_guard3m_explicit_30seed_summary.json`.
+
 ## Live SITL boundary
 
 The earlier [ten-drone 2D/SITL report](TEN_DRONE_2D_VALIDATION_2026-10-24.md)
@@ -62,6 +89,13 @@ python3 -m experiments.compare_three_modes --drones 10 --trials 30 \
 python3 -m experiments.summarize_three_mode_repeats \
   runs/comparison/three_modes_10drones_20261025_30seed.json \
   --output runs/comparison/three_modes_10drones_20261025_30seed_summary.json
+# Optional guard-distance sensitivity; default remains 2.5 m.
+python3 -m experiments.compare_three_modes --drones 10 --trials 30 \
+  --separation-guard-m 3.0 \
+  --output runs/comparison/three_modes_10drones_20261025_guard3m_explicit_30seed.json
+python3 -m experiments.summarize_three_mode_repeats \
+  runs/comparison/three_modes_10drones_20261025_guard3m_explicit_30seed.json \
+  --output runs/comparison/three_modes_10drones_20261025_guard3m_explicit_30seed_summary.json
 python3 -m pytest -q
 ```
 
