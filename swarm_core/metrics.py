@@ -22,6 +22,7 @@ class SwarmMetricsSnapshot:
     shape_error: float = 0.0
     total_mode_switches: int = 0
     mean_alpha: float = 1.0
+    per_vehicle_slot_errors_m: tuple = ()
 
 
 class SwarmMetricsTracker:
@@ -61,6 +62,7 @@ class SwarmMetricsTracker:
         if target_positions is not None and len(target_positions) == n:
             sq_errors = np.sum((positions - target_positions) ** 2, axis=1)
             formation_error = float(np.sqrt(np.mean(sq_errors)))
+            per_vehicle_errors = tuple(float(x) for x in np.sqrt(sq_errors))
 
             # Centroid-removed formation shape error:
             actual_centroid = np.mean(positions, axis=0)
@@ -72,6 +74,7 @@ class SwarmMetricsTracker:
         else:
             formation_error = 0.0
             shape_error = 0.0
+            per_vehicle_errors = ()
 
         # 2. True physical inter-drone distances & collision verification (Item 29)
         min_dist = float("inf")
@@ -108,6 +111,7 @@ class SwarmMetricsTracker:
             shape_error=shape_error,
             total_mode_switches=total_mode_switches,
             mean_alpha=mean_alpha,
+            per_vehicle_slot_errors_m=per_vehicle_errors,
         )
         self.history.append(snapshot)
         return snapshot
@@ -142,6 +146,9 @@ class SwarmMetricsTracker:
         steady_state_error = float(np.mean(steady_errors)) if steady_errors else float(errors[-1])
         steady_shape_errors = [s.shape_error for s in self.history if s.time >= 8.5]
         steady_state_shape = float(np.mean(steady_shape_errors)) if steady_shape_errors else float(shape_errors[-1])
+        steady_vehicle_errors = [error for snapshot in self.history if snapshot.time >= 8.5
+                                 for error in snapshot.per_vehicle_slot_errors_m]
+        steady_p95 = float(np.percentile(steady_vehicle_errors, 95)) if steady_vehicle_errors else float(errors[-1])
 
         return {
             "initial_formation_error_m": float(errors[0]),
@@ -157,6 +164,7 @@ class SwarmMetricsTracker:
             "transient_morph_error_m": transient_morph_error,
             "transient_morph_shape_error_m": transient_morph_shape,
             "steady_state_error_m": steady_state_error,
+            "steady_p95_slot_error_m": steady_p95,
             "steady_state_shape_error_m": steady_state_shape,
             "total_mode_switches": float(switches[-1] if switches else 0.0),
         }

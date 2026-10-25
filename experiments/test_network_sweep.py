@@ -29,6 +29,9 @@ def run_single_trial(
     naive_switching: bool = False,
     initial_layout: str = "scattered",
     gps_noise_std: Optional[float] = None,
+    predictive_safety: bool = False,
+    safety_distance_m: float = 2.75,
+    safety_horizon_s: float = 1.0,
 ):
     rng = np.random.default_rng(seed)
     if initial_layout == "formation":
@@ -55,6 +58,9 @@ def run_single_trial(
         gps_noise_std=gps_noise_std,
         use_velocity_feedforward=True,
         seed=seed,
+        predictive_safety=predictive_safety,
+        safety_distance_m=safety_distance_m,
+        safety_horizon_s=safety_horizon_s,
     )
 
     if naive_switching:
@@ -91,6 +97,7 @@ def run_single_trial(
         sim.step()
 
     summary = sim.metrics.get_summary()
+    summary["safety_infeasible_steps"] = sim.safety_infeasible_steps
     return summary
 
 

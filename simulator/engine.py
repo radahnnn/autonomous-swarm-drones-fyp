@@ -28,6 +28,7 @@ from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.metrics import SwarmMetricsTracker
+from swarm_core.predictive_safety import project_acceleration
 
 
 class SwarmSimulation:
@@ -51,6 +52,9 @@ class SwarmSimulation:
         profile: Optional[Union[str, SwarmConfigProfile]] = None,
         fallback_strategy: str = "consensus",
         dead_reckon_duration: float = 1.5,
+        predictive_safety: bool = False,
+        safety_distance_m: float = 2.75,
+        safety_horizon_s: float = 1.0,
     ):
         self.drones = drones
         self.num_drones = len(drones)
@@ -61,6 +65,10 @@ class SwarmSimulation:
         self.use_velocity_feedforward = bool(use_velocity_feedforward)
         self.fallback_strategy = str(fallback_strategy).lower()
         self.dead_reckon_duration = float(dead_reckon_duration)
+        self.predictive_safety = bool(predictive_safety)
+        self.safety_distance_m = float(safety_distance_m)
+        self.safety_horizon_s = float(safety_horizon_s)
+        self.safety_infeasible_steps = 0
 
         # Profile resolution: explicit arg > drone profile > active global profile
         if profile is not None:
@@ -469,6 +477,23 @@ class SwarmSimulation:
                     measured_velocity=measured_velocities[d.id],
                 )
                 d.set_control_input(accel_i)
+
+        # Experimental local spacing projection, applied after each mode's
+        # nominal command. Keep it opt-in until controlled trials validate it.
+        if self.predictive_safety:
+            for d in self.drones:
+                safe_accel, feasible = project_acceleration(
+                    d.commanded_accel,
+                    measured_positions[d.id],
+                    measured_velocities[d.id],
+                    perceived_neighbors[d.id],
+                    minimum_distance_m=self.safety_distance_m,
+                    horizon_s=self.safety_horizon_s,
+                    max_accel_m_s2=d.max_accel,
+                )
+                d.set_control_input(safe_accel)
+                if not feasible:
+                    self.safety_infeasible_steps += 1
 
         # 6. Physical integration step for each drone
         for d in self.drones:

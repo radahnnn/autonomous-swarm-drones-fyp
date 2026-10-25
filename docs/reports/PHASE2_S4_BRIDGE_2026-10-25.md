@@ -8,6 +8,9 @@ experiments. These experiments are **not** ten-drone SITL, MAVLink control, or
 physical-aircraft tests. The S4 model was fitted to one SITL airframe's two
 5 m north steps. It is used here to expose model sensitivity, not to claim a
 validated vehicle model for the team's quad.
+Shared software completion criteria and measurement definitions are in the
+[software acceptance matrix](https://github.com/radahnnn/autonomous-swarm-drones-fyp/blob/work/decentralized-sitl-20261020/docs/SOFTWARE_ACCEPTANCE_MATRIX.md)
+on the experimental controller branch.
 
 ## Reconciled fits
 
@@ -98,6 +101,66 @@ handling, and a feasible formation path. Simply increasing the APF radius or
 reducing sensor noise is not enough evidence of a fix. Raw noise-sweep data
 are in `experiments/results/phase2_gps_spacing_diagnostic.json`.
 
+### Experimental predictive projection and common tracking metric
+
+The first opt-in candidate projects each vehicle's desired acceleration onto
+radial pair constraints over a 1 s look-ahead with a 2.75 m requested distance.
+It uses only received peer states and respects the drone's acceleration limit.
+It does not model tangential closest approach, the other vehicle's future
+command, actuator lag, or unbounded position error, so it is not a safety
+guarantee. Infeasible projections are counted explicitly. The existing
+controller default remains unchanged.
+
+This rerun also added a **pooled steady p95 per-vehicle slot error** over
+samples at `t >= 8.5 s`. Earlier Phase 2 `steady_state_error_m` is a mean of
+per-step swarm RMS errors and cannot be compared directly with a p95 gate.
+The table applies both the 2.5 m sampled separation gate and a 1 m pooled
+steady p95 gate to the same 20 seeds per mode and noise level.
+
+| Position noise | Mode | Baseline passes | Projection passes | Projection worst pair distance | Projection mean steady p95 |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 0.04 m | Centralized | 0/20 | 20/20 | 2.80 m | 0.26 m |
+| 0.04 m | Decentralized | 0/20 | 0/20 | 2.79 m | 1.31 m |
+| 0.04 m | Hybrid | 0/20 | 20/20 | 2.80 m | 0.26 m |
+| 0.25 m | Centralized | 0/20 | 18/20 | 2.46 m | 0.52 m |
+| 0.25 m | Decentralized | 0/20 | 0/20 | 2.40 m | 1.47 m |
+| 0.25 m | Hybrid | 0/20 | 18/20 | 2.46 m | 0.52 m |
+| 0.50 m | Centralized | 0/20 | 4/20 | 1.95 m | 0.93 m |
+| 0.50 m | Decentralized | 0/20 | 0/20 | 1.87 m | 1.78 m |
+| 0.50 m | Hybrid | 0/20 | 4/20 | 1.95 m | 0.93 m |
+| 1.50 m | All three | 0/20 each | 0/20 each | 0.01–0.02 m | 2.87–3.66 m |
+
+The candidate is a useful low-noise spacing intervention for centralized and
+hybrid control, but it fails the common criteria for decentralized tracking
+and does not tolerate moderate/high position noise. Raising the requested
+distance in a five-seed sensitivity check improved some 0.25 m-noise spacing
+results but produced hundreds of infeasible projected steps and, at 3.5 m,
+lost tracking passes. This is not ready for live SITL or onboard use. Next,
+design a feasible reconfiguration path and a safety supervisor that explicitly
+handles estimation bounds, relative velocity, acceleration lag, and constraint
+infeasibility. Raw paired reruns are in
+`experiments/results/phase2_baseline_p95_20seed.json` and
+`experiments/results/phase2_predictive_safety_p95_20seed.json`.
+
+During this review, `build_controllers_from_profile` was found to ignore its
+declared `k_goal=1.0` and use the decentralized class default `0.8`. The
+profile value is now applied. A separate paired 20-seed decentralized check
+after that correction still passed only **1/20** low-noise trials with the
+projection and **0/20** at 0.25 m noise; the no-projection baseline passed
+0/20 at both levels because of spacing. The lower-noise projection kept every
+sampled pair above 2.79 m, while its mean steady p95 slot error was 1.06 m.
+This confirms the remaining tracking/transition problem rather than resolving
+it. The post-fix raw results are in
+`experiments/results/phase2_decentralized_gain_fix_20seed.json`.
+
+A five-seed exploratory test interpolated V-to-line targets over 2, 3, or 5 s
+while the centroid continued to move. It did not improve the decentralized
+passes: 0/5 at every duration, versus 0/5 in the same seeds with an immediate
+transition. At 3 and 5 s it also worsened centralized and hybrid tracking.
+That interpolation was removed from the implementation. The next transition
+planner must account for a moving centroid and feasible individual routes,
+not merely smooth the target coordinates.
+
 For comparison with the branch's earlier Phase 2 output, the S4-only run
 using the original `scattered` layout is preserved in
 `experiments/results/phase2_s4_bridge_20seed.json`. That layout can start
@@ -112,6 +175,9 @@ python3 -m experiments.run_corrected_phase2 --seeds 20 \
   --initial-layout formation \
   --output experiments/results/phase2_s4_formation_20seed.json
 python3 -m experiments.diagnose_phase2_gps_spacing --seeds 20
+python3 -m experiments.diagnose_phase2_gps_spacing --seeds 20 \
+  --predictive-safety \
+  --output experiments/results/phase2_predictive_safety_p95_20seed.json
 python3 -m pytest -q
 ```
 

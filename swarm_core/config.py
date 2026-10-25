@@ -498,6 +498,7 @@ def build_controllers_from_profile(
         k_sep=k_repulse,
         k_align=float(profile.get("decentralized_kv")),
         k_form=float(profile.get("decentralized_k_form")),
+        k_goal=float(profile.get("k_goal")),
         safe_radius=apf_dist,
     )
     recovery_hb = int(profile.get("recovery_consecutive_hb", 5))
