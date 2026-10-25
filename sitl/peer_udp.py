@@ -18,6 +18,7 @@ VERSION = 3
 FRAME = "shared_local_north_east_metres"
 MAX_PEER_AGE_S = 0.5
 MAX_HEARTBEAT_AGE_S = 2.0
+MAX_FUTURE_SKEW_S = 0.05
 MAX_PENDING_DATAGRAMS = 512
 MAX_PENDING_PER_PEER = 64
 
@@ -384,7 +385,7 @@ class UdpPeerStateTransport:
                                      + self.local_clock_offset_s)
                 age = float(now) - sample_time_local
                 if kind == "heartbeat":
-                    if age < 0 or age > MAX_HEARTBEAT_AGE_S:
+                    if age < -MAX_FUTURE_SKEW_S or age > MAX_HEARTBEAT_AGE_S:
                         self.rejected_stale += 1
                         continue
                     if not self._accept_peer_session(peer_id, session_id):
@@ -402,7 +403,7 @@ class UdpPeerStateTransport:
                 position = np.asarray(packet.get("position"), dtype=float)
                 velocity = np.asarray(packet.get("velocity"), dtype=float)
                 landing = packet.get("landing")
-                if not math.isfinite(sample_time) or not 0 <= age <= MAX_PEER_AGE_S:
+                if not math.isfinite(sample_time) or not -MAX_FUTURE_SKEW_S <= age <= MAX_PEER_AGE_S:
                     self.rejected_stale += 1
                     continue
                 if position.shape != (2,) or velocity.shape != (2,):

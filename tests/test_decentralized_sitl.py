@@ -266,6 +266,31 @@ def test_udp_peer_state_age_is_corrected_across_host_clock_offsets():
         receiver.close()
 
 
+def test_udp_peer_accepts_small_clock_estimation_error_but_rejects_large_future_skew():
+    from sitl.peer_udp import UdpPeerStateTransport
+
+    base = 37000 + (os.getpid() % 10000)
+    sender = UdpPeerStateTransport(0, base, 2)
+    receiver = UdpPeerStateTransport(1, base, 2)
+    try:
+        # Separate clock probes can differ by milliseconds even on one host.
+        receiver.set_clock_offsets(0.02, {0: 0.0, 1: 0.02})
+        sender.publish_heartbeat([1], 100.0)
+        sender.publish([1.0, 2.0], [0.0, 0.0], 100.0, [1], 100.0)
+        states = receiver.receive(100.01, [0])
+        assert len(states) == 1
+        assert receiver.fresh_link_ids(100.01) == [0]
+
+        receiver.set_clock_offsets(0.10, {0: 0.0, 1: 0.10})
+        sender.publish_heartbeat([1], 101.0)
+        sender.publish([2.0, 3.0], [0.0, 0.0], 101.0, [1], 101.0)
+        assert receiver.receive(101.01, [0]) == []
+        assert receiver.rejected_stale >= 2
+    finally:
+        sender.close()
+        receiver.close()
+
+
 def test_clock_offset_estimator_uses_four_timestamps_and_lowest_delay_sample():
     from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 

@@ -339,8 +339,9 @@ evidence is in `runs/independent/external-sitl-20261021T181141.293642Z/`; it rem
 loopback evidence, not multi-computer or radio proof.
 
 The staged evidence gates for actual radios and supervised aircraft testing are documented in
-[`PHYSICAL_NETWORK_VALIDATION_PLAN.md`](PHYSICAL_NETWORK_VALIDATION_PLAN.md). The immediate software
-gap remains a five-agent SITL run distributed across at least two computers over the LAN.
+[`PHYSICAL_NETWORK_VALIDATION_PLAN.md`](PHYSICAL_NETWORK_VALIDATION_PLAN.md). A later
+[five-agent host/VM SITL run](reports/VM_SPLIT_HOST_SITL_2026-10-25.md) crossed a virtual
+network boundary on one physical PC; repeated split-host faults and a separate computer remain.
 
 Seed 141 repeated the operator-process-loss case on the source-validated transport. All five agents
 reported mission-lease expiry, requested LAND, and confirmed landed/disarmed within 42.93 seconds;

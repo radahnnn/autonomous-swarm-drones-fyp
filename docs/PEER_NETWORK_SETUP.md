@@ -44,6 +44,16 @@ mean, standard deviation, minimum, and maximum.
 
 ## Verified so far
 
+On 2026-10-25, a five-agent SITL mission passed across the Ubuntu desktop and
+an Ubuntu Server VM connected by a host-only TAP network. Two agents and all
+five SITL vehicles ran on the host; three agents ran in the VM. The first
+attempt safely failed preflight because small clock-offset estimation errors
+made one peer link appear stale. After a bounded timestamp-tolerance fix, all
+five passed preflight, flew a 2 m north mission, landed, and disarmed. See the
+[host/VM report](reports/VM_SPLIT_HOST_SITL_2026-10-25.md) and its raw logs.
+This tests an actual virtual network boundary on one physical PC. It does not
+test a separate laptop, radios, or real aircraft.
+
 Five agents completed a partition mission using five distinct loopback addresses, 2% injected peer
 loss, 25 ms mean delay, and HMAC. Both isolated endpoints landed and all five disarmed. A wrong-key
 test was rejected. This validated address selection and HMAC between processes on one computer; it
