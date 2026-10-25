@@ -150,6 +150,20 @@ class SwarmConsole:
         print(f">> Error: Drone ID must be 1 to {self.n}. Received: {drone_num}")
         return False
 
+    def handle(self, line: str):
+        """Route dashboard actions through the same validated pilot command path."""
+        parts = line.strip().lower().split()
+        if parts and parts[0] in {"fail", "restart"} and len(parts) == 2:
+            line = ("f " if parts[0] == "fail" else "r ") + parts[1]
+        elif parts and parts[0] in {"shape", "formation"} and len(parts) == 2:
+            aliases = {"v": "v", "line": "l", "column": "k", "diamond": "x",
+                       "ring": "o", "echelon": "e", "triangle": "tri"}
+            if parts[1] not in aliases:
+                print(f">> Unknown formation: {parts[1]}")
+                return True
+            line = aliases[parts[1]]
+        return handle_command(self, line)
+
     # ------------------------------------------------------------------ SITL process management
     @staticmethod
     def detect_gazebo() -> bool:
@@ -1188,6 +1202,12 @@ def main():
         console.sync_frames()
         console.guidance_thread = threading.Thread(target=console.guidance_loop, daemon=True)
         console.guidance_thread.start()
+        dashboard_port = int(getattr(args, "dashboard_port", 0) or 0)
+        dashboard_server = None
+        if dashboard_port:
+            from sitl.operator_dashboard import start_dashboard
+            dashboard_server = start_dashboard(console, dashboard_port)
+            print(f">> Visual controller: http://127.0.0.1:{dashboard_port}")
 
         _print_help(args.drones, args.control_mode, args.agent_runtime)
         if args.auto_launch:
@@ -1214,6 +1234,9 @@ def main():
         console.evidence.event("run_error", error=str(exc))
         raise
     finally:
+        if 'dashboard_server' in locals() and dashboard_server is not None:
+            dashboard_server.shutdown()
+            dashboard_server.server_close()
         console.stop_guidance()
         if console.decentralized_guidance is not None:
             channel = console.decentralized_guidance.peer_bus.channel

@@ -15,6 +15,7 @@ import numpy as np
 from pymavlink import mavutil
 
 from sitl.fleet import build_fleet
+from sitl.formation_library import STYLES
 from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
@@ -763,6 +764,27 @@ class IndependentSwarmConsole:
         print(f">> Directed peer link D{sender} -> D{recipient} "
               f"{'cut' if blocked else 'restored'}; reverse traffic is unchanged.")
 
+    def _set_formation(self, style: str) -> None:
+        if style not in STYLES:
+            print(f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
+            return
+        if not getattr(self.args, "adaptive_swarm", False):
+            print("Formation changes require adaptive swarm mode.")
+            return
+        with self.lock:
+            states = [self.latest.get(index, {}) for index in range(self.count)]
+            now = time.time()
+            if any(state.get("armed") is not False or state.get("airborne") is not False or
+                   not state.get("operator_received_at") or
+                   now - float(state.get("operator_received_at", 0.0)) > 3.0
+                   for state in states):
+                print("Need fresh status from every grounded, disarmed drone before changing formation.")
+                return
+            self.formation = style
+            self._publish_intent()
+        self.event("formation_command", formation=style, grounded_only=True)
+        print(f">> Formation changed to {style.upper()}; agents will update their local slots.")
+
     def handle(self, line: str) -> bool:
         parts = line.strip().lower().split()
         if not parts:
@@ -785,6 +807,8 @@ class IndependentSwarmConsole:
             return False
         elif action == "status":
             self.status()
+        elif action in ("shape", "formation") and len(parts) == 2:
+            self._set_formation(parts[1])
         elif action == "preflight":
             preflight = self.network_preflight()
             self.event("network_preflight", **preflight)

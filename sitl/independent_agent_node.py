@@ -15,7 +15,7 @@ from sitl.common_frame import CommonCoordinateFrame
 from sitl.decentralized_guidance import DecentralizedGuidance, LocalDroneAgent
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, build_fleet
 from sitl.flight_prep import arm_with_retry, request_message_interval, takeoff_and_verify, wait_ekf_ready
-from sitl.formation_library import slots_for
+from sitl.formation_library import STYLES, slots_for
 from sitl.mission_intent import MissionIntent, MissionLease
 from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
@@ -61,6 +61,7 @@ class IndependentAgentNode:
         if not 1 <= self.mavlink_system_id <= 255:
             raise ValueError("MAVLink system ID must be between 1 and 255")
         self.formation = formation
+        self.pending_formation = None
         if control_mode not in ("decentralized", "hybrid"):
             raise ValueError("independent agent control mode must be decentralized or hybrid")
         self.control_mode = control_mode
@@ -368,6 +369,17 @@ class IndependentAgentNode:
                     intent = MissionIntent.from_dict(message.get("intent"), wall_now)
                 except (TypeError, ValueError):
                     continue
+                if intent.formation not in STYLES:
+                    continue
+                if intent.formation != self.formation:
+                    # Accept shape changes only while safely grounded. A stale or
+                    # airborne mission update must never morph slot geometry.
+                    if (self.adaptive_swarm and not self.armed and not self.airborne):
+                        self.pending_formation = intent.formation
+                    else:
+                        intent = MissionIntent.from_dict(
+                            {**intent.to_dict(), "formation": self.formation}, wall_now,
+                        )
                 if intent.sequence <= self.last_mission_sequence:
                     continue
                 self.mission_lease.accept(intent.to_dict(), wall_now, time.monotonic())
@@ -641,6 +653,7 @@ class IndependentAgentNode:
             "peer_timeout_ids": self.peer_timeout_ids,
             "safety_state": self.safety_state,
             "safety_reason": self.safety_reason,
+            "formation": self.formation,
             "adaptive_swarm": self.adaptive_swarm,
             "active_member_ids": (sorted(self.membership.active_ids)
                                   if self.membership is not None else list(range(self.count))),
@@ -714,6 +727,15 @@ class IndependentAgentNode:
                                    landing=self.landing)
                 discovered = self.peers.receive(now, self.discovery_ids)
                 fresh_peer_ids = self.peers.fresh_link_ids(now)
+                if (self.pending_formation is not None and self.membership is not None
+                        and not self.armed and not self.airborne):
+                    self.formation = self.pending_formation
+                    self.membership.formation = self.pending_formation
+                    self.all_slots = np.asarray(
+                        slots_for(self.pending_formation, self.count), dtype=float,
+                    )
+                    self.pending_formation = None
+                    self.membership_revision += 1
                 self._update_adaptive_membership(now, fresh_peer_ids)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
