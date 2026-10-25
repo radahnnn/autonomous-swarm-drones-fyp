@@ -19,6 +19,9 @@ python3 -m sitl.swarm_console --drones 5 --standalone --control-mode hybrid --ag
 
 The console still owns transport and mission distribution; separate processes are not independent
 onboard deployment. See [the protocol](docs/AGENT_PROTOCOL.md) and [console guide](docs/CONSOLE_GUIDE.md).
+The [software acceptance matrix](docs/SOFTWARE_ACCEPTANCE_MATRIX.md) lists the
+shared measurement definitions, proposed completion gates, and current evidence
+for the proposal objectives.
 
 ## Current implementation
 
