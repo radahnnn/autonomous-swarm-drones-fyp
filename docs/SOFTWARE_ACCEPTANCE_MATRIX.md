@@ -30,7 +30,7 @@ settling interval, and seed in each paired mode comparison.
 | Decentralized control | Each agent owns its vehicle link and local decision, receives peer messages directly, and survives peer loss/restart under logged tests | Partial. Same-host fault tests and one five-agent host/VM SITL mission passed; repeated split-host faults and radio validation remain. |
 | Hybrid switching | Coordinator outage and restoration trigger logged fallback/recovery without unsafe setpoint jumps or stale commands | Partial. Same-host SITL evidence exists; repeated live and separate-host evidence remains. |
 | Formations and reconfiguration | Line, V, circle/ring, and grid tests with slot assignment, movement, morphing, separation, and steady error | Partial. Formation generators exist; Phase 2 V-to-line morph currently fails the 2.5 m separation gate. |
-| Scaling and reliability | Paired seeds for 5 and 10 vehicles; nominal, delay/loss, burst loss, coordinator loss, peer loss, restart, and stale packets | Partial. Thirty-seed 10-vehicle point-mass results pass the 2.5 m gate with a thin margin; live SITL has one matched run per mode. |
+| Scaling and reliability | Paired seeds for 5 and 10 vehicles; nominal, delay/loss, burst loss, coordinator loss, peer loss, restart, and stale packets | Partial. Thirty-seed 10-vehicle point-mass results pass the 2.5 m gate with a thin margin; one clean ten-agent host/VM SITL mission passed; repeated split-host fault runs remain. |
 | Prototype interface | Onboard agent protocol and a verified flight-controller command path, first on a propellers-off bench | Open. No end-to-end ESP32/CAN/Matek command has been confirmed. |
 
 ## Promotion rule
@@ -42,11 +42,12 @@ Do not promote a Phase 2 controller because a different ten-drone controller
 passed. Preserve failing seeds and the configuration that produced them.
 
 The Ubuntu Server VM provided a first **separate-OS-instance network gate**:
-five independent agents ran across the desktop and VM, with direct UDP peers
-and remote TCP MAVLink. See the
-[split-host report](reports/VM_SPLIT_HOST_SITL_2026-10-25.md). It is one
-physical PC and one clean mission, so repeated faults, ten agents across the
-boundary, separate hardware, physical radio, and CAN remain open.
+five and later ten independent agents ran across the desktop and VM, with
+direct UDP peers and remote TCP MAVLink. See the
+[five-agent report](reports/VM_SPLIT_HOST_SITL_2026-10-25.md) and
+[ten-agent report](reports/VM_SPLIT_TEN_AGENT_SITL_2026-10-25.md). It is one
+physical PC and one clean mission at each scale, so repeated faults, separate
+hardware, physical radio, and CAN remain open.
 
 See [ten-drone live validation](reports/TEN_DRONE_2D_VALIDATION_2026-10-24.md),
 [repeated comparison](reports/TEN_DRONE_2D_REPEATED_VALIDATION_2026-10-25.md),

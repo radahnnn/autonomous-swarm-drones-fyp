@@ -54,6 +54,12 @@ five passed preflight, flew a 2 m north mission, landed, and disarmed. See the
 This tests an actual virtual network boundary on one physical PC. It does not
 test a separate laptop, radios, or real aircraft.
 
+A subsequent [ten-agent host/VM SITL run](reports/VM_SPLIT_TEN_AGENT_SITL_2026-10-25.md)
+split five agents onto each OS instance. All ten passed peer-link preflight,
+completed a 2 m north mission, and landed/disarmed. Its minimum sampled
+horizontal separation was 4.094 m. This is one clean run without injected
+network faults; it does not qualify a physical network or aircraft.
+
 Five agents completed a partition mission using five distinct loopback addresses, 2% injected peer
 loss, 25 ms mean delay, and HMAC. Both isolated endpoints landed and all five disarmed. A wrong-key
 test was rejected. This validated address selection and HMAC between processes on one computer; it

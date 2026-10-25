@@ -13,7 +13,8 @@ The disposable test key is intentionally excluded from the repository.
 This is a two-OS-instance test on **one physical PC**, not a radio or aircraft
 test. It used five agents because the documented split-host V topology assigns
 D1–D2 to the host and D3–D5 to the VM. Ten-drone same-host results are a
-different test; ten across this boundary remains to be tested.
+different test; ten across this boundary was tested later the same day. See the
+[ten-agent report](VM_SPLIT_TEN_AGENT_SITL_2026-10-25.md).
 
 ## Results
 
@@ -65,8 +66,8 @@ connected or armed.
 
 ## Next test
 
-Repeat the split-host run across multiple seeds and with controlled network
-delay, loss, clock skew, and directed link faults, then scale the split roster
-to ten agents. Track launch-preflight, mission, landing, spacing, and packet
+Repeat the five- and ten-agent split-host runs across multiple seeds and with
+controlled network delay, loss, clock skew, and directed link faults. Track
+launch-preflight, mission, landing, spacing, and packet
 rejection rates for every run. A separate physical computer and actual radio
 link remain later evidence gates.

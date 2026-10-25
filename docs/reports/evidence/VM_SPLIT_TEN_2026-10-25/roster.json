@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": 0,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.1",
+      "port": 20000,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.1",
+      "command_port": 21000,
+      "status_host": "192.168.100.1",
+      "status_port": 22000
+    },
+    {
+      "id": 1,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.1",
+      "port": 20001,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.1",
+      "command_port": 21001,
+      "status_host": "192.168.100.1",
+      "status_port": 22001
+    },
+    {
+      "id": 2,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.1",
+      "port": 20002,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.1",
+      "command_port": 21002,
+      "status_host": "192.168.100.1",
+      "status_port": 22002
+    },
+    {
+      "id": 3,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.1",
+      "port": 20003,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.1",
+      "command_port": 21003,
+      "status_host": "192.168.100.1",
+      "status_port": 22003
+    },
+    {
+      "id": 4,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.1",
+      "port": 20004,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.1",
+      "command_port": 21004,
+      "status_host": "192.168.100.1",
+      "status_port": 22004
+    },
+    {
+      "id": 5,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.2",
+      "port": 20005,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.2",
+      "command_port": 21005,
+      "status_host": "192.168.100.1",
+      "status_port": 22005
+    },
+    {
+      "id": 6,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.2",
+      "port": 20006,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.2",
+      "command_port": 21006,
+      "status_host": "192.168.100.1",
+      "status_port": 22006
+    },
+    {
+      "id": 7,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.2",
+      "port": 20007,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.2",
+      "command_port": 21007,
+      "status_host": "192.168.100.1",
+      "status_port": 22007
+    },
+    {
+      "id": 8,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.2",
+      "port": 20008,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.2",
+      "command_port": 21008,
+      "status_host": "192.168.100.1",
+      "status_port": 22008
+    },
+    {
+      "id": 9,
+      "bind_host": "0.0.0.0",
+      "host": "192.168.100.2",
+      "port": 20009,
+      "command_bind_host": "0.0.0.0",
+      "command_host": "192.168.100.2",
+      "command_port": 21009,
+      "status_host": "192.168.100.1",
+      "status_port": 22009
+    }
+  ]
+}

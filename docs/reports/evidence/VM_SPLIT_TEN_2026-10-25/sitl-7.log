@@ -1,0 +1,49 @@
+Setting MAV_SYSID=7
+Setting SIM_SPEEDUP=1.000000
+Suggested EK3_DRAG_BCOEF_* = 17.209, EK3_DRAG_MCOEF = 0.209
+Home: -35.363342 149.165329 alt=584.000000m hdg=0.000000
+Starting sketch 'ArduCopter'
+Starting SITL input
+Using Irlock at port : 9065
+Using \clock topic for DDS timing: disabled
+bind port 5820 for SERIAL0
+SERIAL0 on TCP port 5820
+Waiting for connection ....
+Connection on serial port 5820
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+bind port 5822 for SERIAL1
+SERIAL1 on TCP port 5822
+bind port 5823 for SERIAL2
+SERIAL2 on TCP port 5823
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Smoothing reset at 0.001
+Closed connection on SERIAL0
+Waiting for connection ....
+Connection on serial port 0
+validate_structures:536: Validating structures
+Closed connection on SERIAL0
+Waiting for internal clock bits to be set (current=0x00)
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+Loaded defaults from @ROMFS/default_params/copter.parm,/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/working-copies/decentralized-sitl-20261020/sitl/swarm_params.parm
+New connection on SERIAL0
+Exitting

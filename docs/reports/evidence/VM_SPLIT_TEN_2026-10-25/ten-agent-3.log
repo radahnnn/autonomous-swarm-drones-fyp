@@ -1,0 +1,8 @@
+  [Node 4] waiting for EKF (1s) flags=0x0 gps_fix=0
+  [Node 4] waiting for EKF (12s) flags=0xa7 gps_fix=6
+  [Node 4] waiting for EKF (22s) flags=0xa7 gps_fix=6
+  [Node 4] waiting for EKF (32s) flags=0xa7 gps_fix=6
+  [Node 4] EKF ready after 42s (flags=0x33f, gps_fix=6)
+[NODE 4] independently connected to tcp:127.0.0.1:5790
+  [Node 4] ARMED after 0s
+  [Node 4] Takeoff confirmed (alt 0.74 m)
