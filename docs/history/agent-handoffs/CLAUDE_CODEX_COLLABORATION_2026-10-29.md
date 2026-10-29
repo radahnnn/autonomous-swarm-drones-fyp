@@ -170,3 +170,16 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit created / pushed: see `git log`; not pushed.
 - Recommended Codex review: spec §10 questions; whether HOLD at `freeze_at` can violate screened clearance; whether any code path other than `_formation_command` starts a morph.
 - Next step: after review, implement `sitl/transition_protocol.py` (pure state machine) with UNIT tests, then wire the agent and coordinator.
+
+### 2026-10-29 — Claude — transition state machines (pure logic, not yet wired)
+
+- Objective: implement backlog item 3's core as testable pure logic before touching the runtime.
+- Starting commit: `8a339ee` (pushed).
+- Files changed: new `sitl/transition_protocol.py` (`TransitionPlan`, `AgentTransition`, `CoordinatorTransition`, `TransitionParams`); new `tests/test_transition_protocol.py`; `docs/TRANSITION_PROTOCOL_SPEC.md` (status, message list, replay-protection wording); `docs/PROJECT_STATE.md`.
+- Design decisions: defaults for the spec's open questions = abort is HOLD (freeze slot at common `freeze_at`), coordinator loss during a transition = HOLD. Agent validates the whole plan before any state change; STAGED agents never move; `go` carries the common `start_at`; late `go` or missing `go` discards the plan; ARRIVED agents self-close after `arrived_close_s`; a HOLD agent accepts only a newer `transition_id`.
+- Tests and evidence level: UNIT plus INTEGRATION-with-simulated-channel (in-memory, deterministic seeds; **not** SITL, not real UDP). `python3 -m pytest -q tests/test_transition_protocol.py`: 41 passed. Includes 4 loss levels (0/10/30/60%) × 60 seeds asserting no agent moves without a full ack set and no agent/coordinator is left mid-transition, and a lost-`go` case that must end in HOLD for the agents that started. Full suite: 359 passed.
+- Test-design note: my first test geometry crossed drone paths at 2.1 m and correctly triggered the separation abort; geometry changed to a pure translation (3 m clearance). The real planner (`plan_formation_transition`) is unchanged and its clearance screening is not exercised by these tests.
+- Unresolved risks: thresholds uncalibrated; HOLD-at-`freeze_at` timing vs screened clearance still the open question for review; agent/console wiring, message transport (epoch/HMAC), structured command results and server-side gating not done; no live evidence.
+- Commit / push: see `git log`; not pushed after `8a339ee`.
+- Recommended Codex review: invariants in the lossy-channel test; `AgentTransition._local_violation` thresholds; whether `CoordinatorTransition.abort` correctly distinguishes "moved" from "not moved" when `go` was sent but agents had not yet started.
+- Next step: wire the agent side (message kinds, slot ownership, status fields) and the coordinator side.

@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 318 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 359 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration. Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 318 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 359 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -115,7 +115,7 @@ Not verified / open:
 ## 8. Plan
 
 1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
-2. Transition protocol: spec drafted in `docs/TRANSITION_PROTOCOL_SPEC.md` (2026-10-29, awaiting Codex review and the user's go-ahead); then implement it (defects 3).
+2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; pure state machines done and unit-tested (`sitl/transition_protocol.py`, 41 tests incl. a lossy-channel simulation). Next: wire into the agent node and console, structured command results/gating, then SITL (defect 3).
 3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
 4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
 5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
@@ -123,6 +123,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-29 — Claude — Added `sitl/transition_protocol.py` + 41 UNIT/simulated-channel tests (not yet wired into the runtime). Test count 359.
 - 2026-10-29 — Claude — Added `docs/TRANSITION_PROTOCOL_SPEC.md` (draft); sharpened defect 3 with the verified gating gap.
 - 2026-10-29 — Codex — Recorded PHYSICAL passive ESP32 USB enumeration, clarified what the Oct 23 DroneCAN settings do not prove, selected UART/MAVLink as the first command-path recommendation, and linked the propellers-off CAN/fleet bench plan.
 - 2026-10-29 — Claude — Fixed stale/out-of-order `MissionIntent` handling in `sitl/independent_agent_node.py` (sequence check moved before any state change); added `tests/test_mission_intent_ordering.py` (UNIT). Removed the defect from section 5.

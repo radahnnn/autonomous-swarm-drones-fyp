@@ -1,6 +1,6 @@
 # Formation-transition protocol — design spec (DRAFT for Codex review)
 
-Status: **proposal, not implemented.** Written 2026-10-29 by Claude against commit `1b700b8`. Nothing here is validated; thresholds are starting values to be calibrated from measured latency and clock-sync uncertainty.
+Status: **state machines implemented and unit-tested** in `sitl/transition_protocol.py` (pure logic, `tests/test_transition_protocol.py`); **not yet wired** into the agent node or console, and no SITL evidence. Defaults taken for the open questions: abort = HOLD, and coordinator loss during a transition = HOLD (conservative). Written 2026-10-29 by Claude against commit `1b700b8`. Nothing here is validated; thresholds are starting values to be calibrated from measured latency and clock-sync uncertainty.
 
 Accurate claim if implemented: *centralized transition planning, distributed synchronized execution, and distributed local supervision.* It is **not** decentralized formation negotiation.
 
@@ -45,7 +45,7 @@ Agent:       IDLE → STAGED → RUNNING → ARRIVED → IDLE
 
 ## 4. Messages
 
-All messages travel on the existing authenticated operator↔node UDP channel (HMAC, epoch, endpoint checks). Every message carries `version`, `epoch`, `transition_id`, `sequence`. Receivers validate (epoch, id/sequence, field shapes, finiteness, spacing as in `MissionIntent.from_dict`) **before** changing any state.
+All messages travel on the existing authenticated operator↔node UDP channel (HMAC, epoch, endpoint checks). Every message carries `version`, `epoch` (added and checked by the transport layer) and `transition_id`; replay protection is by `transition_id` (strictly increasing, rejected once closed) plus idempotent handling, so no separate `sequence` field is needed. Receivers validate (epoch, id/sequence, field shapes, finiteness, spacing as in `MissionIntent.from_dict`) **before** changing any state.
 
 | Type | Direction | Fields (beyond common) |
 |---|---|---|
@@ -53,6 +53,7 @@ All messages travel on the existing authenticated operator↔node UDP channel (H
 | `transition_ack` | agent → coordinator | `plan_hash`, `ok`, `reason` (NACK codes below), `own_position_error_m` |
 | `transition_go` | coordinator → agents | `plan_hash`, `start_at` |
 | `transition_abort` | either → all | `reason`, `freeze_at` (common-clock time) |
+| `transition_done` | coordinator → agents | `plan_hash` (sent after the arrival dwell; an ARRIVED agent also self-closes after `arrived_close_s` = 7 s so a lost `done` cannot trap it) |
 | `transition_status` | agent → coordinator (inside the existing 1 Hz status, plus on change) | `state`, `transition_id`, `progress`, `hold_reason` |
 
 `plan_hash` = SHA-256 over canonical JSON of the plan fields; an ack or go for a different hash is ignored. Duplicates are idempotent (same id + same hash → resend the same reply, no state change). `transition_id` ≤ last completed/aborted id is rejected (replay).
