@@ -4,6 +4,8 @@ Final Year Project (BEE-60), Department of Electrical Engineering · Supervisor:
 
 This project combines a multi-drone swarm simulator, ArduPilot Software-in-the-Loop (SITL) experiments, and a separate hardware-matched controller-identification study. Simulation and SITL results are not evidence of physical-airframe flight performance.
 
+> **Current status, folder map, defects and plan:** [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md). AI assistants: see `AGENTS.md` / `CLAUDE.md`.
+
 ## Experimental branch: decentralized and hybrid SITL
 
 This branch (`work/decentralized-sitl-20261020`) adds per-agent decentralized/hybrid guidance,
