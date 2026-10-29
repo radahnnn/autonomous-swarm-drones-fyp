@@ -79,7 +79,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 1. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
 2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
-3. No prepare/ack/common-start/abort for synchronized transitions; no live transition supervision; commands not blocked during transitions; link-loss/coordinator-loss/membership semantics undefined.
+3. No prepare/ack/common-start/abort for synchronized transitions; supervision is coordinator-only (see spec §1); command gating during transitions is client-side only (`_operator_command` and dashboard endpoints are not gated server-side); link-loss/coordinator-loss/membership semantics undefined.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
 6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
@@ -90,10 +90,14 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 Verified over USB on 2026-10-06 (`hardware/README.md`, bench, propellers off, disarmed): Matek H743-SLIM V3 running **ArduCopter 4.6.2**; gyro, accel, compass, baro healthy; GPS healthy with a 3D fix (23 satellites); X-frame quad, DShot600. Expected pre-arm notices: RC not found, 3D accel calibration needed. The Oct 23 parameter export (`hardware/params/matek_h743_quad_20261023.param`) enables the CAN port (`CAN_P1_DRIVER=1`, DroneCAN node 10) — this is *configuration only*; no CAN message path to a companion has been demonstrated.
 
+On 2026-10-29 the real ESP32 board enumerated over USB as a CP2102 UART bridge (`/dev/ttyUSB0`) (**PHYSICAL, passive enumeration only**). No Linux CAN interface was exposed, the Matek was not attached by USB, and no serial port or CAN traffic was opened/read. The active test stopped because propellers were installed and the flight battery was connected. The Oct 23 export further records DroneCAN at 250 kbit/s and `CAN_D1_UC_SER_EN=0`; node 10 is the autopilot's DroneCAN node ID, not evidence of an ESP32 node or MAVLink command channel. Detailed evidence and the propellers-off plan: `hardware/reports/PHYSICAL_ESP32_CAN_BENCH_PLAN_2026-10-29.md`.
+
 Not verified / open:
 - No physical flight has been attempted; RC link and accel calibration not done. One quad is assembled; the department has 10 drones, the team has 2.
 - ESP32 role (MAVLink relay vs onboard agent) and the link between the ESP32 and the flight controller (UART vs CAN) are undecided. An MCP2551 alone is only a CAN transceiver.
+- Current recommendation: prove a connectorized UART/MAVLink command path first if an approved no-solder harness is available; validate CAN separately as an experimental DroneCAN link. This is a design recommendation, not a verified physical path.
 - Free ports per the port-mapping PDF: UART4/6/7/8, I2C1/2, one CAN (from notes, not re-checked on the board).
+- Department fleet count remains team-reported (10 total, team has 2); no per-aircraft inventory has been completed. Inventory and bench-check each aircraft before extrapolating results.
 - Hardware files are configuration records, not approval to fly. Do not modify them unless assigned.
 - A propellers-off bench test of the command path is planned (target: week of 2026-10-30), run in a separate Codex hardware chat.
 - Details: `hardware/README.md`, `docs/HARDWARE_SOFTWARE_MAPPING.md`, `docs/PHYSICAL_NETWORK_VALIDATION_PLAN.md`; the 30 Sep / 3 Oct notes in `docs/history/agent-handoffs/` are *superseded* where they say firmware/GPS are unknown.
@@ -111,7 +115,7 @@ Not verified / open:
 ## 8. Plan
 
 1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
-2. Write the transition-protocol spec (prepare/ack/common-start/abort, supervision, link-loss/coordinator-loss/membership rules) for Codex review; then implement it (defects 3).
+2. Transition protocol: spec drafted in `docs/TRANSITION_PROTOCOL_SPEC.md` (2026-10-29, awaiting Codex review and the user's go-ahead); then implement it (defects 3).
 3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
 4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
 5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
@@ -119,6 +123,8 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-29 — Claude — Added `docs/TRANSITION_PROTOCOL_SPEC.md` (draft); sharpened defect 3 with the verified gating gap.
+- 2026-10-29 — Codex — Recorded PHYSICAL passive ESP32 USB enumeration, clarified what the Oct 23 DroneCAN settings do not prove, selected UART/MAVLink as the first command-path recommendation, and linked the propellers-off CAN/fleet bench plan.
 - 2026-10-29 — Claude — Fixed stale/out-of-order `MissionIntent` handling in `sitl/independent_agent_node.py` (sequence check moved before any state change); added `tests/test_mission_intent_ordering.py` (UNIT). Removed the defect from section 5.
 - 2026-10-29 — Claude — Corrected hardware facts (firmware ArduCopter 4.6.2 and GPS fix were bench-verified Oct 6; CAN enabled in Oct 23 params); copied the Matek Oct 23 export and summary into `hardware/`.
 - 2026-10-29 — Claude — Created. Consolidated scattered project state; archived the Antigravity checkout and moved heavy logs/runs to the SSD (see `docs/history/ARCHIVE_INDEX.md`).

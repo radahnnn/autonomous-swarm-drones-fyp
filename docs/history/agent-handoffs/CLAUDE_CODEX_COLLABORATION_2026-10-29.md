@@ -130,3 +130,43 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Pushed branch/commit: not pushed.
 - Recommended Codex review: confirm no caller relied on state changes from a stale intent; check whether the sender (`independent_swarm_console._publish_intent`) ever re-sends an intent with the same sequence but changed contents.
 - Next step: transition-protocol spec (prepare/ack/common-start/abort) for review, then implementation.
+
+### 2026-10-29 12:45 PKT — Codex — physical ESP32/CAN readiness review
+
+- Objective: establish honest physical evidence for the connected ESP32, interpret the Oct 23 CAN configuration, choose the first flight-controller command-path direction, and define a propellers-off plan for one aircraft and the reported 10-drone department fleet.
+- Starting commit: `1b700b8a1eacd509accd7d64e200ad409d53bc22` on `wip/decentralized-sitl-handoff-20261029`; tree clean.
+- Files inspected: `AGENTS.md`; `docs/PROJECT_STATE.md`; this collaboration log; `hardware/README.md`; both Matek parameter exports; all three hardware scripts; `docs/HARDWARE_SOFTWARE_MAPPING.md`; `docs/PHYSICAL_NETWORK_VALIDATION_PLAN.md`; superseded 30 Sep/3 Oct handoffs.
+- Files changed: `hardware/README.md`; new `hardware/reports/PHYSICAL_ESP32_CAN_BENCH_PLAN_2026-10-29.md`; section 6 and changelog only in `docs/PROJECT_STATE.md`; this appended session entry.
+- Design decisions:
+  - Recommend connectorized UART/MAVLink as the first command path if an approved no-solder UART harness exists.
+  - Treat CAN as an experimental DroneCAN link until traffic, node identity, error state, and an ESP32 application protocol are demonstrated.
+  - The Oct 23 values (`CAN_P1_DRIVER=1`, `CAN_D1_PROTOCOL=1`, 250 kbit/s, autopilot node 10) enable/configure a DroneCAN bus; they do not establish ESP32 traffic or a MAVLink command bridge. `CAN_D1_UC_SER_EN=0` records DroneCAN serial passthrough disabled.
+- Tests and evidence level:
+  - Command: `python3 -m pytest -q tests` before edits.
+  - Result: 318 tests passed; no source/test files changed.
+  - Evidence label: UNIT/INTEGRATION baseline only.
+  - PHYSICAL: a real ESP32 USB interface enumerated as Silicon Labs CP2102 (`10c4:ea60`) at `/dev/ttyUSB0`, with a persistent by-id path and no port owner. No SocketCAN interface or USB-CAN adapter appeared.
+- Failures or unresolved risks:
+  - Propellers were installed and the flight battery was connected, contrary to the bench-test gate. No serial port was opened and no active CAN test was attempted.
+  - ESP32 firmware source/binary/hash, GPIO mapping, TWAI bitrate, startup behavior, MCP2551 module schematic/logic levels, termination, and CAN traffic are unknown.
+  - Matek was not connected by USB in this session; no CAN node discovery, FC acknowledgement, UART link, physical command, motor action, or flight was tested.
+  - `docs/HARDWARE_SOFTWARE_MAPPING.md` still says the saved Matek parameter has `CAN_P1_DRIVER=0`. That is true for the Oct 6 export but stale if read as current; request a future permitted documentation edit to distinguish Oct 6 from Oct 23. No change made because this session's write scope excluded that file.
+  - The department count (10, team has 2) remains team-reported; no per-aircraft physical inventory exists.
+- Commit created: none; user controls whether these hardware documentation changes are committed.
+- Pushed branch/commit: nothing pushed.
+- Recommended Codex review: verify the Matek connector/pin mapping from the board manual and review the ESP32 firmware/source before any serial monitor or CAN transmission.
+- Next step: obtain authorization to remove propellers; then run the report's logic-only USB and passive CAN stages with the flight battery absent where possible.
+
+### 2026-10-29 — Claude — transition-protocol design spec (no code)
+
+- Objective: draft the prepare/acknowledge/common-start/abort design (backlog item 3) with supervision and failure semantics (items 4–6) for review before implementation.
+- Starting commit: `1b700b8` (pushed). Code unchanged this session.
+- Files inspected: `sitl/independent_swarm_console.py` (`_formation_command`, `_publish_intent`, `_formation_transition_abort_reason`, `_formation_transition_arrived`, `_intent_loop`, `_operator_command`, `handle`), `sitl/independent_agent_node.py` (mission handler, slot interpolation), `sitl/formation_transition.py` (headers), `sitl/operator_dashboard.py` (transition flags), `docs/AGENT_PROTOCOL.md`.
+- Files changed: new `docs/TRANSITION_PROTOCOL_SPEC.md`; `docs/PROJECT_STATE.md` (plan, defect 3, changelog).
+- Findings (all UNIT-level code reading, no runs): no ack of the plan (a missed UDP intent leaves one agent stationary during a morph); start time is publication time so late receivers jump; supervision and abort exist only in the coordinator and the only action is LAND ALL; `_operator_command` has no transition gating and the dashboard's gating is client-side JS, its server flag reads `session.morph_steps_remaining` rather than `formation_transition_deadline`.
+- Design decisions proposed: per-transition `transition_id` + `plan_hash`; agents STAGE without moving and ack; coordinator sends `go` with a common `start_at`; abort means HOLD (freeze slot), not LAND; each agent supervises peers and separation locally; membership/coordinator-loss rules in spec §7; pure state-machine module first.
+- Tests and evidence level: none run (design only); existing suite unaffected.
+- Failures or unresolved risks: thresholds are uncalibrated; HOLD-vs-planned-timing safety and coordinator-loss continuation are open questions (spec §10).
+- Commit created / pushed: see `git log`; not pushed.
+- Recommended Codex review: spec §10 questions; whether HOLD at `freeze_at` can violate screened clearance; whether any code path other than `_formation_command` starts a morph.
+- Next step: after review, implement `sitl/transition_protocol.py` (pure state machine) with UNIT tests, then wire the agent and coordinator.
