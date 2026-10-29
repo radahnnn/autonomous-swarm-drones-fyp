@@ -42,7 +42,7 @@ Final Year Project BEE-60 (Dept. of Electrical Engineering, supervisor Dr. Abdul
 | History shelf (checkpoints, backups, dependencies, references) | `/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/` (not a Git repo) | Archive only. Index: `START_HERE.md` there + `docs/history/ARCHIVE_INDEX.md` here. |
 | Heavy evidence (ArduPilot `.BIN` logs, raw run output) | `/media/drone/SSDSAM/FYP_Archive/` (NTFS external SSD) | Checksummed; see archive index. |
 | SITL VM (Ubuntu 24.04, QEMU/KVM) | `/media/drone/SSDSAM/drone-swarm-vm/` | Single copy; not yet backed up. |
-| Matek H743 parameter exports and diagnostics | `hardware/` (repo) and `/home/drone/Documents/Codex/2026-10-12/here-is-a-summary-you-can/` (not in repo) | Do not change hardware files unless assigned. |
+| Matek H743 parameter exports and diagnostics | `hardware/` (repo; Oct 23 export and summary copied in 2026-10-29) | Do not change hardware files unless assigned. |
 | GitHub | `https://github.com/radahnnn/autonomous-swarm-drones-fyp` | Do not push/merge/PR without the user's instruction. |
 
 Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (parent of this branch, `cb7fdcc`), `wip/decentralized-sitl-handoff-20261029` (this branch, WIP checkpoint `d1e7444`), `work/corrected-phase2-20261020`, `hw-matched-identification`, `archive/*`, `checkpoint/2d-working-savepoint`. This branch is 24 commits ahead of / 4 docs-only commits behind `origin/master`; README conflicts are expected on merge.
@@ -71,7 +71,7 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 | Hybrid switching | Working in SITL | SITL (same host) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
 | Formations + reconfiguration | Partial | UNIT; SITL for earlier formations | V→line morph fails the 2.5 m gate (Phase 2). Transition protocol not built. |
 | Scaling 5→10 | Partial | 30-seed point-mass pass (2 mm worst margin); one 10-agent VM mission | Thin margin; repeated live/fault runs. |
-| Physical prototype | **Not started** | none | One quad assembled, never flown. ESP32/CAN link is a proposal; no command path confirmed. MCP2551 alone is only a CAN transceiver. |
+| Physical prototype | Bench-checked only | PHYSICAL (USB bench: FC, sensors, GPS fix; props off) | Never flown. ESP32/CAN link is a proposal; CAN enabled in params but no command path confirmed. |
 
 ## 5. Known defects and risks (current)
 
@@ -87,13 +87,17 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 8. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
 9. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
 
-## 6. Hardware facts (from Sep–Oct notes; unverified unless stated)
+## 6. Hardware facts
 
-- Flight controller: Matek H743-SLIM V3. Firmware currently on the boards: **unknown** (Betaflight vs ArduPilot not confirmed). GPS/compass fitted: **unknown**. The department has 10 drones; the team has 2 (one assembled, unflown).
-- Free ports per the port-mapping PDF: UART4/6/7/8, I2C1/2, one CAN. ESP32 role (MAVLink relay vs onboard logic) undecided.
-- The repo's parameter export `hardware/params/matek_h743_quad_20261006.param` and later exports are *configuration records*, not approval to fly.
-- A propellers-off bench test of the command path is planned (target: week of 2026-10-30).
-- Details and history: `docs/history/agent-handoffs/FYP_AGENT_HANDOFF_2026-10-03_free-claude.md`, `docs/HARDWARE_SOFTWARE_MAPPING.md`, `docs/PHYSICAL_NETWORK_VALIDATION_PLAN.md`.
+Verified over USB on 2026-10-06 (`hardware/README.md`, bench, propellers off, disarmed): Matek H743-SLIM V3 running **ArduCopter 4.6.2**; gyro, accel, compass, baro healthy; GPS healthy with a 3D fix (23 satellites); X-frame quad, DShot600. Expected pre-arm notices: RC not found, 3D accel calibration needed. The Oct 23 parameter export (`hardware/params/matek_h743_quad_20261023.param`) enables the CAN port (`CAN_P1_DRIVER=1`, DroneCAN node 10) — this is *configuration only*; no CAN message path to a companion has been demonstrated.
+
+Not verified / open:
+- No physical flight has been attempted; RC link and accel calibration not done. One quad is assembled; the department has 10 drones, the team has 2.
+- ESP32 role (MAVLink relay vs onboard agent) and the link between the ESP32 and the flight controller (UART vs CAN) are undecided. An MCP2551 alone is only a CAN transceiver.
+- Free ports per the port-mapping PDF: UART4/6/7/8, I2C1/2, one CAN (from notes, not re-checked on the board).
+- Hardware files are configuration records, not approval to fly. Do not modify them unless assigned.
+- A propellers-off bench test of the command path is planned (target: week of 2026-10-30), run in a separate Codex hardware chat.
+- Details: `hardware/README.md`, `docs/HARDWARE_SOFTWARE_MAPPING.md`, `docs/PHYSICAL_NETWORK_VALIDATION_PLAN.md`; the 30 Sep / 3 Oct notes in `docs/history/agent-handoffs/` are *superseded* where they say firmware/GPS are unknown.
 
 ## 7. Working agreements
 
@@ -115,4 +119,5 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-29 — Claude — Corrected hardware facts (firmware ArduCopter 4.6.2 and GPS fix were bench-verified Oct 6; CAN enabled in Oct 23 params); copied the Matek Oct 23 export and summary into `hardware/`.
 - 2026-10-29 — Claude — Created. Consolidated scattered project state; archived the Antigravity checkout and moved heavy logs/runs to the SSD (see `docs/history/ARCHIVE_INDEX.md`).

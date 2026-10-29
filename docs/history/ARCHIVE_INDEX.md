@@ -9,7 +9,7 @@ Nothing here is needed to run the project. Active state is in `docs/PROJECT_STAT
 | `/home/drone/Documents/Codex/FYP_Consolidated_2026-10-12/` | Organization shelf: `backups/` (hash-listed tarballs), `checkpoints/` (phase1, 3-drones, demo-readiness), `dependencies/` (ArduPilot, Gazebo plugin; ~8 GB), `github/` (Oct-12 mirror), `local-logs/`, `references/` (proposal, reports, defense, hardware photos) | Archive. Its `START_HERE.md` (14 Oct) is outdated — use `docs/PROJECT_STATE.md`. |
 | `.../working-copies/demo-master` | `master` demo baseline | Read-only |
 | `.../working-copies/hw-matched-identification`, `identification-phase2-20261020`, `experimental-hybrid-20261020` | Research / archive branches | Read-only |
-| `/home/drone/Documents/Codex/2026-10-12/here-is-a-summary-you-can/` | Matek H743 parameter exports, parameter summary docx, defense prep note | **Keep** — not elsewhere in the repo |
+| `/home/drone/Documents/Codex/2026-10-12/here-is-a-summary-you-can/` | Matek H743 parameter exports, parameter summary docx, defense prep note | Params + summary copied into `hardware/` on 2026-10-29; folder otherwise kept |
 | `/home/drone/Documents/Codex/2026-10-23`, `2026-10-27` | Unrelated coursework outputs | Not this project |
 | `/home/drone/.gemini/antigravity/scratch/` | Two old checkpoint repos (`*_phase1_checkpoint`, `*_3drones_checkpoint`), three early tarballs, and unrelated coursework | Duplicates of the shelf; kept for now |
 | `/home/drone/Documents/ChatGPT/drone` | Empty git repo (Codex first setup) | Nothing unique |

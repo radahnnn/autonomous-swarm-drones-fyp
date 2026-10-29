@@ -52,8 +52,10 @@ This directory contains configuration, parameter backups, diagnostic scripts, an
 ```text
 hardware/
 ├── README.md                          # This hardware documentation
+├── Matek_H743_Parameter_Configuration_Summary.docx # Parameter summary (generated Oct 14)
 ├── params/
-│   └── matek_h743_quad_20261006.param # Clean backup of all 1,283 flight parameters
+│   ├── matek_h743_quad_20261006.param # Clean backup of all 1,283 flight parameters (Oct 6)
+│   └── matek_h743_quad_20261023.param # Later export (Oct 23): CAN port enabled (CAN_P1_DRIVER=1, DroneCAN node 10)
 └── scripts/
     ├── read_drone_info.py             # Live MAVLink telemetry & diagnostic reader
     ├── export_parameters.py           # Tool to download and dump parameters from FC
