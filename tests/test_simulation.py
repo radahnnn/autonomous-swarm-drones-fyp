@@ -19,11 +19,14 @@ def test_centralized_simulation():
     sim = SwarmSimulation(drones, control_mode="centralized")
     sim.set_formation(FormationType.LINE)
 
-    for _ in range(100):  # 5 seconds
+    # The drones start 1.2 m apart, inside the 2.5 m separation guard. The guard now has
+    # priority over the goal term, so they may not close on each other until clear; allow
+    # 10 s instead of 5 s to converge (error was 0.17 m at 5 s with the old additive guard).
+    for _ in range(200):  # 10 seconds
         sim.step()
 
     summary = sim.metrics.get_summary()
-    assert summary["final_formation_error_m"] < 0.25
+    assert summary["final_formation_error_m"] < 0.15
     assert summary["any_collision"] == 0.0
 
 

@@ -243,13 +243,11 @@ def test_hybrid_controller_measured_state_inputs():
 
 def test_degree_normalisation_at_various_swarm_sizes():
     """
-    Recommendation 12: Verify that DecentralizedController forces (k_sep, k_align, k_form)
-    are degree-normalised (divided by deg = max(1, |N_i|)) so effective gains do not
-    scale unbounded with swarm size n = 3, 5, 10.
+    Recommendation 12 (updated 2026-10-29): alignment and cohesion are degree-normalised so
+    gains do not scale unbounded with swarm size n = 3, 5, 10; repulsion is a capped sum
+    (it must not be diluted by the neighbor count).
     """
     from swarm_core.controllers.decentralized import DecentralizedController
-    from swarm_core.safety import separation_guard_acceleration
-
     ctrl = DecentralizedController(k_sep=2.0, k_align=1.5, k_form=1.0, safe_radius=1.5)
     drone = Drone(0, initial_position=[0.0, 0.0], initial_velocity=[1.0, 0.0])
 
@@ -270,29 +268,26 @@ def test_degree_normalisation_at_various_swarm_sizes():
             neighbor_states=neighbors,
             desired_offsets=desired_offsets,
             goal_pos=None,
+            apply_guard=False,
         )
 
-        # In degree normalisation, all identical neighbors average to the exact same per-neighbor force
-        # Regardless of whether n_peers is 2, 4, or 9:
-        # f_sep_total = sum(f_sep_j) / deg = n_peers * f_sep_single / n_peers = f_sep_single
-        # f_align_total = sum(f_align_j) / deg = n_peers * f_align_single / n_peers = f_align_single
+        # Alignment and cohesion stay degree-normalised: identical neighbors average to the
+        # per-neighbor value for any swarm size. Repulsion is a capped SUM (not divided by the
+        # degree), so one close neighbor is never diluted by many far ones.
         dist = 0.8
         diff = np.array([-0.8, 0.0])
         single_repulse = 2.0 * (1.0 / dist - 1.0 / 1.5) / (dist**2) * (diff / dist)
+        summed = n_peers * single_repulse
+        cap = drone.max_accel
+        if np.linalg.norm(summed) > cap:
+            summed = summed * (cap / np.linalg.norm(summed))
         single_align = -1.5 * (np.array([1.0, 0.0]) - np.array([0.0, 0.0]))
         displacement_err = diff - np.array([-1.0, 0.0])  # [-0.8, 0] - [-1, 0] = [0.2, 0]
         single_form = -1.0 * displacement_err
 
-        expected_accel = single_repulse + single_align + single_form
-        # The controller now adds a velocity-aware safety intervention after
-        # the degree-normalised flocking terms; keep this test focused on the
-        # normalization while accounting for that identical local guard.
-        expected_accel += separation_guard_acceleration(
-            drone.position, drone.velocity, neighbors,
-            reaction_time_s=1.5, max_accel_m_s2=drone.max_accel,
-        )
+        expected_accel = summed + single_align + single_form
         assert np.allclose(accel, expected_accel, atol=1e-5), (
-            f"Degree normalisation failed at swarm size n={n_peers+1}. "
+            f"Normalisation/cap failed at swarm size n={n_peers+1}. "
             f"Accel: {accel}, Expected: {expected_accel}"
         )
 

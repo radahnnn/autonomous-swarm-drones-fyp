@@ -20,7 +20,7 @@ import numpy as np
 from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.drone import Drone
-from swarm_core.safety import separation_guard_acceleration
+from swarm_core.safety import prioritised_separation_acceleration
 
 
 class HybridMode(Enum):
@@ -333,11 +333,11 @@ class HybridController:
             # keep the shared guard horizon aligned to that blend's safety term.
             reaction_time_s=1.0,
             separation_minimum_m=separation_minimum_m,
+            apply_guard=False,  # one prioritised guard is applied at full weight after blending
         )
 
-        # 3. Always-on local decentralized APF safety barrier (degree-normalised)
+        # 3. Local APF repulsion (summed and capped like the decentralized controller)
         u_safe_apf = np.zeros(drone.dim, dtype=np.float64)
-        deg = max(1, len(neighbor_states))
         for n_state in neighbor_states:
             diff = pos - n_state["position"]
             dist = np.linalg.norm(diff)
@@ -348,18 +348,20 @@ class HybridController:
                     / (dist**2)
                 )
                 u_safe_apf += repulse * (diff / dist)
-        u_safe_apf = u_safe_apf / deg
-        u_safe_apf += separation_guard_acceleration(
-            pos, vel, neighbor_states,
+        apf_norm = float(np.linalg.norm(u_safe_apf))
+        if apf_norm > drone.max_accel:
+            u_safe_apf *= drone.max_accel / apf_norm
+
+        # 4. Smooth continuous blending without double APF:
+        # u_decentral already contains (1 - alpha) * f_sep, so alpha * APF restores exactly 1.0 * f_sep.
+        blended = alpha * u_central + (1.0 - alpha) * u_decentral + alpha * u_safe_apf
+        # 5. Separation guard: always on at full weight (independent of alpha) and prioritised
+        # over the blended goal/formation command.
+        return prioritised_separation_acceleration(
+            pos, vel, neighbor_states, blended,
             minimum_separation_m=separation_minimum_m,
             max_accel_m_s2=drone.max_accel,
         )
-
-        # 4. Smooth continuous blending without double APF:
-        # u_decentral already contains (1 - alpha) * f_sep.
-        # Adding alpha * u_safe_apf ensures total separation is exactly 1.0 * f_sep for all alpha in [0, 1].
-        blended_control = alpha * u_central + (1.0 - alpha) * u_decentral + alpha * u_safe_apf
-        return blended_control
 
     def get_total_mode_switches(self) -> int:
         """Total number of mode transitions across all drones."""

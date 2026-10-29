@@ -73,3 +73,76 @@ def separation_guard_acceleration(
     if norm > max_accel_m_s2:
         result *= max_accel_m_s2 / norm
     return result
+
+
+def prioritised_separation_acceleration(
+    position: np.ndarray,
+    velocity: np.ndarray,
+    neighbors: Iterable[dict],
+    nominal_accel: np.ndarray,
+    *,
+    minimum_separation_m: float = 2.5,
+    reaction_time_s: float = 1.0,
+    max_accel_m_s2: float = 2.5,
+) -> np.ndarray:
+    """Combine a nominal command with the separation guard, giving the guard priority.
+
+    Adding the guard to an unbounded goal term lets the goal win once the sum is clipped to
+    ``max_accel``. Here (1) the part of the nominal command that points toward any neighbor
+    whose stopping envelope is violated is removed, and (2) the remaining nominal command is
+    scaled down just enough that guard + nominal stays within ``max_accel``, so the guard is
+    never diluted. Still a sampled local rule, not a formal collision-avoidance guarantee.
+    """
+    pos = np.asarray(position, dtype=float)
+    vel = np.asarray(velocity, dtype=float)
+    nominal = np.array(nominal_accel, dtype=float)
+    if nominal.shape != pos.shape or not np.isfinite(nominal).all():
+        raise ValueError("nominal acceleration must be a finite vector matching position")
+    neighbors = list(neighbors)
+    guard = separation_guard_acceleration(
+        pos, vel, neighbors, minimum_separation_m=minimum_separation_m,
+        reaction_time_s=reaction_time_s, max_accel_m_s2=max_accel_m_s2,
+    )
+    for neighbor in neighbors:
+        try:
+            other_pos = np.asarray(neighbor["position"], dtype=float)
+            other_vel = np.asarray(neighbor["velocity"], dtype=float)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if (other_pos.shape != pos.shape or other_vel.shape != pos.shape
+                or not np.isfinite(other_pos).all() or not np.isfinite(other_vel).all()):
+            continue
+        relative_position = pos - other_pos
+        distance = float(np.linalg.norm(relative_position))
+        if distance <= 1e-6:
+            direction = np.zeros_like(pos)
+            direction[0] = 1.0
+            envelope_violated = True
+        else:
+            direction = relative_position / distance
+            closing_speed = max(0.0, -float(np.dot(vel - other_vel, direction)))
+            stopping_buffer = (closing_speed * reaction_time_s
+                               + closing_speed * closing_speed / (2.0 * max_accel_m_s2))
+            envelope_violated = distance - minimum_separation_m < stopping_buffer
+        if envelope_violated:
+            toward = float(np.dot(nominal, direction))
+            if toward < 0.0:
+                nominal = nominal - toward * direction  # drop the component into the neighbor
+    guard_norm = float(np.linalg.norm(guard))
+    if guard_norm > 1e-12:
+        # With several neighbors the net escape direction differs from each neighbor's direction:
+        # the nominal command may never oppose it either.
+        escape = guard / guard_norm
+        against = float(np.dot(nominal, escape))
+        if against < 0.0:
+            nominal = nominal - against * escape
+    total = guard + nominal
+    if float(np.linalg.norm(total)) <= max_accel_m_s2:
+        return total
+    a = float(np.dot(nominal, nominal))
+    if a <= 1e-12:
+        return guard
+    b = 2.0 * float(np.dot(guard, nominal))
+    c = float(np.dot(guard, guard)) - max_accel_m_s2 ** 2
+    scale = (-b + np.sqrt(max(0.0, b * b - 4.0 * a * c))) / (2.0 * a)
+    return guard + min(1.0, max(0.0, scale)) * nominal

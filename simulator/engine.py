@@ -28,7 +28,7 @@ from swarm_core.controllers.centralized import CentralizedController
 from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.metrics import SwarmMetricsTracker
-from swarm_core.safety import separation_guard_acceleration
+from swarm_core.safety import prioritised_separation_acceleration
 
 
 class SwarmSimulation:
@@ -454,13 +454,14 @@ class SwarmSimulation:
                     if 1e-4 < dist < self.central_ctrl.collision_dist:
                         repulse = (self.central_ctrl.k_repulse / deg) * (1.0 / dist - 1.0 / self.central_ctrl.collision_dist) / (dist**2)
                         u_cmd += repulse * (diff / dist)
-                u_cmd += separation_guard_acceleration(
+                u_cmd = prioritised_separation_acceleration(
                     measured_positions[d.id], measured_velocities[d.id],
                     [{
                         "id": other.id,
                         "position": measured_positions[other.id],
                         "velocity": measured_velocities[other.id],
                     } for other in self.drones if other.id != d.id],
+                    u_cmd,
                     minimum_separation_m=self.separation_minimum_m,
                     max_accel_m_s2=d.max_accel,
                 )

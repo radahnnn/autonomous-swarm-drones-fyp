@@ -20,6 +20,12 @@ from simulator.engine import SwarmSimulation
 from simulator.visualizer import SwarmVisualizer
 
 
+# Project acceptance gate (docs/SOFTWARE_ACCEPTANCE_MATRIX.md): sampled pair separation >= 2.5 m.
+SEPARATION_GATE_M = 2.5
+# Formation slot spacing must exceed the gate, otherwise tracking error alone breaks it
+# (the profile default of 2.5 m equals the gate and leaves no margin).
+FORMATION_SPACING_M = SEPARATION_GATE_M + 0.5
+
 def get_git_commit() -> str:
     """Retrieve current Git commit hash or fallback to unknown."""
     try:
@@ -104,7 +110,7 @@ def main():
         t = sim.current_time
         if sched_idx < len(schedule) and t >= schedule[sched_idx][0]:
             _, form_type, centroid = schedule[sched_idx]
-            sim.set_formation(form_type, centroid=centroid)
+            sim.set_formation(form_type, centroid=centroid, spacing=FORMATION_SPACING_M)
             sched_idx += 1
 
         sim.step()
@@ -167,7 +173,10 @@ def main():
     # Summary & JSON metadata export
     summary = sim.metrics.get_summary()
     print("\nMission Summary Statistics:")
-    print(f" - Min Recorded Inter-Drone Distance: {summary['min_recorded_distance_m']:.3f} m (Safety: PASSED)")
+    min_distance = float(summary["min_recorded_distance_m"])
+    gate_passed = min_distance >= SEPARATION_GATE_M
+    print(f" - Min Recorded Inter-Drone Distance: {min_distance:.3f} m "
+          f"(separation gate {SEPARATION_GATE_M} m: {'PASSED' if gate_passed else 'FAILED'})")
     print(f" - Collisions Detected: {int(summary['any_collision'])}")
     print(f" - Final Formation Error: {summary['final_formation_error_m']:.3f} m")
     print(f" - Total Wireless Packets Exchanged: {sim.channel.total_delivered} (Delivered), {sim.channel.total_dropped_loss} (Dropped)")
@@ -192,6 +201,8 @@ def main():
         "control_mode": sim.control_mode,
         "formations": [f.value for _, f, _ in schedule],
         "min_recorded_distance_m": float(summary["min_recorded_distance_m"]),
+        "separation_gate_m": SEPARATION_GATE_M,
+        "separation_gate_passed": bool(gate_passed),
         "any_collision": int(summary["any_collision"]),
         "final_formation_error_m": float(summary["final_formation_error_m"]),
         "packets_delivered": int(sim.channel.total_delivered),

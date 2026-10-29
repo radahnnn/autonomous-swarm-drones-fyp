@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
-from swarm_core.safety import separation_guard_acceleration
+from swarm_core.safety import prioritised_separation_acceleration
 
 
 class CentralizedController:
@@ -99,8 +99,8 @@ class CentralizedController:
                     "position": current_pos[j],
                     "velocity": current_vel[j],
                 })
-            accel_commands[i] += separation_guard_acceleration(
-                current_pos[i], current_vel[i], local_neighbors[i],
+            accel_commands[i] = prioritised_separation_acceleration(
+                current_pos[i], current_vel[i], local_neighbors[i], accel_commands[i],
                 minimum_separation_m=separation_minimum_m,
                 max_accel_m_s2=drones[i].max_accel,
             )

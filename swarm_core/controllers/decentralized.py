@@ -7,7 +7,7 @@ Requires no global coordinator; each drone relies strictly on 1-hop neighbor sta
 from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
-from swarm_core.safety import separation_guard_acceleration
+from swarm_core.safety import prioritised_separation_acceleration
 
 
 class DecentralizedController:
@@ -41,6 +41,7 @@ class DecentralizedController:
         stop_without_neighbors: bool = True,
         reaction_time_s: float = 1.5,
         separation_minimum_m: float = 2.5,
+        apply_guard: bool = True,
     ) -> np.ndarray:
         """
         Compute control acceleration for a single drone given perceived neighbor data.
@@ -56,6 +57,8 @@ class DecentralizedController:
             measured_velocity: Optional measured/estimated local velocity (defaults to drone.velocity).
             use_velocity_feedforward: Whether to apply drag feedforward compensation along goal_vel.
             drag_coeff: Active aerodynamic drag coefficient.
+            apply_guard: Apply the prioritised separation guard (default). The hybrid controller passes
+                False and applies one guard at full weight after blending.
         """
         pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
         vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
@@ -103,11 +106,15 @@ class DecentralizedController:
 
             effective_degree += confidence
 
-        # Degree normalisation across all perceived neighbors
+        # Degree normalisation bounds the alignment and cohesion gains as the swarm grows.
+        # Repulsion is deliberately NOT divided by the degree (that would weaken it by up to
+        # 1/(N-1) in a fully connected swarm); the summed repulsion is capped instead.
         normalizer = max(1.0, effective_degree)
-        f_sep = f_sep / normalizer
         f_align = f_align / normalizer
         f_form = f_form / normalizer
+        sep_norm = float(np.linalg.norm(f_sep))
+        if sep_norm > drone.max_accel:
+            f_sep = f_sep * (drone.max_accel / sep_norm)
 
         # 4. Optional navigational feedback & feedforward drag compensation
         f_goal = np.zeros(drone.dim, dtype=np.float64)
@@ -123,10 +130,11 @@ class DecentralizedController:
                 f_goal += drag_coeff * goal_vel
 
         total_accel = f_sep + f_align + f_form + f_goal
-        total_accel += separation_guard_acceleration(
-            pos, vel, neighbor_states,
+        if not apply_guard:
+            return total_accel
+        return prioritised_separation_acceleration(
+            pos, vel, neighbor_states, total_accel,
             minimum_separation_m=separation_minimum_m,
             reaction_time_s=reaction_time_s,
             max_accel_m_s2=drone.max_accel,
         )
-        return total_accel
