@@ -97,7 +97,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; code unchanged since checkpoint `d1e7444` (log commit `2efa526`, prompt commit `c97c563`); this cleanup is the next commit. Tests: 312 passed. Root disk: ~35 GB free. Remote `origin` = the GitHub repo above; nothing from 2026-10-29 has been pushed beyond `c97c563`.
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; source code unchanged since checkpoint `d1e7444` (tag `wip-checkpoint-20261029`); HEAD is the docs cleanup commit `bbfe5ed` plus any later `docs:` commits (check `git log`). Tests: 312 passed. Root disk: ~35 GB free. Remote `origin` = the GitHub repo above; only `c97c563` and earlier are pushed.
 
 - Claude is primary writer for the week of 2026-10-29; Codex reviews. One writer at a time. Log every session in the collaboration log.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
