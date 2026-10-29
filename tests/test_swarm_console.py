@@ -16,6 +16,36 @@ from sitl.swarm_console import SwarmConsole, handle_command
 
 
 # ---------------------------------------------------------------- formation library
+def test_standalone_sitl_instances_get_private_runtime_directories(tmp_path, monkeypatch):
+    launcher = SwarmConsole(n=3, use_gazebo=False)
+    launcher.sitl_run_dir = tmp_path / "sitl-runtime"
+    fake_binary = tmp_path / "arducopter"
+    fake_binary.touch()
+    monkeypatch.setenv("ARDUCOPTER_BIN", str(fake_binary))
+    monkeypatch.setattr(launcher, "_running_sitl_models", lambda: "")
+    monkeypatch.setattr(launcher, "tcp_endpoint_available", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(console_module.mavutil, "mavlink_connection",
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("no UDP")))
+    monkeypatch.setattr(console_module.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(console_module.atexit, "register", lambda _function: None)
+    launches = []
+
+    def fake_popen(command, **kwargs):
+        launches.append((command, kwargs))
+        return MagicMock()
+
+    monkeypatch.setattr(console_module.subprocess, "Popen", fake_popen)
+    launcher.launch_sitl()
+
+    directories = [options["cwd"] for _, options in launches]
+    assert len(directories) == 3
+    assert len(set(directories)) == 3
+    assert all(path.is_dir() and path.parent == launcher.sitl_run_dir
+               for path in directories)
+    assert all(not (path / "eeprom.bin").exists() for path in directories)
+    launcher.procs.clear()
+
+
 def test_tcp_endpoint_probe_is_bounded_and_reports_listener_state():
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind(("127.0.0.1", 0))
@@ -80,6 +110,32 @@ def test_independent_sensor_stress_profile_has_declared_values_and_preserves_bas
     assert "SIM_WIND_SPD        2.00" in text
     assert "SIM_WIND_TURB       0.50" in text
     assert (console.root / "sitl" / "swarm_params.parm").read_text() == original
+
+
+def test_independent_matek_compass_profile_matches_hardware_and_preserves_baseline(tmp_path):
+    from pathlib import Path
+    from sitl.independent_swarm_console import IndependentSwarmConsole
+
+    console = object.__new__(IndependentSwarmConsole)
+    console.root = Path(__file__).resolve().parents[1]
+    console.run_dir = tmp_path
+    original = (console.root / "sitl" / "swarm_params.parm").read_text()
+
+    profile = console._write_sitl_profile(sensor_profile="matek-single-compass")
+    text = profile.read_text()
+    assert "COMPASS_USE2        0" in text
+    assert "COMPASS_USE3        0" in text
+    assert (console.root / "sitl" / "swarm_params.parm").read_text() == original
+
+
+def test_sensor_profile_defaults_to_matek_compass_for_independent_runtime():
+    from sitl.swarm_console import resolve_sitl_sensor_profile
+
+    assert resolve_sitl_sensor_profile(None, "independent") == "matek-single-compass"
+    assert resolve_sitl_sensor_profile(None, "local") == "baseline"
+    assert resolve_sitl_sensor_profile(None, "independent", external_agents=True) == "baseline"
+    assert resolve_sitl_sensor_profile("stress", "independent") == "stress"
+    assert resolve_sitl_sensor_profile("baseline", "independent") == "baseline"
 
 
 @pytest.mark.parametrize("style", STYLES)
@@ -215,6 +271,8 @@ def test_failure_of_unknown_drone_is_rejected_without_error(capsys):
 
 def test_set_formation_style_updates_targets_and_validates():
     c = _console(5)
+    c.is_airborne = [False] * 5
+    c.last_armed_state = [False] * 5
     c.set_formation_style("line")
     assert {round(float(r[1]), 1) for r in c.target_offsets} == {-6.0, -3.0, 0.0, 3.0, 6.0}
     c.set_formation_style("nonsense")
@@ -252,6 +310,8 @@ def test_commands_move_morph_and_exit(monkeypatch):
     assert handle_command(c, "w 10") is True
     assert c.centroid_pos[0] == pytest.approx(start[0] + 10.0)
     assert handle_command(c, "u") is True and c.centroid_pos[2] == pytest.approx(start[2] - 2.0)
+    c.is_airborne = [False] * 3
+    c.last_armed_state = [False] * 3
     assert handle_command(c, "tri") is True and c.current_formation_style == "triangle"
     assert handle_command(c, "") is True
     assert handle_command(c, "q") is False

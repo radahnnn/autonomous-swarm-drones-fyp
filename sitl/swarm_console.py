@@ -28,6 +28,7 @@ import subprocess
 import threading
 import time
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Optional
@@ -40,7 +41,18 @@ from sitl.decentralized_guidance import DecentralizedGuidance
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, MAX_DRONES, build_fleet
 from sitl.flight_prep import arm_with_retry, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, assign_slots, slots_for
+from sitl.formation_transition import plan_formation_transition
 from sitl.run_evidence import RunEvidence, SettledMotionDetector
+
+
+def resolve_sitl_sensor_profile(requested: str | None, agent_runtime: str,
+                                external_agents: bool = False) -> str:
+    """Use the project-matched compass setup for independent SITL by default."""
+    if requested is not None:
+        return requested
+    if agent_runtime == "independent" and not external_agents:
+        return "matek-single-compass"
+    return "baseline"
 
 # Position + yaw setpoint (velocity, acceleration and yaw-rate ignored)
 _TYPE_MASK_POS_YAW = 0b0000101111111000
@@ -95,6 +107,7 @@ class SwarmConsole:
         self.use_gazebo = use_gazebo
         self.force_restart = force_restart
         self.sitl_params_file = None
+        self.sitl_run_dir = None
 
         # Swarm state. busy[i]: a worker thread owns drone i's MAVLink connection and the
         # guidance thread must not read it (pymavlink connections are not thread-safe).
@@ -243,17 +256,29 @@ class SwarmConsole:
             print(f">> [3D GAZEBO] Launching {self.n} SITL JSON instances (FDM ports {[d.fdm_port for d in self.fleet]})...")
         else:
             print(f">> [2D STANDALONE] Launching {self.n} SITL quad instances...")
+        # ArduPilot writes eeprom.bin and logs/ relative to its current working
+        # directory. Give every instance private files so concurrent vehicles
+        # cannot overwrite one another's parameters or DataFlash evidence.
+        runtime_root = (Path(self.sitl_run_dir) if self.sitl_run_dir is not None
+                        else self.repo_root / "runs" / "console" / f"sitl-{uuid.uuid4().hex}")
         for spec in self.fleet:
+            instance_dir = runtime_root / f"drone-{spec.sysid:02d}"
+            instance_dir.mkdir(parents=True, exist_ok=True)
             cmd = [str(sitl_bin), f"-I{spec.inst}", "--sysid", str(spec.inst + 1)]
             if is_gazebo:
                 cmd += ["--model", "JSON", "--home", spec.home_gazebo, "--sim-address", "127.0.0.1"]
             else:
                 cmd += ["--model", "quad", "--home", spec.home_standalone]
+            # Keep the controller's SERIAL0/TCP connection private and mirror
+            # each vehicle's MAVLink2 stream to QGroundControl on UDP 14550.
+            # The vehicles have distinct SYSIDs, so QGC can show the whole fleet
+            # over one auto-connected UDP link.
+            cmd += ["--serial1", "udpclient:127.0.0.1:14550"]
             cmd += ["--defaults", params_file, "--speedup", "1"]
             # Keep the simulated vehicles alive if the operator/manager process is lost.
             # Normal shutdown still terminates these direct child PIDs in cleanup().
             self.procs.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                               start_new_session=True))
+                                               cwd=instance_dir, start_new_session=True))
         self.use_tcp = True  # our own instances only expose ArduPilot's TCP server
         atexit.register(self.cleanup)
         time.sleep(2.5)
@@ -650,29 +675,76 @@ class SwarmConsole:
             print(f">> Drone {drone_num} marked online (Grounded). Type 'lift {drone_num}' to take off.")
 
     def set_formation_style(self, style: str):
+        def result(accepted: bool, message: str, **details):
+            self.last_formation_result = {
+                "accepted": accepted, "message": message, **details,
+            }
+            return self.last_formation_result
+
         if style not in STYLES:
-            print(f">> Unknown style '{style}'. Valid: {list(STYLES)}")
-            return
+            return result(False, f"Unknown style '{style}'. Valid: {list(STYLES)}")
         if self._mission_change_blocked():
-            return
-        if self.control_mode in ("decentralized", "hybrid") and self._active_indices():
-            print(">> Mid-flight formation morphs are disabled in decentralized mode until collision-safe paths are validated.")
-            return
+            return result(False, "Finish recovery before changing formation.")
+        if style == self.current_formation_style:
+            return result(True, f"Swarm is already in {style.upper()} formation.", formation=style)
+        active = self._active_indices()
+        if active:
+            if len(active) != self.n:
+                print(">> Formation change blocked: all drones must be airborne together; partial swarms cannot morph.")
+                return result(False, "All drones must be airborne together; partial swarms cannot morph.")
+            now = time.time()
+            if any(self.last_armed_state[i] is not True or
+                   not 0.0 <= now - self.last_pos_at[i] <= 1.0 or
+                   now - self.last_heartbeat[i] > self.hb_timeout
+                   for i in active):
+                print(">> Formation change blocked: all drones need fresh armed and position telemetry.")
+                return result(False, "All drones need fresh armed and position telemetry.")
+            positions = np.asarray([self.last_pos[i][:2] for i in active], dtype=float)
+            try:
+                plan = plan_formation_transition(
+                    positions, style, centroid_ne=self.centroid_pos[:2],
+                )
+            except ValueError as exc:
+                print(f">> Formation change blocked: {exc}.")
+                return result(False, str(exc))
+            with self.lock:
+                self.current_formation_style = style
+                self.current_offsets = np.zeros((self.n, 3), dtype=float)
+                self.target_offsets = np.zeros((self.n, 3), dtype=float)
+                for local_index, drone_index in enumerate(active):
+                    self.current_offsets[drone_index, :2] = (
+                        self.last_pos[drone_index][:2] - self.centroid_pos[:2]
+                    )
+                    self.target_offsets[drone_index] = plan.slots_by_drone[local_index]
+                self.morph_steps_remaining = max(1, int(math.ceil(plan.duration_s * 10.0)))
+                self.last_target_change = now
+            print(f">> Smooth transition to {style.upper()} started over {plan.duration_s:.1f}s; "
+                  f"planned path clearance {plan.minimum_path_separation_m:.2f}m.")
+            if self.evidence:
+                self.evidence.event("formation_transition_started", formation=style,
+                                    duration_s=plan.duration_s,
+                                    min_planned_separation_m=plan.minimum_path_separation_m)
+            return result(True, f"Smooth transition to {style.upper()} started.",
+                          formation=style, duration_s=plan.duration_s,
+                          minimum_path_separation_m=plan.minimum_path_separation_m)
         with self.lock:
             self.current_formation_style = style
-            self._calculate_active_topology()
+            self.target_offsets = slots_for(style, self.n)
+            self.current_offsets = self.target_offsets.copy()
             self.morph_steps_remaining = self.MORPH_STEPS
             self.last_target_change = time.time()
         print(f">> [MORPH] Swarm morphing into {style.upper()} topology over {self.MORPH_STEPS / 10:.1f}s...")
         if self.evidence:
             self.evidence.event("formation_command", formation=style)
+        return result(True, f"Formation set to {style.upper()}.", formation=style)
 
     # ------------------------------------------------------------------ guidance
     def send_formation_setpoints(self):
         with self.lock:
             centroid = self.centroid_pos.copy()
             offsets = self.current_offsets.copy()
-            local_slots = self.target_offsets.copy()
+            local_slots = (self.current_offsets.copy() if self.decentralized_guidance is not None
+                           else self.target_offsets.copy())
             active = [self._active(i) for i in range(self.n)]
             positions = [p.copy() for p in self.last_pos]
             sample_times = self.last_pos_at.copy()
@@ -1097,8 +1169,8 @@ def main():
                         help="decentralized SITL only: directed link(s) to drop, e.g. 2:4 or 1:2,2:1")
     parser.add_argument("--sitl-gcs-failsafe", action="store_true",
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
-    parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress"), default="baseline",
-                        help="independent runtime only: use run-local SITL sensor/environment profile; stress values are assumptions, not hardware-calibrated")
+    parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass"), default=None,
+                        help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
     parser.add_argument("--adaptive-swarm", action="store_true",
                         help="independent runtime: dynamic membership, topology repair, leader election and slot redistribution")
     parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
@@ -1107,6 +1179,9 @@ def main():
                         help="independent runtime: serve the simple browser controller on this localhost port")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
+    args.sitl_sensor_profile = resolve_sitl_sensor_profile(
+        args.sitl_sensor_profile, args.agent_runtime, args.external_agents,
+    )
     if not 1 <= args.drones <= MAX_DRONES:
         parser.error(f"--drones must be between 1 and {MAX_DRONES}")
     if (not math.isfinite(args.peer_loss) or not 0.0 <= args.peer_loss <= 1.0 or

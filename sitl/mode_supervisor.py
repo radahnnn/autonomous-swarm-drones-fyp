@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pymavlink import mavutil
@@ -171,7 +171,7 @@ class ModeSupervisor:
                 self.transition_error = f"Mode switch stopped safely: {exc}"
             print(self.transition_error, flush=True)
 
-    def proxy_command(self, command: str) -> None:
+    def proxy_command(self, command: str) -> dict:
         parts = command.split()
         if parts and parts[0] in {"shape", "formation"} and len(parts) == 2:
             path, payload = "/formation", {"formation": parts[1]}
@@ -182,8 +182,19 @@ class ModeSupervisor:
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"}, method="POST",
         )
-        with urlopen(request, timeout=3.0) as response:
-            response.read()
+        try:
+            with urlopen(request, timeout=10.0) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+                payload["status"] = response.status
+                return payload
+        except HTTPError as exc:
+            try:
+                payload = json.loads(exc.read().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = {"message": f"Controller rejected command with HTTP {exc.code}."}
+            payload["status"] = exc.code
+            payload.setdefault("accepted", False)
+            return payload
 
     def _wait_heartbeat(self, port: int, timeout: float = 2.0) -> bool:
         connection = mavutil.mavlink_connection(f"udpin:127.0.0.1:{port}", autoreconnect=False)

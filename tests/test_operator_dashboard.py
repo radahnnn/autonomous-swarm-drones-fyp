@@ -1,6 +1,10 @@
+import json
+import socket
 import threading
 import time
 from types import SimpleNamespace
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import numpy as np
 
@@ -55,6 +59,7 @@ def test_dashboard_state_summarizes_agents_and_obstacles():
     assert state["leader"] == 1
     assert state["obstacles"] == [[8.0, 0.0, 2.0]]
     assert state["agents"][1]["peers"] == [1]
+    assert state["minimum_separation_m"] == 4.0
 
 
 def test_dashboard_exposes_all_modes_and_locks_switching_in_flight():
@@ -67,6 +72,38 @@ def test_dashboard_exposes_all_modes_and_locks_switching_in_flight():
     assert "Revive / restart" in PAGE
 
 
+def test_dashboard_routes_preflight_to_controller():
+    session = SimpleNamespace(count=2, last_command_result=None)
+    def handle(command):
+        assert command == "preflight"
+        session.last_command_result = {
+            "accepted": False, "message": "Network preflight blocked launch.",
+            "preflight": {"passed": False, "minimum_separation_m": 1.3},
+        }
+    session.handle = handle
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    from sitl.operator_dashboard import start_dashboard
+    server = start_dashboard(session, port)
+    try:
+        request = Request(
+            f"http://127.0.0.1:{port}/command",
+            data=json.dumps({"command": "preflight"}).encode(),
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        try:
+            urlopen(request, timeout=2)
+            assert False, "failed preflight should return a conflict response"
+        except HTTPError as response:
+            payload = json.loads(response.read())
+            assert response.code == 409
+            assert payload["preflight"]["minimum_separation_m"] == 1.3
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_dashboard_reports_grounded_shape_and_agent_controls():
     session = make_session()
     session.args.adaptive_swarm = True
@@ -76,6 +113,9 @@ def test_dashboard_reports_grounded_shape_and_agent_controls():
     assert state["armed"] == 0
     assert state["formations"]
     assert state["agents"][0]["agent_action_enabled"] is True
+    assert state["minimum_separation_m"] == 4.0
+    assert "Check safety" in PAGE
+    assert "path clearance" in PAGE
 
 
 def test_independent_formation_change_requires_all_agents_grounded():
@@ -85,16 +125,26 @@ def test_independent_formation_change_requires_all_agents_grounded():
     console.lock = threading.Lock()
     received = time.time()
     console.latest = {
-        0: {"armed": False, "airborne": False, "operator_received_at": received},
-        1: {"armed": False, "airborne": False, "operator_received_at": received},
+        0: {"armed": False, "airborne": False, "operator_received_at": received,
+            "position_age_s": 0.0, "position": [0.0, -3.0, 0.0], "safety_state": "nominal"},
+        1: {"armed": False, "airborne": False, "operator_received_at": received,
+            "position_age_s": 0.0, "position": [0.0, 3.0, 0.0], "safety_state": "nominal"},
     }
     console.formation = "v"
+    console.formation_transition_deadline = None
+    console.formation_transition_started_at = None
+    console.formation_slots = None
+    console.formation_start_slots = None
+    console.formation_transition_s = 0.0
+    console.formation_resume_goal = None
+    console.goal_ne = np.zeros(2)
     console._publish_intent = lambda: None
     console.event = lambda *_args, **_kwargs: None
     console._set_formation("line")
     assert console.formation == "line"
 
     console.latest[1]["armed"] = True
+    console.latest[1]["airborne"] = True
     console._set_formation("ring")
     assert console.formation == "line"
 

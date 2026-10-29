@@ -16,6 +16,7 @@ from pymavlink import mavutil
 
 from sitl.fleet import build_fleet
 from sitl.formation_library import STYLES
+from sitl.formation_transition import plan_formation_transition
 from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
@@ -25,6 +26,15 @@ from sitl.swarm_console import SwarmConsole
 
 SITL_SENSOR_PROFILE_OVERRIDES = {
     "baseline": {},
+    # The project Matek H743 parameter file uses only its primary compass.
+    # SITL otherwise exposes three simulated compasses, which were observed
+    # switching during flight and preceded an EKF lane switch in the 10-drone
+    # live run. Keep this as an explicit profile so baseline semantics stay
+    # unchanged while hardware-matched swarm runs use the same compass count.
+    "matek-single-compass": {
+        "COMPASS_USE2": "0",
+        "COMPASS_USE3": "0",
+    },
     # Explicit stress assumptions for sensitivity testing; not calibrated to the physical drone.
     "stress": {
         "SIM_GPS1_HNSE": "0.50",       # horizontal GPS wander radius, metres
@@ -85,6 +95,15 @@ class IndependentSwarmConsole:
         self.goal_ne = np.zeros(2, dtype=float)
         self.target_alt_m = 5.0
         self.formation = args.formation
+        self.formation_slots = None
+        self.formation_start_slots = None
+        self.formation_transition_s = 0.0
+        self.formation_transition_deadline = None
+        self.formation_transition_started_at = None
+        self.formation_resume_goal = None
+        self.formation_abort_issued = False
+        self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
+        self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
         self.operator_bind_host = getattr(args, "operator_bind_host", "127.0.0.1")
         self.status_thread = None
@@ -94,8 +113,10 @@ class IndependentSwarmConsole:
                            else self.root / "runs" / "independent")
         self.run_dir = evidence_parent / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         self.run_dir.mkdir(parents=True, exist_ok=False)
+        self.launcher.sitl_run_dir = self.run_dir / "sitl-instances"
         self.log_path = self.run_dir / "events.jsonl"
         self.log = self.log_path.open("a", encoding="utf-8")
+        self.log_lock = threading.Lock()
         self.process_manifest = self.run_dir / "processes.json"
         self.sitl_params_path = None
         self.sitl_sensor_profile = getattr(args, "sitl_sensor_profile", "baseline")
@@ -135,8 +156,11 @@ class IndependentSwarmConsole:
 
     def event(self, kind: str, **fields) -> None:
         record = {"utc": datetime.now(timezone.utc).isoformat(), "kind": kind, **fields}
-        self.log.write(json.dumps(record, allow_nan=False, separators=(",", ":")) + "\n")
-        self.log.flush()
+        with self.log_lock:
+            if self.log.closed:
+                return
+            self.log.write(json.dumps(record, allow_nan=False, separators=(",", ":")) + "\n")
+            self.log.flush()
 
     def _agent_command(self, spec) -> list[str]:
         # When this console starts ArduPilot directly, each node owns the
@@ -541,13 +565,21 @@ class IndependentSwarmConsole:
     def _publish_intent(self) -> None:
         self.mission_sequence += 1
         now = time.time()
+        issued_at = self.formation_transition_started_at or now
         intent = MissionIntent(
             sequence=self.mission_sequence,
-            issued_at=now,
-            expires_at=now + 30.0,
+            issued_at=issued_at,
+            expires_at=issued_at + 60.0,
             goal_ne=(float(self.goal_ne[0]), float(self.goal_ne[1])),
             formation=self.formation,
             target_alt_m=float(self.target_alt_m),
+            formation_slots=(None if self.formation_slots is None else
+                             tuple(tuple(float(component) for component in slot)
+                                   for slot in self.formation_slots)),
+            formation_start_slots=(None if self.formation_start_slots is None else
+                                   tuple(tuple(float(component) for component in slot)
+                                         for slot in self.formation_start_slots)),
+            formation_transition_s=float(self.formation_transition_s),
         ).to_dict()
         epoch = (self.clock_sync_message or {}).get("epoch")
         if not epoch:
@@ -560,13 +592,120 @@ class IndependentSwarmConsole:
         return send_to_nodes(message, endpoints=self.operator_targets,
                              auth_key=self.operator_auth_key)
 
+    def _formation_transition_abort_reason(self, now: float) -> str | None:
+        """Abort a morph if live telemetry loses the clearance assumed by its plan."""
+        if self.formation_transition_deadline is None:
+            return None
+        if now > self.formation_transition_deadline + 12.0:
+            return "formation did not settle within 12 s of the planned transition"
+        with self.lock:
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+        positions = []
+        for index, state in enumerate(states):
+            try:
+                # Agents publish status once per second. Use the time this
+                # operator received it, rather than the agent's clock-adjusted
+                # timestamp, and allow one missed publication before aborting.
+                status_age = now - float(state.get("operator_received_at", state.get("timestamp")))
+                position_age = float(state.get("position_age_s"))
+                position = np.asarray(state.get("position"), dtype=float)
+            except (TypeError, ValueError):
+                return f"D{index + 1} has invalid transition telemetry"
+            if (not 0.0 <= status_age <= 2.0 or
+                    not 0.0 <= position_age <= 1.0 or
+                    status_age + position_age > 2.0):
+                return f"D{index + 1} transition telemetry is stale"
+            if state.get("airborne") is not True or state.get("armed") is not True:
+                return f"D{index + 1} is no longer airborne and armed"
+            if state.get("safety_state") != "nominal":
+                return f"D{index + 1} reports {state.get('safety_state')} safety"
+            if position.shape != (3,) or not np.isfinite(position).all():
+                return f"D{index + 1} has invalid transition position"
+            positions.append(position[:2])
+        minimum = min(
+            float(np.linalg.norm(positions[i] - positions[j]))
+            for i in range(self.count) for j in range(i + 1, self.count)
+        )
+        if minimum < 2.8:
+            return f"live separation fell to {minimum:.2f} m"
+        return None
+
+    def _formation_transition_arrived(self, now: float) -> bool:
+        """All agents must actually reach their assigned slots before the morph ends."""
+        with self.lock:
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+        slots = np.asarray(self.formation_slots, dtype=float)
+        if slots.shape != (self.count, 3):
+            return False
+        for index, state in enumerate(states):
+            try:
+                age = now - float(state.get("operator_received_at", state.get("timestamp")))
+                position_age = float(state.get("position_age_s"))
+                position = np.asarray(state.get("position"), dtype=float)
+                progress = float(state.get("formation_transition_progress", 0.0))
+            except (TypeError, ValueError):
+                return False
+            if (not 0.0 <= age <= 2.0 or not 0.0 <= position_age <= 1.0 or
+                    position.shape != (3,) or not np.isfinite(position).all() or
+                    state.get("formation") != self.formation or
+                    state.get("formation_transition_active", True) or progress < 1.0 or
+                    np.linalg.norm(position[:2] - self.goal_ne - slots[index, :2]) > 0.75):
+                return False
+        return True
+
     def _intent_loop(self) -> None:
+        next_intent_publish = 0.0
         while self.running:
-            if self.intent_enabled:
+            if self.formation_transition_deadline is not None:
+                reason = self._formation_transition_abort_reason(time.time())
+                if reason and not getattr(self, "formation_abort_issued", False):
+                    self.formation_abort_issued = True
+                    self.intent_enabled = False
+                    self.event("formation_transition_aborted", formation=self.formation,
+                               reason=reason, action="land_all")
+                    print(f"!! Formation transition aborted: {reason}; commanding all vehicles to LAND.",
+                          flush=True)
+                    threading.Thread(target=self._operator_command, args=("land",),
+                                     daemon=True).start()
+            if self.intent_enabled and time.monotonic() >= next_intent_publish:
                 try:
+                    if (self.formation_transition_deadline is not None and
+                            time.time() >= self.formation_transition_deadline):
+                        now = time.time()
+                        if self._formation_transition_arrived(now):
+                            if getattr(self, "formation_settled_since", None) is None:
+                                self.formation_settled_since = now
+                        else:
+                            self.formation_settled_since = None
+                        if (self.formation_settled_since is not None and
+                                now - self.formation_settled_since >= 2.0):
+                            self.goal_ne = self.formation_resume_goal.copy()
+                            self.formation_resume_goal = None
+                            self.formation_transition_deadline = None
+                            self.formation_transition_started_at = None
+                            self.formation_transition_s = 0.0
+                            self.formation_start_slots = None
+                            self.formation_abort_issued = False
+                            self.formation_settled_since = None
+                            self.event("formation_transition_complete", formation=self.formation)
                     self._publish_intent()
+                    next_intent_publish = time.monotonic() + 1.0
                 except OSError as exc:
                     self.event("mission_publish_error", error=str(exc))
+            if getattr(self, "formation_abort_issued", False):
+                with self.lock:
+                    all_landed = all(
+                        index in self.latest and self._status_confirms_landed(self.latest[index])
+                        for index in range(self.count)
+                    )
+                if all_landed:
+                    self.formation_transition_deadline = None
+                    self.formation_transition_started_at = None
+                    self.formation_transition_s = 0.0
+                    self.formation_start_slots = None
+                    self.formation_resume_goal = None
+                    self.formation_abort_issued = False
+                    self.formation_settled_since = None
             now = time.monotonic()
             if self.clock_sync_message is not None and now - self.last_clock_sync_publish >= 5.0:
                 try:
@@ -581,9 +720,9 @@ class IndependentSwarmConsole:
                 except (OSError, TimeoutError) as exc:
                     self.event("clock_resync_error", error=str(exc))
                     self.last_clock_sync_measurement = time.monotonic()
-            time.sleep(1.0)
+            time.sleep(0.1)
 
-    def _operator_command(self, action: str) -> None:
+    def _operator_command(self, action: str) -> dict:
         if action == "land":
             self.land_requested = True
         self.operator_sequence += 1
@@ -593,7 +732,7 @@ class IndependentSwarmConsole:
             self.event("operator_command_blocked", action=action,
                        reason="clock_not_synchronized")
             print(">> Command not sent: operator clock synchronization is not ready.")
-            return
+            return {"accepted": False, "message": "Operator clock synchronization is not ready."}
         message = {"version": 1, "type": "command", "sequence": self.operator_sequence,
                    "epoch": epoch,
                    "action": action, "target_alt_m": self.target_alt_m,
@@ -625,6 +764,12 @@ class IndependentSwarmConsole:
             print(">> Command was not acknowledged by: " +
                   ", ".join(f"D{index + 1}" for index in missing) +
                   ". Check their status; the command may still have been received.")
+        return {"accepted": not missing,
+                "message": (f"{action.title()} acknowledged by all {self.count} agents."
+                            if not missing else
+                            f"{action.title()} acknowledgement missing from " +
+                            ", ".join(f"D{index + 1}" for index in missing) + "."),
+                "acknowledged_ids": acknowledged, "missing_ack_ids": missing}
 
     def network_preflight(self, now: float | None = None) -> dict:
         """Check every agent, mission lease, synchronized clock, and required peer link."""
@@ -633,6 +778,7 @@ class IndependentSwarmConsole:
             states = {index: value.copy() for index, value in self.latest.items()}
         expected_epoch = (self.clock_sync_message or {}).get("epoch")
         agents = []
+        positions = []
         for index in range(self.count):
             state = states.get(index)
             reasons = []
@@ -659,6 +805,14 @@ class IndependentSwarmConsole:
             if not 0.0 <= telemetry_age <= 1.0:
                 reasons.append("telemetry_stale")
             report_telemetry_age = telemetry_age if math.isfinite(telemetry_age) else None
+            try:
+                position = np.asarray(state.get("position"), dtype=float)
+            except (TypeError, ValueError):
+                position = np.asarray([], dtype=float)
+            if position.shape != (3,) or not np.isfinite(position).all():
+                reasons.append("position_unavailable")
+            else:
+                positions.append((index, position[:2]))
             if state.get("safety_state") != "nominal":
                 reasons.append("safety_not_nominal")
             try:
@@ -683,7 +837,19 @@ class IndependentSwarmConsole:
                 "clock_synchronized": bool(expected_epoch) and
                                       state.get("clock_sync_epoch") == expected_epoch,
             })
-        return {"passed": all(agent["ready"] for agent in agents), "agents": agents}
+        minimum_separation = float("inf")
+        if len(positions) == self.count:
+            minimum_separation = min(
+                float(np.linalg.norm(positions[i][1] - positions[j][1]))
+                for i in range(self.count) for j in range(i + 1, self.count)
+            )
+            if minimum_separation < 2.8:
+                for agent in agents:
+                    agent["reasons"].append("inter_agent_spacing_below_launch_minimum")
+                    agent["ready"] = False
+        return {"passed": all(agent["ready"] for agent in agents), "agents": agents,
+                "minimum_separation_m": (minimum_separation if math.isfinite(minimum_separation)
+                                         else None)}
 
     def _wait_for_network_preflight(self, timeout_s: float = 5.0) -> dict:
         deadline = time.monotonic() + max(0.0, float(timeout_s))
@@ -765,25 +931,107 @@ class IndependentSwarmConsole:
               f"{'cut' if blocked else 'restored'}; reverse traffic is unchanged.")
 
     def _set_formation(self, style: str) -> None:
+        def result(accepted: bool, message: str, **details):
+            self.last_formation_result = {
+                "accepted": accepted, "message": message, **details,
+            }
+            print((">> " if accepted else ">> Formation change blocked: ") + message)
+            return self.last_formation_result
+
         if style not in STYLES:
-            print(f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
-            return
+            return result(False, f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
         if not getattr(self.args, "adaptive_swarm", False):
-            print("Formation changes require adaptive swarm mode.")
-            return
+            return result(False, "Formation changes require adaptive swarm mode.")
+        if style == self.formation:
+            return result(True, f"Formation {style.upper()} is already active; no transition needed.",
+                          formation=style, unchanged=True)
+        if getattr(self, "formation_transition_deadline", None) is not None:
+            return result(False, "A formation transition is already active; wait for it to finish.")
         with self.lock:
-            states = [self.latest.get(index, {}) for index in range(self.count)]
-            now = time.time()
-            if any(state.get("armed") is not False or state.get("airborne") is not False or
-                   not state.get("operator_received_at") or
-                   now - float(state.get("operator_received_at", 0.0)) > 3.0
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+        now = time.time()
+        if any(not state.get("operator_received_at") or
+               not 0.0 <= now - float(state.get("operator_received_at", 0.0)) <= 2.0
+               for state in states):
+            return result(False, "Every drone needs a fresh status heartbeat.")
+        grounded = all(state.get("armed") is False and state.get("airborne") is False
+                       for state in states)
+        airborne = all(state.get("armed") is True and state.get("airborne") is True
+                       for state in states)
+        if not grounded and not airborne:
+            return result(False, "All drones must be grounded or all airborne and armed.")
+
+        if grounded:
+            if any(not 0.0 <= float(state.get("position_age_s", float("inf"))) <= 1.0 or
+                   state.get("safety_state") != "nominal"
                    for state in states):
-                print("Need fresh status from every grounded, disarmed drone before changing formation.")
-                return
+                return result(False, "Every grounded drone needs fresh position telemetry and nominal safety status.")
+            try:
+                positions = np.asarray([state.get("position", [])[:2] for state in states], dtype=float)
+            except (TypeError, ValueError):
+                positions = np.asarray([], dtype=float)
+            if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
+                return result(False, "Position reports are incomplete or invalid.")
+            centroid = positions.mean(axis=0)
+            try:
+                plan = plan_formation_transition(positions, style, centroid_ne=centroid)
+            except (TypeError, ValueError) as exc:
+                return result(False, str(exc))
+            self.formation_resume_goal = self.goal_ne.copy()
+            self.goal_ne = centroid.copy()
             self.formation = style
+            self.formation_slots = plan.slots_by_drone
+            self.formation_start_slots = None
+            self.formation_transition_s = 0.0
             self._publish_intent()
-        self.event("formation_command", formation=style, grounded_only=True)
-        print(f">> Formation changed to {style.upper()}; agents will update their local slots.")
+            self.event("formation_command", formation=style, airborne=False,
+                       minimum_path_separation_m=plan.minimum_path_separation_m)
+            return result(True, f"Formation set to {style.upper()}; launch paths screen at "
+                          f"{plan.minimum_path_separation_m:.2f} m clearance.",
+                          formation=style, airborne=False,
+                          minimum_path_separation_m=plan.minimum_path_separation_m)
+
+        if any(not 0.0 <= float(state.get("position_age_s", float("inf"))) <= 1.0 or
+               state.get("safety_state") != "nominal" for state in states):
+            return result(False, "Every airborne drone needs fresh position telemetry and nominal safety status.")
+
+        positions = np.asarray([state["position"][:2] for state in states], dtype=float)
+        if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
+            return result(False, "Position reports are incomplete or invalid.")
+        for index, state in enumerate(states):
+            expected = {int(peer) for peer in state.get("peer_ids", [])}
+            live = {int(peer) for peer in state.get("peer_live_ids", [])}
+            if expected - live:
+                return result(False, f"D{index + 1} has stale peer links.")
+        obstacles = [tuple(float(value) for value in str(item).split(","))
+                     for item in getattr(self.args, "obstacle", ())]
+        centroid = positions.mean(axis=0)
+        try:
+            plan = plan_formation_transition(
+                positions, style, centroid_ne=centroid, obstacles=obstacles,
+            )
+        except (TypeError, ValueError) as exc:
+            return result(False, str(exc))
+        self.formation_resume_goal = self.goal_ne.copy()
+        self.goal_ne = centroid.copy()  # hold the swarm center during the morph
+        self.formation = style
+        self.formation_slots = plan.slots_by_drone
+        self.formation_start_slots = np.column_stack((positions - centroid, np.zeros(self.count)))
+        self.formation_transition_s = plan.duration_s
+        self.formation_transition_deadline = now + plan.duration_s
+        self.formation_transition_started_at = now
+        self.formation_abort_issued = False
+        self.formation_settled_since = None
+        self._publish_intent()
+        self.event("formation_transition_started", formation=style,
+                   duration_s=plan.duration_s,
+                   min_planned_separation_m=plan.minimum_path_separation_m,
+                   target_slots=plan.slots_by_drone.tolist())
+        message = (f"Smooth transition to {style.upper()} started over {plan.duration_s:.1f}s; "
+                   f"planned path clearance {plan.minimum_path_separation_m:.2f}m. "
+                   "The swarm center will resume its previous target when complete.")
+        result(True, message, formation=style, duration_s=plan.duration_s,
+               minimum_path_separation_m=plan.minimum_path_separation_m)
 
     def handle(self, line: str) -> bool:
         parts = line.strip().lower().split()
@@ -791,6 +1039,10 @@ class IndependentSwarmConsole:
             return True
         action = parts[0]
         numeric_actions = {"w", "north", "s", "south", "a", "west", "d", "east", "u", "up", "j", "down"}
+        if (getattr(self, "formation_transition_deadline", None) is not None and
+                action not in {"status", "land", "q", "quit"}):
+            print(">> Formation transition active; wait for it to finish or command LAND.")
+            return True
         value = float(parts[1]) if len(parts) > 1 and action in numeric_actions else None
         step = 2.0 if value is None else value
         if action in ("launch", "takeoff"):
@@ -799,11 +1051,16 @@ class IndependentSwarmConsole:
             self._print_network_preflight(preflight)
             if not preflight["passed"]:
                 print(">> Launch was not sent; fix the listed status, mission, clock, or peer-link issue and retry.")
+                self.last_command_result = {
+                    "accepted": False,
+                    "message": "Launch blocked by network preflight.",
+                    "preflight": preflight,
+                }
                 return True
-            self._operator_command("launch")
+            self.last_command_result = self._operator_command("launch")
         elif action in ("q", "quit", "land"):
             self.intent_enabled = False
-            self._operator_command("land")
+            self.last_command_result = self._operator_command("land")
             return False
         elif action == "status":
             self.status()
@@ -813,6 +1070,12 @@ class IndependentSwarmConsole:
             preflight = self.network_preflight()
             self.event("network_preflight", **preflight)
             self._print_network_preflight(preflight)
+            self.last_command_result = {
+                "accepted": bool(preflight["passed"]),
+                "message": ("Network preflight passed." if preflight["passed"] else
+                            "Network preflight blocked launch; inspect the listed reasons."),
+                "preflight": preflight,
+            }
         elif action in ("link-block", "link-restore") and len(parts) == 3:
             try:
                 sender, recipient = int(parts[1]), int(parts[2])
@@ -1046,7 +1309,8 @@ class IndependentSwarmConsole:
             print("!! Landing was not confirmed; leaving SITL and agent processes running.")
         self.event("session_end", agent_processes=len(self.nodes), landed=landed,
                    sim_processes_kept_for_safety=not landed)
-        self.log.close()
+        with self.log_lock:
+            self.log.close()
 
 
 def run_independent_console(args) -> None:

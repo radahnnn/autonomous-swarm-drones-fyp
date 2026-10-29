@@ -62,6 +62,12 @@ class IndependentAgentNode:
             raise ValueError("MAVLink system ID must be between 1 and 255")
         self.formation = formation
         self.pending_formation = None
+        self.operator_formation_slots = None
+        self.formation_transition_start_slots = None
+        self.formation_transition_target_slots = None
+        self.formation_transition_started_at = None
+        self.formation_transition_duration_s = 0.0
+        self.formation_transition_progress = 1.0
         if control_mode not in ("decentralized", "hybrid"):
             raise ValueError("independent agent control mode must be decentralized or hybrid")
         self.control_mode = control_mode
@@ -142,6 +148,9 @@ class IndependentAgentNode:
         self.position_at = 0.0
         self.local_position = None
         self.global_origin = None
+        self.last_position_target_ne = None
+        self.last_position_target_local_ne = None
+        self.vehicle_mode = None
         self.last_heartbeat_at = 0.0
         self.last_gcs_heartbeat_at = 0.0
         self.last_peer_heartbeat_at = 0.0
@@ -251,8 +260,17 @@ class IndependentAgentNode:
             if msg is None:
                 break
             kind = msg.get_type()
+            # MAVLink routing can deliver GCS and other vehicles' messages on
+            # this connection. Only this flight controller owns arm/position
+            # state and the telemetry watchdog.
+            if msg.get_srcSystem() != self.mavlink_system_id:
+                continue
             if kind == "HEARTBEAT":
+                if msg.get_srcComponent() != mavutil.mavlink.MAV_COMP_ID_AUTOPILOT1:
+                    continue
                 self.last_heartbeat_at = time.time()
+                mode = getattr(msg, "custom_mode", None)
+                self.vehicle_mode = None if mode is None else int(mode)
                 self.armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
                 if not self.armed:
                     self.airborne = False
@@ -369,17 +387,57 @@ class IndependentAgentNode:
                     intent = MissionIntent.from_dict(message.get("intent"), wall_now)
                 except (TypeError, ValueError):
                     continue
-                if intent.formation not in STYLES:
+                current_formation = getattr(self, "formation", "v")
+                requested_formation = (current_formation if intent.formation == "configured"
+                                       else intent.formation)
+                if requested_formation not in STYLES:
                     continue
-                if intent.formation != self.formation:
-                    # Accept shape changes only while safely grounded. A stale or
-                    # airborne mission update must never morph slot geometry.
-                    if (self.adaptive_swarm and not self.armed and not self.airborne):
-                        self.pending_formation = intent.formation
+                requested_slots = None
+                if intent.formation_slots is not None:
+                    requested_slots = np.asarray(intent.formation_slots, dtype=float)
+                    if requested_slots.shape != (self.count, 3):
+                        continue
+                requested_start_slots = None
+                if intent.formation_start_slots is not None:
+                    requested_start_slots = np.asarray(intent.formation_start_slots, dtype=float)
+                    if requested_start_slots.shape != (self.count, 3):
+                        continue
+                if requested_formation != current_formation:
+                    if self.armed and self.airborne:
+                        # Never invent a per-agent slot assignment in flight. The
+                        # coordinator must send the validated plan to every node.
+                        if (not self.adaptive_swarm or requested_slots is None or
+                                requested_start_slots is None or
+                                intent.formation_transition_s <= 0.0):
+                            continue
+                        self.formation_transition_start_slots = requested_start_slots.copy()
+                        self.formation_transition_target_slots = requested_slots.copy()
+                        self.formation_transition_started_at = intent.issued_at
+                        self.formation_transition_duration_s = intent.formation_transition_s
+                        self.formation_transition_progress = 0.0
+                        self.operator_formation_slots = requested_slots.copy()
+                        self.formation = requested_formation
+                        if self.membership is not None:
+                            self.membership.formation = requested_formation
+                        self.membership_revision += 1
                     else:
-                        intent = MissionIntent.from_dict(
-                            {**intent.to_dict(), "formation": self.formation}, wall_now,
-                        )
+                        self.formation = requested_formation
+                        if self.membership is not None:
+                            self.membership.formation = requested_formation
+                        self.operator_formation_slots = requested_slots
+                        self.all_slots = (requested_slots.copy() if requested_slots is not None
+                                          else np.asarray(slots_for(requested_formation, self.count), dtype=float))
+                        self.slot = self.all_slots[self.drone_id].copy()
+                        self.formation_transition_target_slots = None
+                        self.formation_transition_start_slots = None
+                        self.formation_transition_started_at = None
+                        self.formation_transition_duration_s = 0.0
+                        self.formation_transition_progress = 1.0
+                elif requested_slots is not None:
+                    self.operator_formation_slots = requested_slots.copy()
+                    if self.formation_transition_target_slots is None:
+                        self.all_slots = requested_slots.copy()
+                        self.slot = self.all_slots[self.drone_id].copy()
                 if intent.sequence <= self.last_mission_sequence:
                     continue
                 self.mission_lease.accept(intent.to_dict(), wall_now, time.monotonic())
@@ -548,6 +606,8 @@ class IndependentAgentNode:
         target = np.asarray(target_global, dtype=float).copy()
         target[2] = -float(altitude_m)
         local = target - self.global_origin
+        self.last_position_target_ne = target[:2].copy()
+        self.last_position_target_local_ne = local[:2].copy()
         self.conn.mav.set_position_target_local_ned_send(
             int(time.monotonic() * 1000) & 0xFFFFFFFF,
             self.conn.target_system, self.conn.target_component,
@@ -574,6 +634,8 @@ class IndependentAgentNode:
                 mission_intent=self.pending_intent,
                 slot_offset=self.slot[:2],
                 coordinator_connected=coordinator_connected,
+                track_formation=intent.formation_transition_s > 0.0,
+                position_setpoint_tracking=True,
             )
         except (TypeError, ValueError) as exc:
             # An airborne agent must never exit merely because mission data became
@@ -614,11 +676,13 @@ class IndependentAgentNode:
             self.membership_revision += 1
         slot_map = self.membership.slot_map()
         self.peer_ids = self.membership.neighbors_for()
-        self.slot = slot_map[self.drone_id].copy()
-        self.all_slots = np.asarray([
+        membership_slots = np.asarray([
             slot_map.get(agent_id, self.all_slots[agent_id])
             for agent_id in range(self.count)
         ], dtype=float)
+        self.all_slots = (self.operator_formation_slots.copy()
+                          if self.operator_formation_slots is not None else membership_slots)
+        self.slot = self.all_slots[self.drone_id].copy()
         self.elected_leader_id = self.membership.leader_id
         if len(self.membership.active_ids) == 1 and self.airborne and not self.landing:
             self.safety_state = "peer_isolation_failsafe"
@@ -654,6 +718,8 @@ class IndependentAgentNode:
             "safety_state": self.safety_state,
             "safety_reason": self.safety_reason,
             "formation": self.formation,
+            "formation_transition_active": self.formation_transition_progress < 1.0,
+            "formation_transition_progress": self.formation_transition_progress,
             "adaptive_swarm": self.adaptive_swarm,
             "active_member_ids": (sorted(self.membership.active_ids)
                                   if self.membership is not None else list(range(self.count))),
@@ -677,6 +743,13 @@ class IndependentAgentNode:
             # Expose the currently accepted shared intent so a replacement operator can
             # resume the same target instead of silently resetting the swarm to home.
             "mission_intent": self.current_mission,
+            "position_target_ne": (None if self.last_position_target_ne is None
+                                   else self.last_position_target_ne.tolist()),
+            "position_target_local_ne": (None if self.last_position_target_local_ne is None
+                                         else self.last_position_target_local_ne.tolist()),
+            "local_position_ne": (None if self.local_position is None
+                                  else self.local_position[:2].tolist()),
+            "vehicle_mode": self.vehicle_mode,
             "command": self.last_command,
             "peer_metrics": self.peers.stats(),
         }
@@ -737,6 +810,28 @@ class IndependentAgentNode:
                     self.pending_formation = None
                     self.membership_revision += 1
                 self._update_adaptive_membership(now, fresh_peer_ids)
+                if self.formation_transition_target_slots is not None:
+                    elapsed = max(0.0, time.time() - self.operator_clock_offset_s -
+                                  float(self.formation_transition_started_at or 0.0))
+                    duration = max(0.1, self.formation_transition_duration_s)
+                    alpha = min(1.0, elapsed / duration)
+                    # Quintic smoothstep starts and ends with zero velocity and
+                    # acceleration, avoiding a setpoint jerk at either endpoint.
+                    eased = alpha ** 3 * (10.0 - 15.0 * alpha + 6.0 * alpha ** 2)
+                    self.all_slots = (
+                        self.formation_transition_start_slots * (1.0 - eased) +
+                        self.formation_transition_target_slots * eased
+                    )
+                    self.slot = self.all_slots[self.drone_id].copy()
+                    self.formation_transition_progress = alpha
+                    if alpha >= 1.0:
+                        self.all_slots = self.formation_transition_target_slots.copy()
+                        self.slot = self.all_slots[self.drone_id].copy()
+                        self.formation_transition_target_slots = None
+                        self.formation_transition_start_slots = None
+                        self.formation_transition_started_at = None
+                        self.formation_transition_duration_s = 0.0
+                        self.formation_transition_progress = 1.0
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
@@ -746,12 +841,6 @@ class IndependentAgentNode:
                         coordinator_connected=(self.control_mode != "hybrid" or
                                               self.coordinator_connected),
                     )
-                elif self.airborne and self.landing:
-                    heartbeat = self.conn.recv_match(type="HEARTBEAT", blocking=False)
-                    if heartbeat and not (heartbeat.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED):
-                        self.airborne = False
-                        self.landing = False
-                        self.last_command = "landed"
                 self._send_status(now)
                 last_loop = tick
                 time.sleep(max(0.0, 0.1 - (time.monotonic() - tick)))

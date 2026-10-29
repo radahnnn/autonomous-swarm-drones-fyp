@@ -76,6 +76,7 @@ def test_swarm_network_preflight_requires_fresh_direct_peer_links():
             "mission_active": True,
             "clock_sync_epoch": "clock-epoch",
             "position_age_s": 0.1,
+            "position": [drone_id * 4.0, 0.0, 0.0],
             "safety_state": "nominal",
             "peer_ids": [peer_id],
             "peer_live_ids": [peer_id],
@@ -89,6 +90,28 @@ def test_swarm_network_preflight_requires_fresh_direct_peer_links():
     assert failed["passed"] is False
     assert "peer_links_missing" in failed["agents"][0]["reasons"]
     assert failed["agents"][0]["missing_peer_ids"] == [1]
+
+
+def test_swarm_network_preflight_blocks_too_close_grounded_vehicles():
+    console = object.__new__(IndependentSwarmConsole)
+    console.count = 2
+    console.lock = threading.Lock()
+    console.clock_sync_message = {"epoch": "clock-epoch"}
+    now = time.time()
+    console.latest = {
+        0: {"timestamp": now, "airborne": False, "armed": False,
+            "mission_active": True, "clock_sync_epoch": "clock-epoch",
+            "position_age_s": 0.1, "position": [0.0, 0.0, 0.0],
+            "safety_state": "nominal", "peer_ids": [1], "peer_live_ids": [1]},
+        1: {"timestamp": now, "airborne": False, "armed": False,
+            "mission_active": True, "clock_sync_epoch": "clock-epoch",
+            "position_age_s": 0.1, "position": [0.0, 2.0, 0.0],
+            "safety_state": "nominal", "peer_ids": [0], "peer_live_ids": [0]},
+    }
+    result = console.network_preflight(now)
+    assert result["passed"] is False
+    assert result["minimum_separation_m"] == pytest.approx(2.0)
+    assert "inter_agent_spacing_below_launch_minimum" in result["agents"][0]["reasons"]
 
 
 def test_external_console_accepts_fresh_status_from_live_mission_agents(monkeypatch):
@@ -717,7 +740,7 @@ def test_external_operator_console_runs_five_agent_command_status_cycle(tmp_path
                 "session_id": session_id,
                 "session_started_at": session_started,
                 "clock_sync_epoch": state[agent_id].get("clock_sync_epoch"),
-                "position": [0.0, 0.0, 0.0],
+            "position": [agent_id * 4.0, 0.0, 0.0],
                 "position_age_s": 0.0,
                 "airborne": False,
                 "armed": False,

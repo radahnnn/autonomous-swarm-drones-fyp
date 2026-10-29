@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import threading
 import time
 
@@ -16,6 +17,21 @@ STYLE_LABELS = {
 }
 
 
+def _minimum_separation(agents):
+    positions = []
+    for agent in agents:
+        position = agent.get("position")
+        if (isinstance(position, (list, tuple)) and len(position) >= 2 and
+                all(isinstance(value, (int, float)) and math.isfinite(value)
+                    for value in position[:2])):
+            positions.append(position[:2])
+    if len(positions) < 2:
+        return None
+    return min(math.hypot(a[0] - b[0], a[1] - b[1])
+               for index, a in enumerate(positions)
+               for b in positions[index + 1:])
+
+
 PAGE = r'''<!doctype html><html><head><meta charset="utf-8"><title>Swarm Control</title>
 <style>
 :root{--bg:#0c111b;--card:#151d2b;--edge:#28364b;--text:#eef4ff;--muted:#91a0b8;--ok:#38d996;--warn:#ffbd59;--bad:#ff6474;--blue:#62a8ff}
@@ -25,9 +41,9 @@ aside{background:var(--card);border-left:1px solid var(--edge);padding:20px;over
 </style></head><body><main><canvas id="map"></canvas><div class="top"><div class="pill"><b id="mode">CONNECTING</b><br><span id="mission" class="sub">Waiting for status</span></div><div class="pill"><b id="health">0 / 0</b><br><span class="sub">healthy agents</span></div><div class="pill"><b id="leader">—</b><br><span class="sub">elected leader</span></div></div></main>
 <aside><h1>Swarm Control</h1><div class="sub">Simple operator view · map shows local North/East</div>
 <h2>Control architecture</h2><div class="grid"><button class="modebtn" data-mode="centralized" onclick="chooseMode('centralized')">Centralized</button><button class="modebtn" data-mode="decentralized" onclick="chooseMode('decentralized')">Decentralized</button><button class="modebtn" data-mode="hybrid" onclick="chooseMode('hybrid')">Hybrid</button></div><div id="modehelp" class="sub" style="margin-top:7px">Loading active architecture…</div>
-<h2>Flight</h2><div class="grid two"><button class="launch" onclick="send('launch')">Launch all</button><button class="land" onclick="land()">Land all</button></div>
+<h2>Flight</h2><div class="grid"><button onclick="send('preflight')">Check safety</button><button class="launch" onclick="send('launch')">Launch all</button><button class="land" onclick="land()">Land all</button></div>
 <h2>Move swarm</h2><div class="grid"><span></span><button onclick="send('w 5')">↑ North</button><span></span><button onclick="send('a 5')">← West</button><button onclick="send('status')">Refresh</button><button onclick="send('d 5')">East →</button><span></span><button onclick="send('s 5')">↓ South</button><span></span></div>
-<h2>Formation shape</h2><div class="grid" id="shapes"></div><div class="sub" id="shapehelp">Shapes can be changed only while every vehicle is grounded.</div>
+<h2>Formation shape</h2><div class="grid" id="shapes"></div><div class="sub" id="shapehelp">Shape changes are available grounded, or in flight after safety checks.</div>
 <h2>Altitude</h2><div class="grid two"><button onclick="send('u 2')">Up 2 m</button><button onclick="send('j 2')">Down 2 m</button></div>
 <h2>Communication test</h2><div class="fault"><input id="from" type="number" min="1" value="1" aria-label="sender"><input id="to" type="number" min="1" value="2" aria-label="recipient"><button id="blocklink" onclick="link(true)">Block link</button><button id="restorelink" onclick="link(false)">Restore link</button></div><div class="sub" style="margin-top:7px">Cuts one direction only. The remaining drones should keep flying.</div>
 <h2>Drone health & recovery</h2><div class="sub" id="recoveryhelp">Recovery controls depend on the active architecture.</div><div id="agents" class="agentsgrid"></div><div class="msg" id="msg"></div>
@@ -35,15 +51,15 @@ aside{background:var(--card);border-left:1px solid var(--edge);padding:20px;over
 <script>
 let state=null,trail={};const c=document.getElementById('map'),x=c.getContext('2d');
 function resize(){c.width=c.clientWidth*devicePixelRatio;c.height=c.clientHeight*devicePixelRatio}addEventListener('resize',resize);resize();
-async function send(command){msg.textContent='Sending: '+command;try{let r=await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Command failed: '+e}}
+async function send(command){msg.textContent='Sending: '+command;try{let r=await fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});let j=await r.json();let p=j.preflight;if(p){let gap=Number.isFinite(p.minimum_separation_m)?' Minimum separation: '+p.minimum_separation_m.toFixed(2)+' m.':'';let reasons=[...new Set((p.agents||[]).flatMap(a=>a.reasons||[]))];msg.textContent=j.message+gap+(reasons.length?' Reasons: '+reasons.join(', ')+'.':'')}else msg.textContent=j.message}catch(e){msg.textContent='Command failed: '+e}}
 function land(){if(confirm('Land all drones now?'))send('land')}function link(block){let a=from.value,b=to.value;send((block?'link-block ':'link-restore ')+a+' '+b)}
-async function setShape(style){if(!state||state.airborne||state.armed){msg.textContent='Land and disarm every drone before changing shape.';return}msg.textContent='Changing formation to '+style+'…';try{let r=await fetch('/formation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({formation:style})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Formation change failed: '+e}}
+async function setShape(style){if(!state||!state.formation_change_allowed||state.formation_transitioning){msg.textContent='Wait for fresh safe status and for any current formation transition to finish.';return}msg.textContent='Planning safe transition to '+style+'…';try{let r=await fetch('/formation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({formation:style})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Formation change failed: '+e}}
 async function agentAction(id,online){let centralized=state&&state.control_mode==='centralized';let detail=online?(centralized?'Fail vehicle D'+id+'? The centralized console will command LAND for that SITL vehicle.':'Stop D'+id+' software agent? Its SITL flight controller stays active and may hold its last target if airborne.'):(centralized?'Revive vehicle D'+id+' in the swarm?':'Restart D'+id+' software agent? If airborne, the replacement agent will command LAND.');if(!confirm(detail))return;send((online?'fail ':'restart ')+id)}
 async function chooseMode(choice){if(!state)return;if(state.airborne||state.armed){msg.textContent='Land and disarm all drones before changing architecture.';return}if(choice===state.control_mode){msg.textContent=choice+' is already active.';return}if(!confirm('Switch to '+choice+' mode? The controller will restart after confirming all drones are grounded and disarmed; SITL and QGroundControl will stay running.'))return;try{let r=await fetch('/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:choice})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Mode switch failed: '+e}}
 async function poll(){try{let r=await fetch('/state',{cache:'no-store'});state=await r.json();update()}catch(e){mode.textContent='DISCONNECTED';mode.className='bad'}setTimeout(poll,350)}
-function update(){mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
+function update(){mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
  document.querySelectorAll('.modebtn').forEach(b=>{let active=b.dataset.mode===state.control_mode;b.classList.toggle('active',active);b.disabled=!!state.transitioning||state.airborne>0||state.armed>0||!state.healthy});modehelp.textContent=state.transitioning?'Switching safely to '+state.switch_target+'; the dashboard stays connected.':(state.transition_error||'Select another mode to restart the grounded controller while SITL remains running.');
- shapes.innerHTML=state.formations.map(style=>'<button class="shape" onclick="setShape(\''+style+'\')">'+state.formation_labels[style]+'</button>').join('');document.querySelectorAll('.shape').forEach(b=>{b.classList.toggle('active',b.textContent.toLowerCase()===state.formation);b.disabled=!state.formation_change_enabled||!state.formation_ready||!!state.transitioning});shapehelp.textContent=!state.formation_change_enabled?'Formation controls are unavailable in this mode.':(!state.formation_ready?'Waiting for fresh grounded, disarmed status from every drone.':'Current formation: '+state.formation.toUpperCase()+'. Select a new shape to move slot targets.');
+ shapes.innerHTML=state.formations.map(style=>'<button class="shape" onclick="setShape(\''+style+'\')">'+state.formation_labels[style]+'</button>').join('');document.querySelectorAll('.shape').forEach(b=>{b.classList.toggle('active',b.textContent.toLowerCase()===state.formation);b.disabled=!state.formation_change_enabled||!state.formation_change_allowed||!!state.formation_transitioning||!!state.transitioning});shapehelp.textContent=!state.formation_change_enabled?'Formation controls are unavailable in this mode.':(state.formation_transitioning?'Smooth formation transition: '+Math.round(100*(state.formation_transition_progress||0))+'% complete; wait before issuing another change.':(!state.formation_change_allowed?'Waiting for fresh, healthy status and a safe all-grounded or all-airborne swarm.':'Every requested shape is screened for path clearance; unsafe or crowded transitions are rejected.'));
  document.getElementById('blocklink').disabled=!state.peer_fault_enabled||!!state.transitioning;document.getElementById('restorelink').disabled=!state.peer_fault_enabled||!!state.transitioning;recoveryhelp.textContent=state.recovery_help||'Recovery controls depend on the active architecture.';
  agents.innerHTML=state.agents.map(a=>'<div class="card"><div class="row"><b><span class="dot" style="background:'+(a.health==='OK'?'var(--ok)':a.health==='STALE'?'var(--bad)':'var(--warn)')+'"></span>D'+a.id+(a.leader?' ★':'')+'</b><b>'+a.health+'</b></div><div class="row sub"><span>'+(a.airborne?'Airborne':'Grounded')+' · '+a.safety+'</span><span>'+a.members+' members</span></div><div class="row sub"><span>Agent '+(a.agent_online?'online':'stopped')+'</span><span>'+String(a.formation||state.formation).toUpperCase()+'</span></div><button onclick="agentAction('+a.id+','+(a.agent_online?'true':'false')+')" '+(a.agent_action_enabled?'':'disabled')+'>'+(a.agent_online?(state.recovery_label||'Kill agent'):'Revive / restart')+'</button></div>').join('');raw.textContent=JSON.stringify(state,null,2)}
 function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);let s=18*devicePixelRatio,W=c.width,H=c.height,cn=0,ce=0,n=0;if(state)state.agents.forEach(a=>{if(a.position){cn+=a.position[0];ce+=a.position[1];n++}});if(n){cn/=n;ce/=n}let X=e=>W/2+(e-ce)*s,Y=q=>H/2-(q-cn)*s;
@@ -91,6 +107,7 @@ def dashboard_state(session) -> dict:
                 "id": index + 1, "health": "STALE" if stale else ("OK" if online else "CHECK"),
                 "airborne": vehicle_airborne, "armed": vehicle_armed is True,
                 "status_known": vehicle_armed is False,
+                "armed_known": vehicle_armed is not None,
                 "position": position, "safety": "nominal" if online else "vehicle_failed",
                 "formation": getattr(session, "current_formation_style", "v"),
                 "agent_online": bool(online), "agent_action_enabled": True,
@@ -102,6 +119,13 @@ def dashboard_state(session) -> dict:
             agent["health"] != "STALE" and agent["status_known"] and
             not agent["airborne"] and not agent["armed"] for agent in agents
         )
+        busy = list(getattr(session, "busy", [False] * count))
+        airborne_ready = bool(agents) and all(
+            agent["health"] == "OK" and agent["armed_known"] and agent["airborne"] and
+            agent["armed"] and now - position_times[index] <= 1.0 and
+            not (busy[index] if index < len(busy) else False)
+            for index, agent in enumerate(agents)
+        ) and not any(getattr(session, "simulated_faults", [False] * count))
         return {
             "control_mode": session.control_mode, "count": count,
             "healthy": sum(agent["health"] == "OK" for agent in agents),
@@ -109,6 +133,8 @@ def dashboard_state(session) -> dict:
             "armed": sum(agent["armed"] for agent in agents),
             "formations": list(STYLES), "formation_labels": STYLE_LABELS,
             "formation_change_enabled": True, "formation_ready": ready,
+            "formation_change_allowed": ready or airborne_ready,
+            "formation_transitioning": bool(getattr(session, "morph_steps_remaining", 0)),
             "leader": leader, "formation": getattr(session, "current_formation_style", "v"),
             "goal": [float(centroid[0]), float(centroid[1])],
             "altitude": -float(centroid[2]), "coordinator_stream": True,
@@ -118,6 +144,7 @@ def dashboard_state(session) -> dict:
                                if not guidance else
                                "Kill/restart affects the software agent; the SITL flight controller stays running."),
             "agents": agents, "obstacles": [],
+            "minimum_separation_m": _minimum_separation(agents),
         }
 
     now = time.time()
@@ -140,6 +167,11 @@ def dashboard_state(session) -> dict:
         agents.append({
             "id": index + 1, "health": health, "airborne": bool(status.get("airborne")),
             "armed": bool(status.get("armed")), "position": position, "safety": safety,
+            "formation_transition_active": bool(status.get("formation_transition_active", False)),
+            "formation_transition_progress": status.get("formation_transition_progress"),
+            "position_age_s": status.get("position_age_s"),
+            "peer_links_ok": set(status.get("peer_ids", ())) <= set(status.get("peer_live_ids", ())),
+            "all_members_present": len(status.get("active_member_ids", [])) == session.count,
             "formation": status.get("formation"),
             "agent_online": (index < len(getattr(session, "nodes", [])) and
                              session.nodes[index].poll() is None),
@@ -156,6 +188,17 @@ def dashboard_state(session) -> dict:
         except ValueError:
             pass
     common_leader = max(set(leaders), key=leaders.count) if leaders else None
+    formation_ready = bool(agents) and all(
+        agent["health"] == "OK" and not agent["airborne"] and not agent["armed"]
+        for agent in agents
+    )
+    airborne_ready = bool(agents) and all(
+        agent["health"] == "OK" and agent["airborne"] and agent["armed"] and
+        agent["safety"] == "nominal" and agent["peer_links_ok"] and
+        agent["all_members_present"] and agent["position_age_s"] is not None and
+        0.0 <= float(agent["position_age_s"]) <= 1.0
+        for agent in agents
+    )
     return {
         "control_mode": session.control_mode,
         "count": session.count,
@@ -165,9 +208,14 @@ def dashboard_state(session) -> dict:
         "formations": list(STYLES),
         "formation_labels": STYLE_LABELS,
         "formation_change_enabled": bool(getattr(session.args, "adaptive_swarm", False)),
-        "formation_ready": bool(agents) and all(
-            agent["health"] != "STALE" and not agent["airborne"] and not agent["armed"]
-            for agent in agents
+        "formation_ready": formation_ready,
+        "formation_change_allowed": formation_ready or airborne_ready,
+        "formation_transitioning": any(agent["formation_transition_active"] for agent in agents),
+        "formation_transition_progress": (
+            min(float(agent["formation_transition_progress"]) for agent in agents
+                if isinstance(agent["formation_transition_progress"], (int, float)))
+            if any(isinstance(agent["formation_transition_progress"], (int, float))
+                   for agent in agents) else None
         ),
         "peer_fault_enabled": True,
         "recovery_label": "Kill agent",
@@ -178,6 +226,7 @@ def dashboard_state(session) -> dict:
         "altitude": float(session.target_alt_m),
         "coordinator_stream": bool(session.intent_enabled),
         "agents": agents, "obstacles": obstacles,
+        "minimum_separation_m": _minimum_separation(agents),
     }
 
 
@@ -240,22 +289,32 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
                     if not state["formation_change_enabled"]:
                         self.send_value(json.dumps({"message": "Formation changes require adaptive swarm mode."}), status=409)
                         return
-                    if state["airborne"] or state["armed"] or not state["formation_ready"]:
-                        self.send_value(json.dumps({"message": "Need fresh status from every grounded, disarmed drone before changing shape."}), status=409)
+                    if not state.get("formation_change_allowed") or state.get("formation_transitioning"):
+                        self.send_value(json.dumps({"message": "Need fresh safe status from every drone; wait for the current morph to finish."}), status=409)
                         return
                     if not action_lock.acquire(blocking=False):
                         self.send_value(json.dumps({"message": "Another command is still running."}), status=409)
                         return
-                    def change():
-                        try:
-                            if command_proxy is not None:
-                                command_proxy("shape " + formation)
-                            else:
-                                session.handle("shape " + formation)
-                        finally:
-                            action_lock.release()
-                    threading.Thread(target=change, daemon=True).start()
-                    self.send_value(json.dumps({"message": f"Formation change sent: {formation.upper()}"}))
+                    try:
+                        if command_proxy is not None:
+                            result = command_proxy("shape " + formation)
+                        elif hasattr(session, "_set_formation"):
+                            session._set_formation(formation)
+                            result = getattr(session, "last_formation_result", {
+                                "accepted": False,
+                                "message": "Formation request did not return a result.",
+                            })
+                        else:
+                            session.set_formation_style(formation)
+                            result = getattr(session, "last_formation_result", {
+                                "accepted": False,
+                                "message": "Formation request did not return a result.",
+                            })
+                        accepted = bool(result.get("accepted", False))
+                        status = int(result.get("status", 200 if accepted else 409))
+                        self.send_value(json.dumps(result), status=status)
+                    finally:
+                        action_lock.release()
                 except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                     self.send_value(json.dumps({"message": str(exc)}), status=400)
                 return
@@ -265,7 +324,7 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
             try:
                 size = min(int(self.headers.get("Content-Length", "0")), 1024)
                 command = str(json.loads(self.rfile.read(size))["command"]).strip()
-                allowed = {"launch", "land", "status", "w 5", "s 5", "a 5", "d 5",
+                allowed = {"launch", "land", "status", "preflight", "w 5", "s 5", "a 5", "d 5",
                            "u 2", "j 2"}
                 parts = command.split()
                 valid_link = (len(parts) == 3 and parts[0] in {"link-block", "link-restore"}
@@ -278,16 +337,21 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
                 if not action_lock.acquire(blocking=False):
                     self.send_value('{"message":"Another command is still running"}', status=409)
                     return
-                def run():
-                    try:
-                        if command_proxy is not None:
-                            command_proxy(command)
-                        else:
-                            session.handle(command)
-                    finally:
-                        action_lock.release()
-                threading.Thread(target=run, daemon=True).start()
-                self.send_value(json.dumps({"message": f"Sent: {command}"}))
+                try:
+                    if command_proxy is not None:
+                        result = command_proxy(command)
+                    else:
+                        session.last_command_result = None
+                        session.handle(command)
+                        result = session.last_command_result or {
+                            "accepted": True, "message": f"Command accepted: {command}",
+                        }
+                    accepted = bool(result.get("accepted", True))
+                    status = int(result.get("status", 200 if accepted else 409))
+                    result.setdefault("message", f"Command accepted: {command}")
+                    self.send_value(json.dumps(result), status=status)
+                finally:
+                    action_lock.release()
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 self.send_value(json.dumps({"message": str(exc)}), status=400)
 

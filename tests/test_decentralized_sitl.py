@@ -707,6 +707,12 @@ def test_agent_detects_existing_armed_airborne_vehicle_after_process_restart():
         def get_type(self):
             return self.kind
 
+        def get_srcSystem(self):
+            return 1
+
+        def get_srcComponent(self):
+            return 1
+
     class Connection:
         target_system = 1
         target_component = 1
@@ -721,6 +727,7 @@ def test_agent_detects_existing_armed_airborne_vehicle_after_process_restart():
             return self.messages.pop(0) if self.messages else None
 
     node = object.__new__(IndependentAgentNode)
+    node.mavlink_system_id = 1
     node.conn = Connection()
     node.frame = type("Frame", (), {
         "gps_to_global_ned": lambda _self, *_args: np.array([0.0, 0.0, -2.0]),
@@ -747,6 +754,67 @@ def test_agent_detects_existing_armed_airborne_vehicle_after_process_restart():
     assert node.recovery_state == "landing_after_process_restart"
     assert node.safety_state == "agent_restart_failsafe"
     assert land_reasons == ["agent_process_restarted_while_airborne"]
+
+
+def test_agent_ignores_routed_heartbeat_and_position_from_other_sources():
+    from sitl.independent_agent_node import IndependentAgentNode
+    from pymavlink import mavutil
+
+    class Message:
+        def __init__(self, kind, system, component=1, **fields):
+            self.kind = kind
+            self.system = system
+            self.component = component
+            self.__dict__.update(fields)
+
+        def get_type(self):
+            return self.kind
+
+        def get_srcSystem(self):
+            return self.system
+
+        def get_srcComponent(self):
+            return self.component
+
+    class Connection:
+        def __init__(self, messages):
+            self.messages = messages
+
+        def recv_match(self, blocking=False):
+            return self.messages.pop(0) if self.messages else None
+
+    node = object.__new__(IndependentAgentNode)
+    node.mavlink_system_id = 3
+    node.conn = Connection([
+        Message("HEARTBEAT", 1, base_mode=mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED),
+        Message("HEARTBEAT", 3, component=190,
+                base_mode=mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED),
+        Message("GLOBAL_POSITION_INT", 1, lat=0, lon=0, relative_alt=2000),
+        Message("HEARTBEAT", 3, base_mode=0),
+        Message("GLOBAL_POSITION_INT", 3, lat=0, lon=0, relative_alt=0),
+    ])
+    node.frame = type("Frame", (), {
+        "gps_to_global_ned": lambda _self, _lat, _lon, alt: np.array([0.0, 0.0, -alt]),
+    })()
+    node.last_heartbeat_at = 0.0
+    node.armed = False
+    node.airborne = False
+    node.position = None
+    node.position_at = 0.0
+    node.local_position = None
+    node.global_origin = None
+    node.landing = False
+    node.recovery_state = "normal"
+    node.safety_state = "nominal"
+    node.safety_reason = None
+    node.last_command = "ready"
+
+    node._read_vehicle()
+
+    assert not node.armed
+    assert not node.airborne
+    assert node.position[2] == 0.0
+    assert node.last_heartbeat_at > 0
 
 
 def test_airborne_agent_observes_peer_landing_without_copying_land_command():

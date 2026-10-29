@@ -30,6 +30,7 @@ class LocalDroneAgent:
     MAX_SPEED = 1.5
     MAX_ACCEL = 2.5
     LOOKAHEAD_S = 0.7
+    POSITION_TARGET_SPEED_M_S = 0.45
 
     def __init__(self, drone_id: int, safe_radius: float = 3.0, hybrid: bool = False):
         self.drone_id = drone_id
@@ -53,11 +54,14 @@ class LocalDroneAgent:
         self.last_mission_sequence = 0
         self.cached_mission_intent = None
         self.cached_slot_offset = None
+        self.position_setpoint_ne = None
 
     def command(self, position, sample_time: float, goal, neighbor_states,
                 desired_offsets: Dict[int, np.ndarray], dt: float,
                 coordinator_connected: bool = True, now: Optional[float] = None,
-                mission_intent=None, slot_offset=None) -> np.ndarray:
+                mission_intent=None, slot_offset=None,
+                track_formation: bool = False,
+                position_setpoint_tracking: bool = False) -> np.ndarray:
         """Return a short-horizon local position target in the shared N/E frame."""
         self.update_local_state(position, sample_time)
         pos = np.asarray(position, dtype=float)[:2]
@@ -84,6 +88,16 @@ class LocalDroneAgent:
             goal = np.asarray(intent.goal_ne, dtype=float) + slot
         else:
             goal = np.asarray(goal, dtype=float)[:2]
+        if track_formation:
+            # A live formation morph already carries a clearance-checked,
+            # time-varying slot for this aircraft. Pass that position to
+            # ArduPilot's position loop instead of integrating our flocking
+            # acceleration into a moving lookahead point. The latter lagged
+            # several metres behind a ten-aircraft morph in SITL.
+            if intent is None:
+                raise ValueError("formation tracking requires a valid mission intent")
+            self.position_setpoint_ne = goal.copy()
+            return goal.copy()
         if self.hybrid_controller is not None:
             if coordinator_connected:
                 self.coordinator_sequence += 1
@@ -114,6 +128,27 @@ class LocalDroneAgent:
             )
         accel = _limit(np.asarray(accel, dtype=float), self.MAX_ACCEL)
         self.drone.set_control_input(accel)
+        if position_setpoint_tracking and intent is not None:
+            # The independent SITL agent sends position targets to ArduPilot.
+            # A velocity-derived moving lookahead target creates a second,
+            # weakly damped position loop: after a morph the aircraft can keep
+            # moving away from their final slots. Anchor the target to the
+            # assigned position, with a bounded correction from the local
+            # peer/goal controller. Slew the position target so a new mission
+            # goal does not ask differently responding autopilots to make an
+            # instantaneous multi-metre step. If no required peer is visible,
+            # hold the current position.
+            if desired_offsets and not neighbor_states:
+                self.position_setpoint_ne = pos.copy()
+                return pos.copy()
+            desired_target = goal + _limit(self.drone.commanded_accel * 0.1, 0.25)
+            if self.position_setpoint_ne is None:
+                self.position_setpoint_ne = pos.copy()
+            max_step = self.POSITION_TARGET_SPEED_M_S * max(0.0, float(dt))
+            self.position_setpoint_ne += _limit(
+                desired_target - self.position_setpoint_ne, max_step,
+            )
+            return self.position_setpoint_ne.copy()
         velocity_command = _limit(
             self.velocity + self.drone.commanded_accel * dt, self.MAX_SPEED
         )
