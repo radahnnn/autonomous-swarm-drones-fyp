@@ -196,3 +196,15 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit / push: see `git log`; not pushed.
 - Recommended Codex review: sandbox in report §3.1 (is the model of "goal term added on top of the guard" faithful to the engine?); whether `Drone` clips acceleration before or after the guard.
 - Next step: fix 3.1 and 3.2 with regression tests, or resume wiring the transition protocol — the user to choose.
+
+### 2026-10-30 — Claude — algorithm fixes (guard priority, demo label, repulsion) and hybrid diagnosis
+
+- Objective: fix the problems found in the algorithm review.
+- Starting commit: `1995b57` (local). Pushed so far: up to `8a339ee`.
+- Files changed: `swarm_core/safety.py` (new `prioritised_separation_acceleration`), `swarm_core/controllers/{centralized,decentralized,hybrid}.py`, `simulator/engine.py`, `experiments/run_demo.py`, tests (`test_safety_priority.py` new; `test_hybrid_features.py`, `test_simulation.py` updated), docs (`PROJECT_STATE.md`, algorithm review addendum).
+- Design decisions: the guard now has priority (components of the nominal command into a violated neighbor or against the net escape direction are removed; nominal scaled so guard + nominal ≤ max_accel); hybrid applies one guard at full weight after blending (decentralized part uses `apply_guard=False`); decentralized repulsion is a capped sum; the `test_degree_normalisation` expectations changed deliberately (repulsion no longer divided by degree); the 5 s centralized convergence test now allows 10 s because drones start inside the guard distance.
+- Tests and evidence level: UNIT + numerical simulation. Full suite passes. Sandbox: old guard 0.00 m vs new 2.50 m for goal pull ≥ 2.5 m/s². `compare_three_modes` 10 trials at 5/10 drones: 10/10 pass; worst 10-drone hybrid burst 2.502 → 2.552 m. Demo seeds 123/1/2/3 pass the 2.5 m gate (2.61–2.67 m) with 3.0 m spacing.
+- Failures or unresolved risks: findings 3.3–3.5, 3.7, 3.8 still open (see report addendum); hybrid mixed-mode diagnosis is correlational; changes are numerical-engine only, SITL adapter paths (`sitl/decentralized_guidance.py`) not re-verified with the new guard; no live evidence.
+- Commit / push: `17ad625` plus a docs commit; not pushed.
+- Recommended Codex review: confirm the SITL/agent path (`sitl/decentralized_guidance.py`, `sitl/independent_agent_node.py`) does not rely on the old additive guard or the degree-divided repulsion; review the `prioritised_separation_acceleration` semantics (removal of the opposing component is a conservative choice).
+- Next step: implement optional hybrid mode agreement and compare 30 seeds; read the 30-seed guard-distance runs; then resume wiring the transition protocol.

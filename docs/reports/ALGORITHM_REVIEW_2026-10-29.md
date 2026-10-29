@@ -75,3 +75,15 @@ The default `fallback_strategy="consensus"` sets `v_cmd = 0` and a goal of `None
 3. Decide on the hybrid mode-agreement design (3.4) and a permanent-coordinator-loss scenario (3.5).
 4. Consolidate assignment/planning (3.7).
 5. Re-evaluate the guard distance (3.3) after 1.
+
+## 5. Addendum 2026-10-30 — fixes and diagnosis
+
+**Fixed in `17ad625`** (UNIT + numerical simulation; full suite passes):
+- 3.1: new `prioritised_separation_acceleration` (`swarm_core/safety.py`) used by the centralized, decentralized and hybrid controllers and the engine's centralized path. In the same single-pair sandbox with a 3 m/s speed cap the old additive guard reached 0.00 m for goal pulls ≥ 2.5 m/s²; the new one holds 2.50 m (2.47 m with 0.18 s actuator lag). Regression tests: `tests/test_safety_priority.py`. Side effect: drones that start inside the guard distance close more slowly (centralized 5-drone line: 0.318 m error at 5 s vs 0.167 m before; 0.087 m vs 0.061 m at 10 s), so that test now checks 10 s.
+- 3.2: `run_demo.py` computes PASS/FAIL against the 2.5 m gate and uses 3.0 m formation spacing (the profile's 2.5 m spacing equals the gate and leaves no margin). Seeds 123/1/2/3: 2.655/2.610/2.628/2.665 m, all PASSED. With the old 2.5 m spacing the new guard still gave 2.486 m (honest FAIL).
+- 3.6: decentralized repulsion is a capped sum; alignment/cohesion remain degree-normalised (test updated).
+- Re-run of `compare_three_modes` (10 trials, 5 and 10 drones): all 10/10 pass; 10-drone hybrid burst worst min-separation 2.502 → 2.552 m, mean 2.632 → 2.669 m; other cells essentially unchanged.
+
+**Diagnosis for 3.4** (replay of the worst 10-drone hybrid burst trial, seed 20261021): drones were in mixed modes (some fallback, some centralized) in 448 of 600 ticks, including when no outage was injected; 63 of the 73 ticks below 2.65 m separation were mixed-mode; the minimum (2.552 m, t = 10.3 s) occurred with 8 centralized + 2 fallback drones. Correlational, not yet causal. Note that the comparison script uses the `hold_target` fallback, one V formation drifting at 0.4 m/s and no formation morphs, so it is a gentle scenario.
+
+**Not done yet:** optional swarm-level mode agreement in `HybridController` (engine already builds `perceived_neighbors`; add each neighbor's mode and a majority/hysteresis rule, then compare 30 seeds with and without), permanent-coordinator-loss scenario, assignment latching, consolidation, altitude staggering, gain sweeps. 30-seed 10-drone runs at guard 2.5 m and 3.0 m were started in the scratchpad; their JSON was not yet read.
