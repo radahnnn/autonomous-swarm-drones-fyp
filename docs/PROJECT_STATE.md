@@ -84,7 +84,8 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
 6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
 7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
-8. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
+8. Algorithm review findings (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): separation guard can be overridden by a saturating goal term (sandbox: 0.26 m at full-scale pull); `run_demo.py` prints "Safety: PASSED" unconditionally (value was 2.294 m < 2.5 m gate); 10-drone hybrid worst-trial margin is 2 mm; per-drone (not swarm-level) hybrid mode switching; decentralized repulsion divided by neighbor count.
+9. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
 
 ## 6. Hardware facts
 
@@ -123,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-29 — Claude — Added `docs/reports/ALGORITHM_REVIEW_2026-10-29.md` (numerical-simulation evidence) and its findings as defect 8.
 - 2026-10-29 — Claude — Added `sitl/transition_protocol.py` + 41 UNIT/simulated-channel tests (not yet wired into the runtime). Test count 359.
 - 2026-10-29 — Claude — Added `docs/TRANSITION_PROTOCOL_SPEC.md` (draft); sharpened defect 3 with the verified gating gap.
 - 2026-10-29 — Codex — Recorded PHYSICAL passive ESP32 USB enumeration, clarified what the Oct 23 DroneCAN settings do not prove, selected UART/MAVLink as the first command-path recommendation, and linked the propellers-off CAN/fleet bench plan.

@@ -183,3 +183,16 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit / push: see `git log`; not pushed after `8a339ee`.
 - Recommended Codex review: invariants in the lossy-channel test; `AgentTransition._local_violation` thresholds; whether `CoordinatorTransition.abort` correctly distinguishes "moved" from "not moved" when `go` was sent but agents had not yet started.
 - Next step: wire the agent side (message kinds, slot ownership, status fields) and the coordinator side.
+
+### 2026-10-29 — Claude — algorithm review and tests (no algorithm code changed)
+
+- Objective: test and critique the control algorithms at the user's request.
+- Starting commit: `b7688bd`.
+- Files inspected: `swarm_core/controllers/{centralized,decentralized,hybrid}.py`, `swarm_core/safety.py`, `swarm_core/formations.py`, `experiments/run_demo.py`, `experiments/compare_three_modes.py`.
+- Files changed: new `docs/reports/ALGORITHM_REVIEW_2026-10-29.md`; `docs/PROJECT_STATE.md`. Outputs written to the scratchpad, not the repo.
+- Tests and evidence level: numerical simulation (pure-Python engine, `assumed_baseline`), not SITL. `run_demo --seed 123`: min distance 2.294 m. `compare_three_modes` 10 trials at 5 and 10 drones: 10/10 pass in all cells; 10-drone hybrid worst trial 2.502 m. Own single-pair sandbox: guard overridden at goal pull = `max_accel` (0.26 m).
+- Findings: see the report (guard is a spring not a barrier; hardcoded "Safety: PASSED"; 2 mm margin; per-drone hybrid switching; degree-normalised repulsion; per-step Hungarian).
+- Failures or unresolved risks: findings are not fixed; the sandbox is single-pair/ideal, so its severity inside the full engine is unquantified.
+- Commit / push: see `git log`; not pushed.
+- Recommended Codex review: sandbox in report §3.1 (is the model of "goal term added on top of the guard" faithful to the engine?); whether `Drone` clips acceleration before or after the guard.
+- Next step: fix 3.1 and 3.2 with regression tests, or resume wiring the transition protocol — the user to choose.
