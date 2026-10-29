@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 312 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 318 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration. Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 312 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 318 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -75,17 +75,16 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 
 ## 5. Known defects and risks (current)
 
-Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_2026-10-29.md`. Confirmed on 2026-10-29:
+Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_2026-10-29.md`. Confirmed on 2026-10-29 (the stale/out-of-order `MissionIntent` defect was fixed in the same session; see changelog):
 
-1. **Stale/out-of-order MissionIntent mutates state before validation** — `sitl/independent_agent_node.py` lines ~405–441: formation, slots and transition fields are changed before `intent.sequence <= self.last_mission_sequence` is checked. **Not yet fixed.**
-2. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
-3. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
-4. No prepare/ack/common-start/abort for synchronized transitions; no live transition supervision; commands not blocked during transitions; link-loss/coordinator-loss/membership semantics undefined.
-5. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
-6. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
-7. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
-8. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
-9. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
+1. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
+2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
+3. No prepare/ack/common-start/abort for synchronized transitions; no live transition supervision; commands not blocked during transitions; link-loss/coordinator-loss/membership semantics undefined.
+4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
+5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
+6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
+7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
+8. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
 
 ## 6. Hardware facts
 
@@ -101,7 +100,7 @@ Not verified / open:
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; source code unchanged since checkpoint `d1e7444` (tag `wip-checkpoint-20261029`); HEAD is the docs cleanup commit `bbfe5ed` plus any later `docs:` commits (check `git log`). Tests: 312 passed. Root disk: ~35 GB free. Remote `origin` = the GitHub repo above; only `c97c563` and earlier are pushed.
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; the checkpoint `d1e7444` is tagged `wip-checkpoint-20261029`. Commits since then are docs plus the stale-intent fix (`git log --oneline wip-checkpoint-20261029..HEAD`). Root disk ~35 GB free. Pushed: docs commits up to `70b120d`; the fix commit is local until the user says to push.
 
 - Claude is primary writer for the week of 2026-10-29; Codex reviews. One writer at a time. Log every session in the collaboration log.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
@@ -111,13 +110,15 @@ Not verified / open:
 
 ## 8. Plan
 
-1. Fix stale-intent ordering + regression tests (defect 1).
-2. Write the transition-protocol spec (prepare/ack/common-start/abort) for Codex review, then implement with supervision and failure semantics (defects 4–6, 2).
-3. CI fix (defect 3) and formation-implementation consolidation (defect 7).
-4. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
-5. Plan a propellers-off hardware milestone; code freeze target 17 Dec, deliverables 31 Dec.
+1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
+2. Write the transition-protocol spec (prepare/ack/common-start/abort, supervision, link-loss/coordinator-loss/membership rules) for Codex review; then implement it (defects 3).
+3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
+4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
+5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
+6. Plan a propellers-off hardware milestone; code freeze target 17 Dec, deliverables 31 Dec.
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-29 — Claude — Fixed stale/out-of-order `MissionIntent` handling in `sitl/independent_agent_node.py` (sequence check moved before any state change); added `tests/test_mission_intent_ordering.py` (UNIT). Removed the defect from section 5.
 - 2026-10-29 — Claude — Corrected hardware facts (firmware ArduCopter 4.6.2 and GPS fix were bench-verified Oct 6; CAN enabled in Oct 23 params); copied the Matek Oct 23 export and summary into `hardware/`.
 - 2026-10-29 — Claude — Created. Consolidated scattered project state; archived the Antigravity checkout and moved heavy logs/runs to the SSD (see `docs/history/ARCHIVE_INDEX.md`).

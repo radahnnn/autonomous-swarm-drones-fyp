@@ -113,3 +113,20 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Pushed branch/commit: nothing pushed.
 - Recommended Codex review: accuracy of `docs/PROJECT_STATE.md` sections 4–5 against the code and reports; confirm the stale-intent diagnosis.
 - Next step: fix stale/out-of-order `MissionIntent` handling (validate before any mutation) with regression tests in `tests/test_decentralized_sitl.py`; then the transition-protocol spec.
+
+### 2026-10-29 — Claude — stale/out-of-order MissionIntent fix
+
+- Objective: validate `MissionIntent` sequence before any agent state mutation (backlog items 1–2).
+- Starting commit: `70b120d` (pushed to origin by the user's instruction, docs only).
+- Files inspected: `sitl/independent_agent_node.py` (mission handler ~L380–460), `sitl/mission_intent.py` (`from_dict`, `MissionLease.accept`), `sitl/decentralized_guidance.py` (L60–95), `tests/test_decentralized_sitl.py` (existing mission tests).
+- Files changed: `sitl/independent_agent_node.py` (+3/−2: sequence check moved to immediately after `MissionIntent.from_dict`, old check removed); new `tests/test_mission_intent_ordering.py`; `docs/PROJECT_STATE.md`.
+- Design decisions: reject `intent.sequence <= last_mission_sequence` right after parse/validation and before formation/slot/transition changes. Semantics unchanged for accepted messages (replay of the same sequence is still rejected; epoch change still resets the counter). `DecentralizedGuidance.step` already validates before mutating, so it needed no change. `MissionLease.accept` still runs after the state update, but it re-validates with the same `wall_now`, so it cannot reject an intent the handler already accepted (only a non-finite `time.monotonic()` could); not changed.
+- Tests and evidence level (UNIT; node built with `object.__new__` and a fake operator feed, no SITL):
+  - `python3 -m pytest -q tests/test_mission_intent_ordering.py` before the fix: 5 failed (out-of-order and replayed intents altered grounded formation, restarted an airborne transition, and overwrote operator slots), 2 passed (newer message still applies; baseline).
+  - Same command after the fix: 7 passed.
+  - `python3 -m pytest -q tests`: all pass, 318 tests.
+- Failures or unresolved risks: no live SITL run of this path; the airborne-transition test checks the agent state only. Items 3–12 of the backlog are open. A same-sequence retransmit is deliberately dropped (idempotent for the sender, not re-acked).
+- Commit created: see `git log` (fix + tests + docs).
+- Pushed branch/commit: not pushed.
+- Recommended Codex review: confirm no caller relied on state changes from a stale intent; check whether the sender (`independent_swarm_console._publish_intent`) ever re-sends an intent with the same sequence but changed contents.
+- Next step: transition-protocol spec (prepare/ack/common-start/abort) for review, then implementation.

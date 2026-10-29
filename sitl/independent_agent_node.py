@@ -387,6 +387,9 @@ class IndependentAgentNode:
                     intent = MissionIntent.from_dict(message.get("intent"), wall_now)
                 except (TypeError, ValueError):
                     continue
+                # Reject stale, replayed and out-of-order intents before any state is touched.
+                if intent.sequence <= self.last_mission_sequence:
+                    continue
                 current_formation = getattr(self, "formation", "v")
                 requested_formation = (current_formation if intent.formation == "configured"
                                        else intent.formation)
@@ -438,8 +441,6 @@ class IndependentAgentNode:
                     if self.formation_transition_target_slots is None:
                         self.all_slots = requested_slots.copy()
                         self.slot = self.all_slots[self.drone_id].copy()
-                if intent.sequence <= self.last_mission_sequence:
-                    continue
                 self.mission_lease.accept(intent.to_dict(), wall_now, time.monotonic())
                 self.last_mission_sequence = intent.sequence
                 self.current_mission = intent.to_dict()
