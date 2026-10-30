@@ -12,6 +12,7 @@ import pytest
 
 from sitl.formation_library import slots_for
 from sitl.independent_agent_node import IndependentAgentNode
+from sitl.coordinator_election import CoordinatorElection
 from sitl.mode_switch import AgentModeSwitch, CoordinatorModeSwitch
 from sitl.independent_swarm_console import IndependentSwarmConsole
 from sitl.transition_protocol import AgentTransition, CoordinatorTransition
@@ -80,6 +81,7 @@ class Swarm:
         node.operator_clock_offset_s, node.clock_sync_epoch = 0.0, EPOCH
         node.transition = AgentTransition(i, N)
         node.mode_switch = AgentModeSwitch(i, "hybrid")
+        node.election = CoordinatorElection(i)
         node.control_mode = "hybrid"
         node.agent = SimpleNamespace(mode="hybrid")
         node.peers, node.peer_ids, node._discovered = FakePeers(), [j for j in range(N) if j != i], []
@@ -444,8 +446,10 @@ def _policy_node(mode, monkeypatch):
     monkeypatch.setattr(time, "monotonic", clock)
     node = object.__new__(IndependentAgentNode)
     node.drone_id, node.control_mode = 0, mode
+    node.operator_clock_offset_s = 0.0
+    node.agent = SimpleNamespace(cached_mission_intent=None)
     node.coordinator_connected = False
-    node.current_mission = {"sequence": 1}
+    node.current_mission = None                                  # set below from the accepted intent
     node.last_coordinator_message_monotonic = clock.t - 10.0
     node.peers, node.peer_ids = FakePeers(), [1, 2]
     node.position = np.array([1.0, 2.0, -5.0])
@@ -454,6 +458,7 @@ def _policy_node(mode, monkeypatch):
     node.mission_lease = MissionLease()
     intent = MissionIntent(1, clock.t - 1, clock.t + 3, (0.0, 0.0)).to_dict()
     node.mission_lease.accept(intent, clock.t, clock.t)
+    node.current_mission = intent
     node.sent, node.landed = [], []
     node._send_position_target = lambda target, altitude, apply_layer=True: node.sent.append((target.copy(), altitude))
     node._command_land = lambda reason: node.landed.append(reason)
@@ -462,15 +467,20 @@ def _policy_node(mode, monkeypatch):
 
 @pytest.mark.parametrize("mode", ["decentralized", "hybrid"])
 def test_decentralized_and_hybrid_keep_flying_the_last_mission_without_a_coordinator(mode, monkeypatch):
+    from sitl.mission_intent import MissionIntent
     node, clock = _policy_node(mode, monkeypatch)
-    clock.t += 30.0                                             # far beyond the original 3 s lease
+    for _ in range(400):                                        # stepped by 1 s (the real loop runs at ~10 Hz)
+        clock.t += 1.0
+        node._renew_lease_if_autonomous()
+        if clock.t - node.last_coordinator_message_monotonic > IndependentAgentNode.AUTONOMY_MAX_S:
+            break
+        # the lease AND the agent's cached copy stay valid far beyond the original 3 s / 60 s lifetimes
+        assert node.mission_lease.active(clock.t) is not None
+        MissionIntent.from_dict(node.agent.cached_mission_intent, clock.t)
+    assert clock.t - node.last_coordinator_message_monotonic > IndependentAgentNode.AUTONOMY_MAX_S
+    clock.t += 40.0                                             # autonomy window exhausted: lease lapses
     node._renew_lease_if_autonomous()
-    assert node.mission_lease.active(clock.t) is not None
-    node.last_coordinator_message_monotonic = clock.t - IndependentAgentNode.AUTONOMY_MAX_S - 1
-    clock.t += 10.0
-    node.mission_lease.deadline_monotonic = clock.t - 1
-    node._renew_lease_if_autonomous()
-    assert node.mission_lease.active(clock.t) is None           # autonomy window exhausted: lapse -> land
+    assert node.mission_lease.active(clock.t) is None
 
 
 def test_autonomy_requires_at_least_one_live_peer(monkeypatch):

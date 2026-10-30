@@ -47,7 +47,7 @@ aside{background:var(--card);border-left:1px solid var(--edge);padding:20px;over
 <h2>Formation shape</h2><div class="grid" id="shapes"></div><div class="sub" id="shapehelp">Shape changes are available grounded, or in flight after safety checks.</div>
 <h2>Altitude</h2><div class="grid two"><button onclick="send('u 2')">Up 2 m</button><button onclick="send('j 2')">Down 2 m</button></div>
 <h2>Communication test</h2><div class="fault"><input id="from" type="number" min="1" value="1" aria-label="sender"><input id="to" type="number" min="1" value="2" aria-label="recipient"><button id="blocklink" onclick="link(true)">Block link</button><button id="restorelink" onclick="link(false)">Restore link</button></div><div class="sub" style="margin-top:7px">Cuts one direction only. The remaining drones should keep flying.</div>
-<h2>Run metrics</h2><div class="card mx" id="mx"><div class="row"><b class="big" id="mxgap">—</b><span class="sub" id="mxstate">waiting for flight</span></div><div class="bar"><i id="mxbar"></i><u style="left:50%" title="separation gate"></u></div><canvas id="mxspark" style="height:56px;width:100%"></canvas><div class="sub" id="mxline"></div><div class="sub" id="mxdrones"></div><div class="sub" id="mxcount"></div></div>
+<h2>Run metrics</h2><div class="card mx" id="mx"><div class="row"><b class="big" id="mxgap">—</b><span class="sub" id="mxstate">waiting for flight</span></div><div class="bar"><i id="mxbar"></i><u style="left:50%" title="separation gate"></u></div><canvas id="mxspark" style="height:56px;width:100%"></canvas><div class="sub" id="mxline"></div><div class="sub" id="mxdrones"></div><div class="sub" id="mxcount"></div><div class="sub" id="mxcoord"></div></div>
 <h2>Drone health & recovery</h2><div class="sub" id="recoveryhelp">Recovery controls depend on the active architecture.</div><div id="agents" class="agentsgrid"></div><div class="msg" id="msg"></div>
 <details><summary>Technical details</summary><pre id="raw"></pre></details></aside>
 <script>
@@ -74,6 +74,7 @@ if(hist.length>1){let t0=hist[0][0],t1=hist[hist.length-1][0]||1,top=m.gate_m*3,
 document.getElementById('mxline').textContent=(m.min_gap_m==null?'':'lowest '+m.min_gap_m.toFixed(2)+' m · ')+(m.gap_3d_m==null?'':'3-D gap now '+m.gap_3d_m.toFixed(2)+' m · ')+'violations '+m.violations+(m.violations?' ('+m.violation_time_s+' s)':'')+' · low-margin episodes '+m.warnings+' · sampled ~1 Hz';
 let modes={},err=[],age=0;(m.drones||[]).forEach(d=>{if(d.mode)modes[d.mode]=(modes[d.mode]||0)+1;if(d.tracking_error_m!=null)err.push(d.tracking_error_m);if(d.link_age_s!=null)age=Math.max(age,d.link_age_s)});
 document.getElementById('mxdrones').textContent='modes '+(Object.entries(modes).map(([k,v])=>v+'× '+k).join(', ')||'—')+' · tracking err '+(err.length?(err.reduce((a,c)=>a+c,0)/err.length).toFixed(2)+' m avg / '+Math.max(...err).toFixed(2)+' max':'—')+' · oldest status '+age.toFixed(1)+' s';
+let co=state.coordinator||{},ct=document.getElementById('mxcoord');ct.textContent=co.source?('coordinator: '+(co.acting&&co.acting.length?'ACTING D'+co.acting.join(',D')+' (term '+co.term+')':co.source)):'';ct.style.color=co.acting&&co.acting.length?'var(--warn)':'';
 let c=m.counters||{};document.getElementById('mxcount').textContent=Object.keys(c).length?Object.entries(c).map(([k,v])=>k.replace(/_/g,' ')+' '+v).join(' · '):''}
 async function poll(){try{let r=await fetch('/state',{cache:'no-store'});state=await r.json();update()}catch(e){mode.textContent='DISCONNECTED';mode.className='bad'}setTimeout(poll,350)}
 function update(){renderMetrics();renderReplay();mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
@@ -93,6 +94,21 @@ function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);le
  state.agents.forEach(a=>{if(!a.position)return;(trail[a.id]??=[]).push([a.position[0],a.position[1]]);if(trail[a.id].length>120)trail[a.id].shift();x.beginPath();trail[a.id].forEach((p,i)=>i?x.lineTo(X(p[1]),Y(p[0])):x.moveTo(X(p[1]),Y(p[0])));x.strokeStyle='#62a8ff55';x.stroke()});
  state.agents.forEach(a=>{if(!a.position)return;let px=X(a.position[1]),py=Y(a.position[0]);x.beginPath();x.arc(px,py,11*devicePixelRatio,0,Math.PI*2);x.fillStyle=a.health==='OK'?'#38d996':'#ffbd59';x.fill();x.strokeStyle=a.leader?'#fff':'#102030';x.lineWidth=a.leader?3:1;x.stroke();x.fillStyle='#081018';x.font='bold '+11*devicePixelRatio+'px system-ui';x.textAlign='center';x.fillText(a.id,px,py+4*devicePixelRatio)});x.textAlign='left'}poll();draw();
 </script></body></html>'''
+
+
+def _coordinator_summary(latest: dict) -> dict:
+    """Who the swarm currently follows, from the agents' own reports."""
+    sources, acting, term = [], [], 0
+    for index, status in latest.items():
+        info = status.get("coordinator") or {}
+        if info.get("source"):
+            sources.append(str(info["source"]))
+        if info.get("acting"):
+            acting.append(int(index) + 1)
+        if isinstance(info.get("term"), int):
+            term = max(term, info["term"])
+    common = max(set(sources), key=sources.count) if sources else None
+    return {"source": common, "acting": sorted(acting), "term": term}
 
 
 def dashboard_state(session) -> dict:
@@ -245,6 +261,7 @@ def dashboard_state(session) -> dict:
         ),
         "metrics": (session.metrics.snapshot() if getattr(session, "metrics", None) is not None else None),
         "replay": (session.replay_info() if hasattr(session, "replay_info") else None),
+        "coordinator": _coordinator_summary(latest),
         "route": (None if getattr(session, "route", None) is None else
                   {"waypoints": [list(p) for p in session.route.waypoints],
                    "loop_start": session.route.loop_start, "speed_m_s": session.route.speed_m_s}),

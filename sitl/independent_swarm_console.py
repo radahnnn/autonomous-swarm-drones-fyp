@@ -66,6 +66,7 @@ class IndependentSwarmConsole:
     metrics = None
     geofence = None
     _fence_seen = None
+    _acting_seen = None
     route: Route | None = None
 
     def __init__(self, args):
@@ -135,6 +136,7 @@ class IndependentSwarmConsole:
             raise SystemExit(f"invalid geofence: {exc}")
         self.metrics = RunMetrics(self.count, gate_metric=getattr(args, "gate_metric", "horizontal"))
         self._fence_seen = {}
+        self._acting_seen = {}
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -779,6 +781,10 @@ class IndependentSwarmConsole:
     def _update_metrics(self) -> None:
         if self.metrics is None:
             return
+        if self._fence_seen is None:
+            self._fence_seen = {}
+        if self._acting_seen is None:
+            self._acting_seen = {}
         with self.lock:
             states = {index: state.copy() for index, state in self.latest.items()}
         self.metrics.update(time.time(), states)
@@ -788,6 +794,16 @@ class IndependentSwarmConsole:
             if current == "breach" and self._fence_seen.get(index) != "breach":
                 self._note_metric("geofence_breach", drone=index + 1)
             self._fence_seen[index] = current
+            acting = bool((state.get("coordinator") or {}).get("acting"))
+            if acting and not self._acting_seen.get(index):
+                term = (state.get("coordinator") or {}).get("term")
+                self._note_metric("coordinator_takeover", drone=index + 1, term=term)
+                self.event("coordinator_takeover", drone=index + 1, term=term)
+                print(f">> Operator silent: D{index + 1} is now the ACTING COORDINATOR (term {term}).", flush=True)
+            elif not acting and self._acting_seen.get(index):
+                self.event("coordinator_stepdown", drone=index + 1)
+                print(f">> D{index + 1} is no longer acting coordinator.", flush=True)
+            self._acting_seen[index] = acting
 
     def _any_airborne(self) -> bool:
         with self.lock:

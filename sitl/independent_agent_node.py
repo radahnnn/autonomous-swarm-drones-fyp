@@ -21,6 +21,7 @@ from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
+from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
@@ -90,6 +91,9 @@ class IndependentAgentNode:
             raise ValueError("independent agent control mode must be centralized, decentralized or hybrid")
         self.control_mode = control_mode
         self.mode_switch = AgentModeSwitch(drone_id, control_mode)
+        self.election = CoordinatorElection(self.drone_id)
+        self._acting_sequence = 0
+        self.last_acting_sequence = {}
         self.geofence = geofence
         self.altitude_offset_m = altitude_layer_offset(drone_id, altitude_layers, layer_spacing_m)
         self.fence_state = "inside"
@@ -476,6 +480,7 @@ class IndependentAgentNode:
                 self.current_mission = intent.to_dict()
                 self.pending_intent = self.current_mission
                 self.last_coordinator_message_monotonic = time.monotonic()
+                self._election_events(self.election.note_operator(time.monotonic()))
                 self.coordinator_connected = True
                 # Keep terminal landing status visible after touchdown. The operator refreshes
                 # mission intent continuously, but a fresh mission does not imply takeoff.
@@ -678,6 +683,29 @@ class IndependentAgentNode:
         elif now - self.fence_breach_since > self.FENCE_BREACH_LAND_S and not self.landing:
             self._command_land("geofence_breach")
 
+    def _refresh_mission(self, intent_dict: dict, wall_now: float, mono: float,
+                         from_coordinator: bool = False) -> None:
+        """Extend the mission lease AND the agent's cached copy of the intent.
+
+        The cached intent is re-validated on every guidance step and expires with its own TTL; extending
+        only the lease would make a long autonomous period end in an "invalid mission intent" landing.
+        """
+        operator_now = wall_now - self.operator_clock_offset_s
+        self.mission_lease.accept(intent_dict, operator_now, mono)
+        self.current_mission = dict(intent_dict)
+        self.agent.cached_mission_intent = dict(intent_dict)
+        if from_coordinator:
+            self.last_coordinator_message_monotonic = mono
+            self.coordinator_connected = True
+
+    def _renewed_copy(self, base: dict, wall_now: float, ttl_s: float = 30.0) -> dict:
+        """The accepted mission with fresh issue/expiry times (route and goal unchanged)."""
+        operator_now = wall_now - self.operator_clock_offset_s
+        intent = dict(base)
+        intent.update(issued_at=operator_now, expires_at=operator_now + ttl_s, formation="configured",
+                      formation_slots=None, formation_start_slots=None, formation_transition_s=0.0)
+        return intent
+
     def _renew_lease_if_autonomous(self) -> None:
         """Decentralized/hybrid agents keep flying the last mission on peers when the coordinator is gone."""
         if (self.control_mode not in ("decentralized", "hybrid") or self.current_mission is None or
@@ -685,9 +713,56 @@ class IndependentAgentNode:
             return
         if time.monotonic() - self.last_coordinator_message_monotonic > self.AUTONOMY_MAX_S:
             return
-        if not (set(self.peer_ids) & set(self.peers.fresh_link_ids(time.time()))):
+        wall = time.time()
+        if not (set(self.peer_ids) & set(self.peers.fresh_link_ids(wall))):
             return          # alone: let the lease lapse and the existing failsafes act
-        self.mission_lease.renew(time.monotonic(), 5.0)
+        if self.mission_lease.active(time.monotonic()) is None:
+            return          # already lapsed
+        self._refresh_mission(self._renewed_copy(self.current_mission, wall), wall, time.monotonic())
+
+    # ---- acting-coordinator failover (sitl/coordinator_election.py)
+    def _election_events(self, actions) -> None:
+        for action in actions:
+            if action[0] == "event":
+                print(f"[NODE {self.drone_id + 1}] {action[1].replace('_', ' ')} {action[2]}", flush=True)
+
+    def _tick_election(self, wall_now: float) -> None:
+        mono = time.monotonic()
+        for message in self.peers.take_coordinator_messages():
+            self._handle_acting_intent(message, wall_now, mono)
+        if getattr(self, "membership", None) is None:
+            return                                      # failover needs the adaptive leader election
+        live = len(self.peers.fresh_link_ids(wall_now))
+        for action in self.election.tick(mono, self.elected_leader_id, live):
+            if action[0] == "publish":
+                self._publish_acting_intent(action[1], wall_now, mono)
+            else:
+                self._election_events([action])
+
+    def _publish_acting_intent(self, term: int, wall_now: float, mono: float) -> None:
+        if self.current_mission is None:
+            return
+        self._acting_sequence += 1
+        intent = self._renewed_copy(self.current_mission, wall_now)
+        intent["sequence"] = self._acting_sequence
+        self.peers.publish_coordinator(self.discovery_ids, wall_now, term, intent)
+        self._refresh_mission(intent, wall_now, mono, from_coordinator=True)
+
+    def _handle_acting_intent(self, message: dict, wall_now: float, mono: float) -> None:
+        accept, actions = self.election.on_acting_message(message["sender"], message["term"], mono)
+        self._election_events(actions)
+        if not accept:
+            return
+        operator_now = wall_now - self.operator_clock_offset_s
+        try:
+            intent = MissionIntent.from_dict(message["intent"], operator_now)
+        except (TypeError, ValueError):
+            return
+        key = (message["sender"], message["term"])
+        if intent.sequence <= self.last_acting_sequence.get(key, 0):
+            return
+        self.last_acting_sequence[key] = intent.sequence
+        self._refresh_mission(message["intent"], wall_now, mono, from_coordinator=True)
 
     def _centralized_fail_stop(self, now: float) -> bool:
         """Centralized mode depends on the coordinator: hold position, then land. True = handled."""
@@ -992,6 +1067,7 @@ class IndependentAgentNode:
             "coordinator_connected": self.coordinator_connected,
             "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
             "altitude_layer_m": self.altitude_offset_m,
+            "coordinator": self.election.status(time.monotonic()),
             "route_active": bool(self.mission_lease.intent is not None and
                                  self.mission_lease.intent.route_waypoints is not None),
             "geofence": (None if self.geofence is None else {
@@ -1108,6 +1184,7 @@ class IndependentAgentNode:
                 self._tick_transition(now)
                 self._tick_mode_switch(now)
                 self._tick_geofence()
+                self._tick_election(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)

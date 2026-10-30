@@ -94,6 +94,8 @@ def test_a_malformed_route_invalidates_the_whole_intent():
 def node_for(drone_id, route, transition_goal=None, now=100.0):
     node = object.__new__(IndependentAgentNode)
     node.drone_id = drone_id
+    node.operator_clock_offset_s = 0.0
+    node.agent = SimpleNamespace(cached_mission_intent=None)
     node._transition_goal = lambda t: transition_goal
     intent = MissionIntent(1, now, now + 30.0, (0.0, 0.0), route_waypoints=route.waypoints,
                            route_start_at=route.start_at, route_speed_m_s=route.speed_m_s,
@@ -127,13 +129,14 @@ def test_decentralized_and_hybrid_keep_following_the_route_after_the_coordinator
     for mode, should_continue in (("decentralized", True), ("hybrid", True), ("centralized", False)):
         node, intent = node_for(0, route, now=clock["t"])
         node.control_mode, node.coordinator_connected = mode, False
-        node.current_mission = {"sequence": 1}
+        node.current_mission = intent.to_dict()
         node.last_coordinator_message_monotonic = clock["t"] - 5.0        # coordinator silent
         node.peers, node.peer_ids = SimpleNamespace(fresh_link_ids=lambda now: [1, 2]), [1, 2]
         node.mission_lease = MissionLease()
         node.mission_lease.accept(intent.to_dict(), clock["t"], clock["t"])
-        clock["t"] += 70.0                                                # beyond the 30 s lease
-        node._renew_lease_if_autonomous()
+        for _ in range(14):                                               # 70 s, stepped like the real loop
+            clock["t"] += 5.0
+            node._renew_lease_if_autonomous()
         active = node.mission_lease.active(clock["t"])
         assert (active is not None) is should_continue, mode
         if should_continue:

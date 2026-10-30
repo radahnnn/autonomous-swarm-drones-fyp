@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from sitl.formation_library import slots_for
+from sitl.coordinator_election import CoordinatorElection
 from sitl.independent_agent_node import IndependentAgentNode
 from sitl.mission_intent import MissionIntent, MissionLease
 
@@ -37,6 +38,7 @@ def _node(monkeypatch, *, airborne):
     monkeypatch.setattr("sitl.independent_agent_node.time.monotonic", lambda: 50.0)
     node = object.__new__(IndependentAgentNode)
     node.operator = _Feed()
+    node.election = CoordinatorElection(1)
     node.operator_clock_offset_s = 0.0
     node.clock_sync_epoch = EPOCH
     node.last_mission_sequence = 0

@@ -157,6 +157,9 @@ class UdpPeerStateTransport:
         self.last_sequence: Dict[int, int] = {}
         self.heartbeat_sequence = 0
         self.last_heartbeat_sequence: Dict[int, int] = {}
+        self.coordinator_sequence = 0
+        self.last_coordinator_sequence: Dict[int, int] = {}
+        self.coordinator_inbox: list = []
         self.session_id = uuid.uuid4().hex
         self.peer_session_ids: Dict[int, str] = {}
         self.retired_peer_sessions: Dict[int, list[str]] = {}
@@ -241,6 +244,33 @@ class UdpPeerStateTransport:
                 continue
             self._enqueue(peer_id, encoded, now)
         self._flush(float(now))
+
+    def publish_coordinator(self, peer_ids: Iterable[int], now: float, term: int, intent: dict) -> None:
+        """Acting-coordinator message: the mission intent a failover leader republishes to its peers."""
+        self.coordinator_sequence += 1
+        packet = {
+            "version": VERSION, "frame": FRAME, "kind": "coordinator",
+            "drone_id": self.drone_id, "session_id": self.session_id,
+            "sequence": self.coordinator_sequence, "sample_time": float(now),
+            "term": int(term), "intent": intent,
+        }
+        encoded = self._encode(packet)
+        for peer_id in set(int(value) for value in peer_ids):
+            if peer_id < 0 or peer_id >= self.peer_count or peer_id == self.drone_id:
+                continue
+            if (self.drone_id, peer_id) in self.blocked_links:
+                self.dropped_blocked += 1
+                continue
+            if self._drop_packet():
+                self.dropped_loss += 1
+                continue
+            self._enqueue(peer_id, encoded, now)
+        self._flush(float(now))
+
+    def take_coordinator_messages(self) -> list:
+        """Authenticated, fresh, in-order acting-coordinator messages received since the last call."""
+        messages, self.coordinator_inbox = self.coordinator_inbox, []
+        return messages
 
     def _enqueue(self, peer_id: int, encoded: bytes, now: float) -> None:
         """Queue one impaired datagram and optional duplicate for one peer."""
@@ -396,6 +426,22 @@ class UdpPeerStateTransport:
                         continue
                     self.last_heartbeat_sequence[peer_id] = sequence
                     self.last_peer_heartbeat_at[peer_id] = float(now)
+                    continue
+                if kind == "coordinator":
+                    term, intent = packet.get("term"), packet.get("intent")
+                    if (age < -MAX_FUTURE_SKEW_S or age > MAX_HEARTBEAT_AGE_S or isinstance(term, bool)
+                            or not isinstance(term, int) or term < 1 or not isinstance(intent, dict)):
+                        self.rejected_invalid += 1
+                        continue
+                    if not self._accept_peer_session(peer_id, session_id):
+                        self.rejected_replay += 1
+                        continue
+                    if sequence <= self.last_coordinator_sequence.get(peer_id, 0):
+                        self.rejected_replay += 1
+                        continue
+                    self.last_coordinator_sequence[peer_id] = sequence
+                    self.coordinator_inbox.append({"sender": peer_id, "term": term, "intent": intent,
+                                                   "sequence": sequence})
                     continue
                 if kind != "state":
                     self.rejected_invalid += 1

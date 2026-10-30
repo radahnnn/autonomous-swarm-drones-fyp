@@ -95,6 +95,7 @@ def test_independent_agent_gcs_heartbeat_is_rate_limited(monkeypatch):
     now = [10.0]
     monkeypatch.setattr("sitl.independent_agent_node.time.monotonic", lambda: now[0])
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.conn = type("Connection", (), {"mav": MagicMock()})()
     node.last_gcs_heartbeat_at = 0.0
     node.last_peer_heartbeat_at = 0.0
@@ -349,6 +350,7 @@ def test_mission_lease_uses_operator_clock_offset_when_validating_remote_intent(
                      "intent": intent}]
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.operator = Operator()
     node.operator_clock_offset_s = 75.0
     node.clock_sync_epoch = "operator-session-a"
@@ -379,6 +381,7 @@ def test_independent_agent_guidance_uses_operator_clock_and_lands_on_invalid_int
     intent = MissionIntent(1, operator_now - 1.0, operator_now + 20.0,
                            (3.0, -2.0))
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.operator_clock_offset_s = 75.0
     node.agent = MagicMock()
     node.agent.command.return_value = np.array([1.0, 2.0])
@@ -431,6 +434,7 @@ def test_clock_sync_accepts_new_operator_epoch_and_rejects_retired_epoch():
             return messages
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.drone_id = 0
     node.count = 2
     node.operator = Operator()
@@ -494,6 +498,7 @@ def test_restarted_operator_epoch_resets_sequences_and_rejects_old_commands(monk
             acknowledgements.append(decode_message(payload))
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.drone_id = 0
     node.count = 1
     node.operator = Operator()
@@ -548,6 +553,7 @@ def test_operator_command_expiry_uses_measured_clock_offset(monkeypatch):
             return messages
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.operator = Operator()
     node.operator_clock_offset_s = -42.0
     node.clock_sync_epoch = "session-a"
@@ -616,6 +622,7 @@ def test_independent_agent_lands_after_required_peer_timeout_only_while_airborne
     from sitl.peer_udp import PeerLinkWatchdog
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.peer_watchdog = PeerLinkWatchdog([1], timeout_s=2.0)
     node.peer_timeout_ids = []
     node.airborne = False
@@ -643,6 +650,7 @@ def test_independent_agent_reconfigures_around_one_missing_peer_and_recovers():
     from sitl.peer_udp import PeerLinkWatchdog
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.peer_ids = [1, 2]
     node.peer_watchdog = PeerLinkWatchdog([1, 2], timeout_s=2.0)
     node.peer_timeout_ids = []
@@ -673,6 +681,7 @@ def test_independent_agent_launch_preflight_requires_mission_and_fresh_neighbors
     from sitl.mission_intent import MissionIntent, MissionLease
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.mission_lease = MissionLease()
     node.peer_ids = [0, 1, 2]
 
@@ -728,6 +737,7 @@ def test_agent_detects_existing_armed_airborne_vehicle_after_process_restart():
             return self.messages.pop(0) if self.messages else None
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.mavlink_system_id = 1
     node.conn = Connection()
     node.frame = type("Frame", (), {
@@ -785,6 +795,7 @@ def test_agent_ignores_routed_heartbeat_and_position_from_other_sources():
             return self.messages.pop(0) if self.messages else None
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.mavlink_system_id = 3
     node.conn = Connection([
         Message("HEARTBEAT", 1, base_mode=mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED),
@@ -823,6 +834,7 @@ def test_airborne_agent_observes_peer_landing_without_copying_land_command():
     from sitl.peer_udp import PeerLinkWatchdog
 
     node = object.__new__(IndependentAgentNode)
+    node.election = __import__('sitl.coordinator_election', fromlist=['CoordinatorElection']).CoordinatorElection(0)
     node.peer_ids = [1]
     node.peer_watchdog = PeerLinkWatchdog([1])
     node.peer_timeout_ids = []
@@ -853,7 +865,9 @@ def test_new_mission_refresh_does_not_erase_landed_status():
             return [{"version": 1, "type": "mission", "epoch": "session-a",
                      "intent": intent}]
 
+    from sitl.coordinator_election import CoordinatorElection
     node = object.__new__(IndependentAgentNode)
+    node.election = CoordinatorElection(0)
     node.operator = Operator()
     node.operator_clock_offset_s = 0.0
     node.clock_sync_epoch = "session-a"
