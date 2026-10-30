@@ -2,7 +2,7 @@ name: Swarm Drones Framework CI
 
 on:
   push:
-    branches: [ master, main, phase-1-foundations-packaging ]
+    branches: [ master, main, phase-1-foundations-packaging, 'wip/**', 'work/**' ]
   pull_request:
     branches: [ master, main, phase-1-foundations-packaging ]
 
@@ -28,7 +28,7 @@ jobs:
       - name: Install Package and Dev Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[all]"   # dev + sitl (pymavlink): the tests import sitl.*
 
       - name: Run Pytest Suite
         run: |

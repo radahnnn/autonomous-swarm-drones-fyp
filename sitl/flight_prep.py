@@ -130,12 +130,17 @@ def request_message_interval(conn, msg_id: int, hz: float) -> None:
 
 
 def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 3,
-                   cancelled=None, heartbeat_callback=None) -> bool:
+                   cancelled=None, heartbeat_callback=None, no_data_timeout: float = 30.0) -> bool:
     """
     Block until the EKF reports a converged absolute position (and GPS has a 3D fix)
     in `stable` consecutive EKF_STATUS_REPORT messages. Progress is driven by the
     vehicle's own telemetry, so it adapts to any Gazebo real-time factor.
     Must not be called while another thread is reading from `conn`.
+
+    A live link delivers EKF/GPS reports at ~2 Hz. A dead TCP link makes pymavlink print
+    "EOF on TCP socket" and return immediately, which used to spin this loop flat out for the
+    whole timeout (54 million log lines, 4.6 GB, in one incident). The loop is therefore paced
+    and gives up after `no_data_timeout` seconds without a matching message.
     """
     request_message_interval(conn, 193, 2.0)  # EKF_STATUS_REPORT
     request_message_interval(conn, 24, 2.0)   # GPS_RAW_INT
@@ -144,13 +149,23 @@ def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 
     good = 0
     fix = 0
     flags = 0
+    last_rx = time.time()
     while time.time() - t0 < wall_timeout:
         if cancelled is not None and cancelled():
             return False
         if heartbeat_callback is not None:
             heartbeat_callback()
+        started = time.time()
         m = conn.recv_match(type=["EKF_STATUS_REPORT", "GPS_RAW_INT"], blocking=True, timeout=1.0)
-        if m is not None:
+        if m is None:
+            elapsed = time.time() - started
+            if elapsed < 0.5:
+                time.sleep(0.5 - elapsed)   # dead link: do not spin
+            if time.time() - last_rx > no_data_timeout:
+                print(f"  [{label}] ERROR: no EKF/GPS telemetry for {no_data_timeout:.0f}s; link lost")
+                return False
+        else:
+            last_rx = time.time()
             if m.get_type() == "GPS_RAW_INT":
                 fix = m.fix_type
             else:

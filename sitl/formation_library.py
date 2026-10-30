@@ -15,6 +15,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 MIN_SPACING = 2.5  # metres, smallest allowed distance between two slots
+RING_SPACING_M = 4.0  # adjacent-slot spacing of the ring template
 STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle")
 
 _V_TABLE: Dict[int, List[List[float]]] = {
@@ -79,7 +80,9 @@ def _diamond(n: int) -> np.ndarray:
 def _ring(n: int) -> np.ndarray:
     if n == 1:
         return _to_3d([[0.0, 0.0]])
-    radius = max(4.0, MIN_SPACING * 1.2 / (2.0 * math.sin(math.pi / n)))
+    # Adjacent drones are >= 4.0 m apart (like the other formations). With 3.0 m the 10-drone ring
+    # had too little room: no live transition out of it could keep the planner's path clearance.
+    radius = max(4.0, RING_SPACING_M / (2.0 * math.sin(math.pi / n)))
     ang = [2.0 * math.pi * k / n for k in range(n)]
     return _to_3d([[radius * math.cos(a), radius * math.sin(a)] for a in ang])
 

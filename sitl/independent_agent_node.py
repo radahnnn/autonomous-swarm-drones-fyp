@@ -37,6 +37,7 @@ _TRANSITION_KINDS = ("transition_prepare", "transition_go", "transition_abort", 
 class IndependentAgentNode:
     """Owns one MAVLink connection, local guidance loop, and direct peer datagrams."""
 
+    LINK_DEAD_EXIT_S = 30.0
     COORDINATOR_TIMEOUT_S = 2.5
 
     def __init__(self, drone_id: int, count: int, endpoint: str, formation: str = "v",
@@ -246,6 +247,10 @@ class IndependentAgentNode:
         self.last_heartbeat_at = time.time()
         self.last_command = "ready"
         print(f"[NODE {self.drone_id + 1}] independently connected to {self.endpoint}", flush=True)
+
+    def _link_dead(self, now: float) -> bool:
+        return (not self.command_in_progress and
+                now - self.last_heartbeat_at > self.LINK_DEAD_EXIT_S)
 
     def _send_gcs_heartbeat(self) -> None:
         """Identify this per-aircraft agent to ArduPilot for its GCS-loss failsafe."""
@@ -905,6 +910,12 @@ class IndependentAgentNode:
                         time.monotonic() - self.last_coordinator_message_monotonic
                         <= self.COORDINATOR_TIMEOUT_S
                     )
+                if self._link_dead(now):
+                    # The flight controller link has been silent for a long time: nothing more
+                    # can be commanded. Exit instead of spinning (pymavlink logs every retry).
+                    print(f"[NODE {self.drone_id + 1}] flight-controller link silent for "
+                          f"{self.LINK_DEAD_EXIT_S:.0f}s; exiting", flush=True)
+                    break
                 if self.position is None or self.position_at <= 0:
                     time.sleep(0.02)
                     continue
