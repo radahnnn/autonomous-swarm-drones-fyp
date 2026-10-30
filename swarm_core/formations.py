@@ -133,26 +133,51 @@ class FormationGenerator:
             raise ValueError(f"Unknown formation type: {formation_type}")
 
 
+def assign_slot_indices(
+    current_positions: np.ndarray,
+    target_slots: np.ndarray,
+    previous_indices: Optional[np.ndarray] = None,
+    hysteresis: float = 0.15,
+) -> np.ndarray:
+    """Hungarian assignment (min sum of squared distances) returned as slot indices.
+
+    ``indices[i]`` is the slot index given to drone ``i``. If ``previous_indices`` is supplied the
+    previous assignment is kept unless the new optimum is better by more than ``hysteresis``
+    (fraction of the previous total cost), which stops the assignment flip-flopping between
+    near-tied solutions while the swarm moves.
+    """
+    current = np.asarray(current_positions, dtype=np.float64)
+    slots = np.asarray(target_slots, dtype=np.float64)
+    n = len(current)
+    cost = np.zeros((n, n), dtype=np.float64)
+    for i in range(n):
+        for j in range(n):
+            cost[i, j] = np.sum((current[i] - slots[j]) ** 2)
+    rows, cols = linear_sum_assignment(cost)
+    best = np.zeros(n, dtype=int)
+    best[rows] = cols
+    if previous_indices is None:
+        return best
+    previous = np.asarray(previous_indices, dtype=int)
+    if previous.shape != (n,) or sorted(previous.tolist()) != list(range(n)):
+        return best
+    old_cost = float(cost[np.arange(n), previous].sum())
+    new_cost = float(cost[np.arange(n), best].sum())
+    if new_cost < (1.0 - float(hysteresis)) * old_cost - 1e-9:
+        return best
+    return previous.copy()
+
+
 def assign_optimal_slots(current_positions: np.ndarray, target_slots: np.ndarray) -> np.ndarray:
     """
     Solves the Linear Sum Assignment Problem (Hungarian Algorithm) to minimize total travel distance:
         min sum_{i} ||p_i - s_sigma(i)||^2
     Returns an array of shape (num_drones, 2) where row i is the target position assigned to drone i.
-    Prevents path crossing and collisions during formation transitions.
+    Minimizing summed squared distance gives non-crossing straight-line paths only under a spacing
+    condition (see docs/reports/ALGORITHM_REVIEW_2026-10-29.md, 3.7); it is not a collision guarantee.
     """
-    num_drones = len(current_positions)
-    cost_matrix = np.zeros((num_drones, num_drones), dtype=np.float64)
-    
-    for i in range(num_drones):
-        for j in range(num_drones):
-            cost_matrix[i, j] = np.sum((current_positions[i] - target_slots[j]) ** 2)
-            
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    assigned_targets = np.zeros_like(current_positions)
-    for r, c in zip(row_ind, col_ind):
-        assigned_targets[r] = target_slots[c]
-        
-    return assigned_targets
+    slots = np.asarray(target_slots, dtype=np.float64)
+    return slots[assign_slot_indices(current_positions, slots)].copy()
 
 
 def create_world_slots(local_offsets: np.ndarray, centroid: np.ndarray) -> np.ndarray:

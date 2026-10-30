@@ -98,3 +98,34 @@ def test_decentralized_repulsion_is_not_diluted_by_distant_neighbors():
     crowded = ctrl.compute_drone_control(drone, [close] + far, desired_offsets=None, apply_guard=False)
     # repulsion (pushing toward -x) must not be diluted by the 8 extra neighbors
     np.testing.assert_allclose(crowded, alone, atol=1e-9)
+
+
+# ---------------------------------------------------------------- assignment latching
+def test_assignment_is_latched_against_near_ties_but_changes_for_real_improvements():
+    from swarm_core.formations import assign_slot_indices
+    slots = np.array([[0.0, 0.0], [3.0, 0.0]])
+    start = np.array([[0.0, 0.1], [3.0, -0.1]])
+    first = assign_slot_indices(start, slots)
+    assert first.tolist() == [0, 1]
+    # nearly tied positions: swapping would barely change the cost -> keep previous
+    tied = np.array([[1.5, 0.1], [1.5, -0.1]])
+    kept = assign_slot_indices(tied, slots, previous_indices=first, hysteresis=0.15)
+    assert kept.tolist() == [0, 1]
+    # a real improvement (drones have swapped sides) -> switch
+    swapped = np.array([[3.0, 0.0], [0.0, 0.0]])
+    assert assign_slot_indices(swapped, slots, previous_indices=first, hysteresis=0.15).tolist() == [1, 0]
+    # an invalid previous assignment is ignored
+    assert assign_slot_indices(swapped, slots, previous_indices=np.array([0, 0])).tolist() == [1, 0]
+
+
+def test_centralized_controller_keeps_its_assignment_between_steps():
+    ctrl = CentralizedController()
+    drones = [Drone(i, np.array([3.0 * i, 0.1 * (-1) ** i])) for i in range(4)]
+    ctrl.compute_control_inputs(drones, FormationType.LINE, np.array([0.0, 0.0]))
+    first = ctrl._assignment.copy()
+    for d in drones:                       # nudge positions slightly; assignment must not change
+        d.position = d.position + np.array([0.01, 0.01])
+    ctrl.compute_control_inputs(drones, FormationType.LINE, np.array([0.0, 0.0]))
+    assert ctrl._assignment.tolist() == first.tolist()
+    ctrl.compute_control_inputs(drones, FormationType.GRID, np.array([0.0, 0.0]))  # new formation re-solves
+    assert ctrl._assignment_key[0] == FormationType.GRID

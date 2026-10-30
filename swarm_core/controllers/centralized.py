@@ -6,7 +6,7 @@ A global mission planner assigns optimal formation slots and commands trajectori
 from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
-from swarm_core.formations import FormationGenerator, FormationType, assign_optimal_slots
+from swarm_core.formations import FormationGenerator, FormationType, assign_slot_indices
 from swarm_core.safety import prioritised_separation_acceleration
 
 
@@ -19,11 +19,15 @@ class CentralizedController:
         kd: float = 2.2,
         k_repulse: float = 4.0,
         collision_dist: float = 1.0,
+        assignment_hysteresis: float = 0.15,
     ):
         self.kp = float(kp)
         self.kd = float(kd)
         self.k_repulse = float(k_repulse)
         self.collision_dist = float(collision_dist)
+        self.assignment_hysteresis = float(assignment_hysteresis)
+        self._assignment: Optional[np.ndarray] = None
+        self._assignment_key = None
 
     def compute_control_inputs(
         self,
@@ -65,7 +69,14 @@ class CentralizedController:
         world_slots = local_offsets + centroid_target
 
         # 2. Optimal slot assignment (minimizes path crossings)
-        assigned_targets = assign_optimal_slots(current_pos, world_slots)
+        # Latched: the assignment only changes when the new optimum is better by more than the
+        # hysteresis fraction, or when the formation type or swarm size changes.
+        key = (formation_type, num_drones)
+        previous = self._assignment if self._assignment_key == key else None
+        self._assignment = assign_slot_indices(
+            current_pos, world_slots, previous, self.assignment_hysteresis)
+        self._assignment_key = key
+        assigned_targets = world_slots[self._assignment]
 
         # 3. Compute PD tracking forces
         pos_error = assigned_targets - current_pos
