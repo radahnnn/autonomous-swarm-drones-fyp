@@ -266,3 +266,12 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Not yet done from the roadmap: mission continuation after coordinator loss, coordinator election, control-barrier safety filter, wind/GPS-noise stress tests; 6-drone Gazebo run still waiting on the user's choice.
 - Recommended Codex review: `sitl/run_metrics.py` (violation accounting), `sitl/replay.py` metric rebuild, the `_send_position_target` choke point (clamp + layer + ceiling), console `_movement_blocked`.
 - Next step: mission continuation (feature 2), then coordinator election.
+
+### 2026-10-31 — Claude — roadmap feature 2 (mission continuation) and a live-found flaw
+
+- Commits: `e473ce4` (`sitl/route.py`, intent fields, agent goal override, `patrol`/`route` commands, map drawing), `ad79cd5` (route speed cap 0.4 m/s).
+- Live evidence (SITL, 10 drones): `docs/reports/ROUTE_CONTINUATION_LIVE_SITL_2026-10-31.md`. Controlled A/B: 0.6 m/s FAIL (min gap 1.7 m, tracking error 3.07 m) vs 0.3 m/s PASS (min gap 3.80 m, 0.73 m). Decentralized/hybrid kept patrolling with the stream off for 30 s; centralized held.
+- Root cause of run A: route speed above the 0.45 m/s setpoint slew makes the setpoint lag grow without bound; the new run metrics report and the setpoint-vs-position tracking error made it diagnosable.
+- Limits: coordinator loss simulated by pausing its stream; centralized 20 s landing not exercised; one run per configuration.
+- Recommended Codex review: the interaction between `LocalDroneAgent.POSITION_TARGET_SPEED_M_S` (0.45) and any future faster motion (transitions use the same slew path with `track_formation`); whether the route cap should be derived from that constant instead of duplicated in `sitl/route.py`.
+- Next step: coordinator election, then the control-barrier filter and wind/GPS stress tests; 6-drone Gazebo run still waiting on the user's choice; 17 commits are local only.

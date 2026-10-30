@@ -1,0 +1,49 @@
+{
+  "result": "PASS",
+  "gate_m": 2.5,
+  "gate_metric": "horizontal",
+  "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
+  "duration_s": 234.9,
+  "drones": 10,
+  "airborne_pair_samples": 431,
+  "min_gap_m": 3.798,
+  "min_gap_at_s": 135.4,
+  "min_gap_3d_m": 3.798,
+  "p05_gap_m": 4.022,
+  "violation_episodes": 0,
+  "violation_time_s": 0.0,
+  "warning_episodes": 0,
+  "warn_margin_m": 0.25,
+  "mean_tracking_error_m": 0.284,
+  "p95_tracking_error_m": 0.548,
+  "max_status_age_s": 2.95,
+  "counters": {
+    "route_start": 1,
+    "mode_switch_complete": 2,
+    "route_stop": 1
+  },
+  "events": [
+    {
+      "t": 37.01,
+      "kind": "route_start",
+      "side_m": 12.0,
+      "speed_m_s": 0.3
+    },
+    {
+      "t": 118.29,
+      "kind": "mode_switch_complete",
+      "switch_id": 1,
+      "mode": "decentralized"
+    },
+    {
+      "t": 175.1,
+      "kind": "mode_switch_complete",
+      "switch_id": 2,
+      "mode": "centralized"
+    },
+    {
+      "t": 208.52,
+      "kind": "route_stop"
+    }
+  ]
+}
