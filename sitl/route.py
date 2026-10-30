@@ -20,7 +20,10 @@ import numpy as np
 
 MAX_WAYPOINTS = 16
 MIN_SPEED_M_S = 0.1
-MAX_SPEED_M_S = 1.5
+# The agents slew their position setpoint at LocalDroneAgent.POSITION_TARGET_SPEED_M_S (0.45 m/s). A route
+# faster than that leaves the setpoint behind the goal by (route speed - 0.45) m for every second flown, without
+# bound (a live 10-drone run at 0.6 m/s showed 2-3 m tracking errors and separation violations at the corners).
+MAX_SPEED_M_S = 0.4
 
 
 @dataclass(frozen=True)

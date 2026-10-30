@@ -1569,7 +1569,7 @@ class IndependentSwarmConsole:
             return result(False, "Finish or abort the formation transition first.", code="transition_active")
         try:
             side = float(args[1])
-            speed = float(args[2]) if len(args) > 2 else 0.5
+            speed = float(args[2]) if len(args) > 2 else 0.3
             route = square_patrol(self.goal_ne, side, time.time() + 2.0, speed)
         except ValueError as exc:
             return result(False, str(exc))

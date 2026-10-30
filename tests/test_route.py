@@ -14,37 +14,37 @@ from sitl.route import Route, square_patrol
 
 # ------------------------------------------------------------------ geometry
 def test_route_follows_the_legs_at_constant_speed_and_holds_at_the_ends():
-    route = Route(((0.0, 0.0), (10.0, 0.0), (10.0, 10.0)), start_at=100.0, speed_m_s=1.0)
+    route = Route(((0.0, 0.0), (10.0, 0.0), (10.0, 10.0)), start_at=100.0, speed_m_s=0.4)
     np.testing.assert_allclose(route.position(50.0), (0, 0))               # before the start: first waypoint
     np.testing.assert_allclose(route.position(100.0), (0, 0))
-    np.testing.assert_allclose(route.position(105.0), (5, 0))
-    np.testing.assert_allclose(route.position(115.0), (10, 5))
+    np.testing.assert_allclose(route.position(112.5), (5, 0))
+    np.testing.assert_allclose(route.position(137.5), (10, 5))
     np.testing.assert_allclose(route.position(999.0), (10, 10))            # after the end: last waypoint
-    assert route.length_m == 20.0 and route.duration_s == 20.0
-    assert not route.finished(110.0) and route.finished(120.0)
+    assert route.length_m == 20.0 and route.duration_s == pytest.approx(50.0)
+    assert not route.finished(140.0) and route.finished(150.0)
 
 
 def test_goal_is_continuous_in_time_so_no_drone_is_ever_asked_to_jump():
-    route = square_patrol((3.0, -2.0), 10.0, start_at=10.0, speed_m_s=0.5)
+    route = square_patrol((3.0, -2.0), 10.0, start_at=10.0, speed_m_s=0.4)
     previous = route.position(0.0)
     for t in np.arange(0.0, 200.0, 0.05):
         current = route.position(float(t))
-        assert np.linalg.norm(current - previous) <= 0.5 * 0.05 + 1e-9    # never faster than the speed
+        assert np.linalg.norm(current - previous) <= 0.4 * 0.05 + 1e-9    # never faster than the speed
         previous = current
 
 
 def test_square_patrol_approaches_from_the_centre_then_loops_forever():
-    route = square_patrol((0.0, 0.0), 10.0, start_at=0.0, speed_m_s=1.0)
+    route = square_patrol((0.0, 0.0), 10.0, start_at=0.0, speed_m_s=0.4)
     np.testing.assert_allclose(route.position(0.0), (0, 0))                # starts exactly at the current goal
     corner = np.array([5.0, 5.0])
-    np.testing.assert_allclose(route.position(np.linalg.norm(corner)), corner)
-    lap = 40.0
-    t0 = np.linalg.norm(corner)                                            # first time at the first corner
+    t0 = np.linalg.norm(corner) / 0.4                                      # first time at the first corner
+    np.testing.assert_allclose(route.position(t0), corner)
+    lap = 40.0 / 0.4
     for offset in (0.0, 7.5, 21.0, 33.0):
         np.testing.assert_allclose(route.position(t0 + offset), route.position(t0 + offset + lap), atol=1e-9)
         np.testing.assert_allclose(route.position(t0 + offset), route.position(t0 + offset + 5 * lap), atol=1e-6)
     assert not route.finished(1e6)
-    assert max(np.linalg.norm(route.position(t)) for t in np.arange(0, 400, 0.5)) <= np.hypot(5, 5) + 1e-9
+    assert max(np.linalg.norm(route.position(t)) for t in np.arange(0, 800, 0.5)) <= np.hypot(5, 5) + 1e-9
 
 
 @pytest.mark.parametrize("kwargs", [
@@ -53,6 +53,7 @@ def test_square_patrol_approaches_from_the_centre_then_loops_forever():
     dict(waypoints=((0.0, 0.0), (1.0, float("nan"))), start_at=0.0, speed_m_s=0.5),
     dict(waypoints=((0.0, 0.0), (5.0, 0.0)), start_at=0.0, speed_m_s=0.0),
     dict(waypoints=((0.0, 0.0), (5.0, 0.0)), start_at=0.0, speed_m_s=9.0),
+    dict(waypoints=((0.0, 0.0), (5.0, 0.0)), start_at=0.0, speed_m_s=0.5),   # above the agents' 0.45 m/s setpoint slew
     dict(waypoints=((0.0, 0.0), (5.0, 0.0)), start_at=float("inf"), speed_m_s=0.5),
     dict(waypoints=((0.0, 0.0), (5.0, 0.0)), start_at=0.0, speed_m_s=0.5, loop_start=1),
     dict(waypoints=tuple((float(i), 0.0) for i in range(40)), start_at=0.0, speed_m_s=0.5),
@@ -69,7 +70,7 @@ def test_square_patrol_rejects_a_tiny_square():
 
 # ------------------------------------------------------------------ transport
 def test_route_travels_inside_the_mission_intent_and_old_intents_still_parse():
-    route = square_patrol((0.0, 0.0), 10.0, start_at=105.0, speed_m_s=0.5)
+    route = square_patrol((0.0, 0.0), 10.0, start_at=105.0, speed_m_s=0.4)
     intent = MissionIntent(1, 100.0, 130.0, (0.0, 0.0), **{
         "route_waypoints": route.waypoints, "route_start_at": route.start_at,
         "route_speed_m_s": route.speed_m_s, "route_loop_start": route.loop_start})
@@ -81,9 +82,9 @@ def test_route_travels_inside_the_mission_intent_and_old_intents_still_parse():
 
 def test_a_malformed_route_invalidates_the_whole_intent():
     good = MissionIntent(1, 100.0, 130.0, (0.0, 0.0)).to_dict()
-    for bad in ({"route_waypoints": [[0, 0]], "route_speed_m_s": 0.5},
+    for bad in ({"route_waypoints": [[0, 0]], "route_speed_m_s": 0.3},
                 {"route_waypoints": [[0, 0], [5, 0]], "route_speed_m_s": 99.0},
-                {"route_waypoints": [[0, "x"], [5, 0]], "route_speed_m_s": 0.5},
+                {"route_waypoints": [[0, "x"], [5, 0]], "route_speed_m_s": 0.3},
                 {"route_waypoints": [[0, 0], [5, 0]], "route_speed_m_s": 0.5, "route_loop_start": True}):
         with pytest.raises(ValueError):
             MissionIntent.from_dict({**good, **bad}, 100.0)
@@ -101,7 +102,7 @@ def node_for(drone_id, route, transition_goal=None, now=100.0):
 
 
 def test_every_drone_computes_the_same_goal_from_the_shared_clock():
-    route = square_patrol((0.0, 0.0), 12.0, start_at=100.0, speed_m_s=0.6)
+    route = square_patrol((0.0, 0.0), 12.0, start_at=100.0, speed_m_s=0.4)
     goals = []
     for drone in range(10):
         node, intent = node_for(drone, route)
@@ -110,7 +111,7 @@ def test_every_drone_computes_the_same_goal_from_the_shared_clock():
 
 
 def test_a_formation_transition_has_priority_over_the_route_and_no_route_means_no_override():
-    route = square_patrol((0.0, 0.0), 12.0, start_at=100.0, speed_m_s=0.6)
+    route = square_patrol((0.0, 0.0), 12.0, start_at=100.0, speed_m_s=0.4)
     node, intent = node_for(0, route, transition_goal=np.array([7.0, 7.0]))
     np.testing.assert_allclose(node._goal_override(intent, 130.0), (7.0, 7.0))
     plain = MissionIntent(2, 100.0, 130.0, (1.0, 2.0))
@@ -122,7 +123,7 @@ def test_decentralized_and_hybrid_keep_following_the_route_after_the_coordinator
     clock = {"t": 1000.0}
     monkeypatch.setattr(time, "time", lambda: clock["t"])
     monkeypatch.setattr(time, "monotonic", lambda: clock["t"])
-    route = square_patrol((0.0, 0.0), 12.0, start_at=1000.0, speed_m_s=0.6)
+    route = square_patrol((0.0, 0.0), 12.0, start_at=1000.0, speed_m_s=0.4)
     for mode, should_continue in (("decentralized", True), ("hybrid", True), ("centralized", False)):
         node, intent = node_for(0, route, now=clock["t"])
         node.control_mode, node.coordinator_connected = mode, False
@@ -161,7 +162,7 @@ def make_console(fence=None):
 
 def test_patrol_starts_a_route_and_blocks_conflicting_commands(capsys):
     console = make_console()
-    result = console.start_patrol(["square", "10", "0.5"])
+    result = console.start_patrol(["square", "10", "0.4"])
     assert result["accepted"] and console.route is not None and console.published == 1
     assert console.route.start_at > time.time() and "route_start" in console.events
     assert console.start_patrol(["square", "10"])["accepted"] is False        # already active
@@ -176,13 +177,13 @@ def test_patrol_is_refused_when_it_does_not_fit_the_geofence_or_is_malformed():
     assert refused["accepted"] is False and refused["code"] == "geofence" and tight.route is None
     assert make_console().start_patrol(["circle", "10"])["accepted"] is False
     assert make_console().start_patrol(["square", "0.5"])["accepted"] is False
-    assert make_console().start_patrol(["square", "10", "9"])["accepted"] is False
+    assert make_console().start_patrol(["square", "10", "0.6"])["accepted"] is False     # faster than the setpoint slew
 
 
 def test_route_stop_holds_exactly_where_the_route_is_with_no_jump():
     console = make_console()
-    console.start_patrol(["square", "10", "1.0"])
-    console.route = Route(console.route.waypoints, time.time() - 6.0, 1.0, console.route.loop_start)   # 6 s in
+    console.start_patrol(["square", "10", "0.4"])
+    console.route = Route(console.route.waypoints, time.time() - 6.0, 0.4, console.route.loop_start)   # 6 s in
     expected = console.route.position(time.time())
     console.route_command(["stop"])
     assert console.route is None and console.published == 2
@@ -195,7 +196,7 @@ def test_dashboard_exposes_the_route_for_the_map():
     from tests.test_operator_dashboard import make_session
     session = make_session(airborne=True)
     assert dashboard_state(session)["route"] is None
-    session.route = square_patrol((0, 0), 10, 0.0, 0.5)
+    session.route = square_patrol((0, 0), 10, 0.0, 0.4)
     state = dashboard_state(session)
     assert len(state["route"]["waypoints"]) == 6 and state["route"]["loop_start"] == 1
     assert "state.route" in PAGE
