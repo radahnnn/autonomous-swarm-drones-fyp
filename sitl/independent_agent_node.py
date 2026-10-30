@@ -76,6 +76,7 @@ class IndependentAgentNode:
         # coordinator runs with --transition-protocol.
         self.transition = AgentTransition(drone_id, count)
         self._discovered = []
+        self._peer_memory = {}   # peer id -> (position, velocity, age at receipt, receipt wall time)
         if control_mode not in ("decentralized", "hybrid"):
             raise ValueError("independent agent control mode must be decentralized or hybrid")
         self.control_mode = control_mode
@@ -532,17 +533,27 @@ class IndependentAgentNode:
         self.status_socket.sendto(encode_message(message, self.operator_auth_key),
                                   self.status_endpoint)
 
+    def _remember_peers(self, discovered, wall_now: float) -> None:
+        """Keep each peer's latest state; ``discovered`` only holds packets received this tick."""
+        for peer in discovered:
+            try:
+                position = np.asarray(peer["position"], dtype=float)[:2]
+                velocity = np.asarray(peer.get("velocity", (0.0, 0.0)), dtype=float)[:2]
+                if position.shape != (2,) or velocity.shape != (2,):
+                    continue
+                self._peer_memory[int(peer["id"])] = (
+                    position, velocity, float(peer.get("age", 0.0)), float(wall_now))
+            except (KeyError, TypeError, ValueError, IndexError):
+                continue
+
     def _transition_context(self, wall_now: float) -> AgentContext:
         """Snapshot of what this agent knows, for the transition state machine."""
         fresh = set(self.peers.fresh_link_ids(wall_now))
         peers = {}
-        for peer in self._discovered:
-            try:
-                peers[int(peer["id"])] = PeerObservation(
-                    (float(peer["position"][0]), float(peer["position"][1])),
-                    float(peer.get("age", 0.0)))
-            except (KeyError, TypeError, ValueError, IndexError):
-                continue
+        for peer_id, (position, velocity, age_at_receipt, received_wall) in self._peer_memory.items():
+            age = age_at_receipt + max(0.0, wall_now - received_wall)
+            extrapolated = position + velocity * age
+            peers[peer_id] = PeerObservation((float(extrapolated[0]), float(extrapolated[1])), age)
         own_fresh = (self.position is not None and bool(self.position_at) and
                      0.0 <= wall_now - self.position_at <= 1.0)
         coordinator_age = (time.monotonic() - self.last_coordinator_message_monotonic
@@ -605,7 +616,9 @@ class IndependentAgentNode:
             elif action[1] == "arrived_timeout_close" and plan is not None:
                 self._finish_transition(plan)
         if self.transition.state in (AgentTransition.RUNNING, AgentTransition.ARRIVED,
-                                     AgentTransition.HOLD):
+                                     AgentTransition.HOLD) and (
+                self.transition.state == AgentTransition.HOLD or
+                operator_now >= self.transition.plan.start_at):
             slots = self.transition.current_slots(operator_now)
             self.all_slots = slots.copy()
             self.slot = self.all_slots[self.drone_id].copy()
@@ -932,7 +945,7 @@ class IndependentAgentNode:
                         self.formation_transition_started_at = None
                         self.formation_transition_duration_s = 0.0
                         self.formation_transition_progress = 1.0
-                self._discovered = discovered
+                self._remember_peers(discovered, now)
                 self._tick_transition(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:

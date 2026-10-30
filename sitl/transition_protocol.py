@@ -263,7 +263,10 @@ class AgentTransition:
             freeze_at = message.get("freeze_at")
             freeze_at = float(freeze_at) if isinstance(freeze_at, (int, float)) and \
                 not isinstance(freeze_at, bool) and math.isfinite(freeze_at) else now
-            self._hold(f"abort:{reason}", self.plan.alpha(min(freeze_at, now)))
+            if min(freeze_at, now) <= self.plan.start_at:
+                self._close()  # aborted before the common start: nothing has moved, discard the plan
+            else:
+                self._hold(f"abort:{reason}", self.plan.alpha(min(freeze_at, now)))
 
     def on_done(self, message: Dict[str, Any]) -> None:
         if isinstance(message, dict) and self.state == self.ARRIVED and self._matches(message):
@@ -292,7 +295,10 @@ class AgentTransition:
             return actions
         reason = self._local_violation(now, ctx, alpha)
         if reason is not None:
-            self._hold(reason, alpha)
+            if now < plan.start_at:
+                self._close()   # before the common start nothing has moved: discard, do not freeze
+            else:
+                self._hold(reason, alpha)
             actions.append(("send", {"version": VERSION, "type": "transition_abort",
                                      "transition_id": plan.transition_id, "reason": reason,
                                      "freeze_at": now, "from": self.drone_id}))

@@ -65,6 +65,10 @@ class Swarm:
         self.agents = [self._agent(i) for i in range(N)]
         self.console = self._console()
         self.publish_status(self.clock.t)
+        for agent in self.agents:                    # first contact: every peer heard once
+            agent._remember_peers([{"id": k, "position": np.array(self.positions[k]),
+                                    "velocity": np.zeros(2), "age": 0.1}
+                                   for k in range(N) if k != agent.drone_id], self.clock.t)
 
     def _agent(self, i):
         node = object.__new__(IndependentAgentNode)
@@ -74,6 +78,7 @@ class Swarm:
         node.operator_clock_offset_s, node.clock_sync_epoch = 0.0, EPOCH
         node.transition = AgentTransition(i, N)
         node.peers, node.peer_ids, node._discovered = FakePeers(), [j for j in range(N) if j != i], []
+        node._peer_memory = {}
         node.armed = node.airborne = True
         node.landing = False
         node.membership, node.membership_revision = None, 0
@@ -153,8 +158,12 @@ class Swarm:
             agent.position = np.array([*self.positions[i], -5.0])
             agent.position_at = now
             agent.last_coordinator_message_monotonic = now
-            agent._discovered = [{"id": j, "position": np.array(self.positions[j]), "age": 0.1}
-                                 for j in range(N) if j != i]
+            # Production semantics: each tick only the packets that arrived THIS tick are reported
+            # (here a rotating subset of one peer), so the agent must remember the others.
+            others = [j for j in range(N) if j != i]
+            j = others[int(round(now * 10)) % len(others)]
+            agent._remember_peers([{"id": j, "position": np.array(self.positions[j]),
+                                    "velocity": np.zeros(2), "age": 0.1}], now)
         for agent in self.agents:
             agent._receive_operator_messages_transition_only()
         for agent in self.agents:
@@ -260,3 +269,32 @@ def test_land_during_a_running_transition_aborts_it(monkeypatch):
     swarm.console._dispatch_transition(actions)
     swarm.run(1.0)
     assert [a.transition.state for a in swarm.agents] == [AgentTransition.HOLD] * N
+
+
+def test_peer_memory_keeps_supervision_alive_when_only_one_peer_packet_arrives_per_tick(monkeypatch):
+    # Regression for the live-SITL finding: supervision used to see only this tick's packets and
+    # aborted with peer_stale:<id> 0.2 s after the commit.
+    swarm = Swarm(monkeypatch)
+    assert request(swarm)["accepted"]
+    swarm.run(26.0)
+    assert not [e for e in swarm.events if e[0] == "transition_aborted"]
+    assert "transition_complete" in [e[0] for e in swarm.events]
+
+
+def test_abort_before_the_start_time_returns_everyone_to_idle_with_slots_untouched(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    before = [a.all_slots.copy() for a in swarm.agents]
+    start = swarm.positions.copy()
+    assert request(swarm)["accepted"]
+    while swarm.console.transition.state != CoordinatorTransition.COMMITTED:
+        swarm.step()
+    with swarm.console.transition_lock:
+        actions = swarm.console.transition.abort("operator", time.time())
+    swarm.console._dispatch_transition(actions)
+    swarm.run(2.0)
+    assert [a.transition.state for a in swarm.agents] == [AgentTransition.IDLE] * N
+    for agent, slots in zip(swarm.agents, before):
+        np.testing.assert_allclose(agent.all_slots, slots)
+    np.testing.assert_allclose(swarm.positions, start)
+    aborted = [e for e in swarm.events if e[0] == "transition_aborted"]
+    assert aborted and aborted[0][1]["moved"] is False

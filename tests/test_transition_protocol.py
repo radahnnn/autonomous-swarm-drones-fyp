@@ -446,3 +446,18 @@ def test_lost_go_to_one_agent_aborts_everyone_into_hold_not_land():
     assert agents[2].state == AgentTransition.IDLE  # never started
     assert [a.state for i, a in enumerate(agents) if i != 2] == [AgentTransition.HOLD] * 3
     assert coord.state == coord.HOLDING
+
+
+# ------------------------------------------------------------------ pre-start aborts discard, never freeze
+def test_abort_before_the_common_start_discards_the_plan_instead_of_holding():
+    agent, plan = running_agent()          # RUNNING after go, but start_at is still in the future
+    agent.on_abort({"transition_id": 1, "reason": "peer", "freeze_at": 9.7}, 9.8)
+    assert agent.state == AgentTransition.IDLE and agent.plan is None and agent.last_closed_id == 1
+
+
+def test_local_violation_before_the_common_start_discards_and_still_reports():
+    agent, plan = running_agent()
+    actions = agent.tick(9.8, ctx_for(plan, 1, airborne_armed=False))
+    assert agent.state == AgentTransition.IDLE
+    sends = [a[1] for a in actions if a[0] == "send"]
+    assert sends and sends[0]["type"] == "transition_abort" and sends[0]["reason"] == "own_fault"
