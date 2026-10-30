@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 417 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 543 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -51,9 +51,9 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 
 - `swarm_core/` — numerical foundation: config profiles, drone model, graph/Laplacian, network emulator, formations + Hungarian assignment, centralized/decentralized/hybrid controllers, safety.
 - `simulator/` — fast numerical engine and plots.
-- `sitl/` — ArduPilot integration. Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
+- `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 417 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 543 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -68,7 +68,7 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 | Mathematical model / simulator | Done | UNIT/INTEGRATION | Fitted SITL parameters are preliminary; old τ=0.992 s fit was a timestamp artifact; S4 cascade model not integrated into Phase 2. |
 | Centralized control | Working | SITL, GAZEBO (5 drones, 20 Oct), QGC (15 Oct) | Repeated matched live runs. |
 | Decentralized control | Working in SITL | SITL (same host), VM-NETWORK (5 and 10 agents, one clean mission each) | Repeated split-host fault runs; radio. |
-| Hybrid switching | Working in SITL | SITL (same host) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
+| Hybrid switching + in-flight mode switching | Working in SITL | SITL (same host; 10 drones, 5 live switches, 2026-10-30) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
 | Formations + reconfiguration | Partial | UNIT; SITL (earlier formations; one synchronized-transition run, 2026-10-30) | V→line morph fails the 2.5 m gate (Phase 2). Transition protocol not built. |
 | Scaling 5→10 | Partial | 30-seed point-mass pass (2 mm worst margin); one 10-agent VM mission | Thin margin; repeated live/fault runs. |
 | Physical prototype | Bench-checked only | PHYSICAL (USB bench: FC, sensors, GPS fix; props off) | Never flown. ESP32/CAN link is a proposal; CAN enabled in params but no command path confirmed. |
@@ -124,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-30 — Claude — In-flight synchronized control-mode switching (`sitl/mode_switch.py`, console `mode <name>`, dashboard buttons) validated live with 10 drones; per-mode coordinator-loss policy; 10-drone ring/CI/link-loss hardening; research report added; test count 543.
 - 2026-10-30 — Claude — First live SITL run of the transition protocol; two fixes (peer memory, goal drift/pre-start abort); report + compact evidence added.
 - 2026-10-30 — Claude — Wired the transition protocol into agent and console (opt-in flag) with INTEGRATION tests; defect 3 updated; test count 417.
 - 2026-10-30 — Claude — Hybrid defaults changed (timeout 1.2 s, fallback dead_reckon) on sweep evidence; defect 8 updated; test count 412.

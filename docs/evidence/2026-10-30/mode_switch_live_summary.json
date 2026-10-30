@@ -1,0 +1,56 @@
+{
+  "evidence_level": "SITL (10 ArduPilot SITL instances, standalone 2D, same host, loopback UDP)",
+  "commit_under_test": "eb38cf0",
+  "command": "python3 -m sitl.swarm_console --drones 10 --standalone --control-mode hybrid --agent-runtime independent --adaptive-swarm --transition-protocol --dashboard-port 8765",
+  "raw_logs": "runs/independent/mode-switch-live-20261030/ (not in Git; SHA256SUMS.txt alongside)",
+  "switches": [
+    {
+      "from": "hybrid",
+      "to": "decentralized",
+      "mode_committed": 0.15,
+      "mode_switch_started": 3.06,
+      "mode_switch_complete": 8.18
+    },
+    {
+      "from": "decentralized",
+      "to": "centralized",
+      "mode_committed": 0.1,
+      "mode_switch_started": 3.01,
+      "mode_switch_complete": 7.83
+    },
+    {
+      "from": "centralized",
+      "to": "hybrid",
+      "mode_committed": 0.16,
+      "mode_switch_started": 3.07,
+      "mode_switch_complete": 7.29
+    },
+    {
+      "from": "hybrid",
+      "to": "decentralized",
+      "mode_committed": 0.17,
+      "mode_switch_started": 3.07,
+      "mode_switch_complete": 7.49
+    },
+    {
+      "from": "decentralized",
+      "to": "hybrid",
+      "mode_committed": 0.1,
+      "mode_switch_started": 3.01,
+      "mode_switch_complete": 7.73
+    }
+  ],
+  "formation": {
+    "to": "ring",
+    "prepare_to_complete_s": 34.2,
+    "min_pair_separation_m_during_1hz": 2.65
+  },
+  "min_pair_separation_m_whole_flight_1hz": 2.65,
+  "resources": {
+    "samples": 61,
+    "mean_cpu_percent_of_one_core": 94,
+    "peak_cpu_percent": 591,
+    "cores": 6,
+    "peak_rss_mb": 1031
+  }
+}
