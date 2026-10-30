@@ -448,3 +448,30 @@ if __name__ == "__main__":
     test_coordinator_heartbeat_payload_and_freezing()
     test_double_apf_elimination_in_fallback()
     print("All hybrid feature tests passed successfully!")
+
+
+def test_recovery_rule_is_consecutive_heartbeats_or_delivery_ratio_after_dwell():
+    """Pins the intended rule: recover when (5 consecutive good OR window ratio >= 0.7) AND dwell
+    elapsed AND a recent valid heartbeat. (Older docs described a ratio requirement only.)"""
+    def fallback_ctrl(consecutive, window):
+        ctrl = HybridController(degrade_timeout=0.5, recovery_consecutive_hb=5, min_dwell_time=2.0)
+        ctrl._init_drone_if_needed(0, 0.0)
+        ctrl.modes[0] = HybridMode.DECENTRALIZED_FALLBACK
+        ctrl.fallback_entry_time[0] = 0.0
+        ctrl.last_valid_timestamp[0] = 3.0       # recent valid heartbeat
+        ctrl.consecutive_good_hb[0] = consecutive
+        ctrl.reception_window[0] = list(window)
+        return ctrl
+
+    # consecutive streak alone (low ratio) recovers
+    mode, _ = fallback_ctrl(5, [0] * 15 + [1] * 5).update_state_machine(0, 3.0, 0.05)
+    assert mode == HybridMode.CENTRALIZED
+    # high delivery ratio alone (short streak) recovers
+    mode, _ = fallback_ctrl(1, [1] * 16 + [0] * 4).update_state_machine(0, 3.0, 0.05)
+    assert mode == HybridMode.CENTRALIZED
+    # neither -> stays in fallback
+    mode, _ = fallback_ctrl(2, [0] * 12 + [1] * 8).update_state_machine(0, 3.0, 0.05)
+    assert mode == HybridMode.DECENTRALIZED_FALLBACK
+    # dwell not yet elapsed -> stays even when healthy
+    mode, _ = fallback_ctrl(9, [1] * 20).update_state_machine(0, 1.0, 0.05)
+    assert mode == HybridMode.DECENTRALIZED_FALLBACK

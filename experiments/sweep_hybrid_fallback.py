@@ -72,6 +72,8 @@ def main():
     parser.add_argument("--drones", type=int, default=10)
     parser.add_argument("--seeds", type=int, default=30)
     parser.add_argument("--first-seed", type=int, default=20261020)
+    parser.add_argument("--strategies", default=",".join(STRATEGIES))
+    parser.add_argument("--timeouts", default=",".join(str(t) for t in TIMEOUTS_S))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     seeds = range(args.first_seed, args.first_seed + args.seeds)
@@ -80,8 +82,8 @@ def main():
     for scenario in ("burst_outage", "permanent_loss"):
         base = [run("centralized", s, "consensus", None, scenario, args.drones) for s in seeds]
         report["cells"][f"{scenario}|centralized"] = summarise(base)
-        for strategy in STRATEGIES:
-            for timeout in TIMEOUTS_S:
+        for strategy in args.strategies.split(","):
+            for timeout in (float(t) for t in args.timeouts.split(",")):
                 rows = [run("hybrid", s, strategy, timeout, scenario, args.drones) for s in seeds]
                 report["cells"][f"{scenario}|hybrid|{strategy}|{timeout}"] = summarise(rows)
         print(scenario, "done", flush=True)
