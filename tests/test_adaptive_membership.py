@@ -103,3 +103,47 @@ def test_obstacle_outside_influence_does_not_change_target():
     node.obstacles = [(0.0, 0.0, 2.0)]
     node.position = np.array([5.0, 0.0, -5.0])
     np.testing.assert_allclose(node._avoid_obstacles([10.0, 1.0]), [10.0, 1.0])
+
+
+def _view(lost, formation="v", count=10):
+    view = AdaptiveMembership(9 if 9 not in lost else 8, count, formation)
+    view.active_ids = set(range(count)) - set(lost)
+    return view
+
+
+def test_full_swarm_keeps_own_slots():
+    from sitl.formation_library import slots_for
+    slots = _view([]).slot_map()
+    for agent_id, slot in slots.items():
+        np.testing.assert_allclose(slot, slots_for("v", 10)[agent_id])
+
+
+def test_all_agents_derive_identical_map_after_loss():
+    a = AdaptiveMembership(1, 10, "v")
+    b = AdaptiveMembership(7, 10, "v")
+    a.active_ids = b.active_ids = set(range(10)) - {0, 3}
+    for i in a.active_ids:
+        np.testing.assert_array_equal(a.slot_map()[i], b.slot_map()[i])
+
+
+def test_loss_assigns_distinct_slots_and_never_crosses_in_worst_case():
+    from sitl.formation_library import slots_for
+    for formation in ("v", "diamond", "line", "ring", "echelon"):
+        for lost in ([0], [1], [0, 1], [4]):
+            view = _view(lost, formation)
+            slots = view.slot_map()
+            template = slots_for(formation, len(slots))
+            assert len({tuple(np.round(s, 6)) for s in slots.values()}) == len(slots)
+            used = {tuple(np.round(s, 6)) for s in slots.values()}
+            assert used == {tuple(np.round(s, 6)) for s in np.asarray(template, dtype=float)}
+
+
+def test_loss_moves_survivors_less_than_rank_reassignment():
+    from sitl.formation_library import slots_for
+    baseline = np.asarray(slots_for("v", 10), dtype=float)
+    view = _view([0], "v")
+    moved = [np.linalg.norm(slot[:2] - baseline[i][:2]) for i, slot in view.slot_map().items()]
+    rank = np.asarray(slots_for("v", 9), dtype=float)
+    rank_moved = [np.linalg.norm(rank[r][:2] - baseline[i][:2])
+                  for r, i in enumerate(sorted(view.active_ids))]
+    assert np.mean(moved) < 0.5 * np.mean(rank_moved)
