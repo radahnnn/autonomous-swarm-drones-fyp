@@ -21,6 +21,7 @@ from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
+from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
 
 
@@ -32,12 +33,15 @@ _TYPE_MASK_POS_YAW = 0b0000101111111000
 
 
 _TRANSITION_KINDS = ("transition_prepare", "transition_go", "transition_abort", "transition_done")
+_MODE_KINDS = ("mode_prepare", "mode_go", "mode_abort", "mode_done")
 
 
 class IndependentAgentNode:
     """Owns one MAVLink connection, local guidance loop, and direct peer datagrams."""
 
     LINK_DEAD_EXIT_S = 30.0
+    CENTRAL_HOLD_LAND_S = 20.0    # centralized: hold this long without a coordinator, then land
+    AUTONOMY_MAX_S = 120.0        # decentralized/hybrid: keep flying the last mission this long without one
     COORDINATOR_TIMEOUT_S = 2.5
 
     def __init__(self, drone_id: int, count: int, endpoint: str, formation: str = "v",
@@ -78,9 +82,11 @@ class IndependentAgentNode:
         self.transition = AgentTransition(drone_id, count)
         self._discovered = []
         self._peer_memory = {}   # peer id -> (position, velocity, age at receipt, receipt wall time)
-        if control_mode not in ("decentralized", "hybrid"):
-            raise ValueError("independent agent control mode must be decentralized or hybrid")
+        if control_mode not in CONTROL_MODES:
+            raise ValueError("independent agent control mode must be centralized, decentralized or hybrid")
         self.control_mode = control_mode
+        self.mode_switch = AgentModeSwitch(drone_id, control_mode)
+        self.central_hold_since = None
         if not 0 <= self.drone_id < self.count:
             raise ValueError("agent ID must be within the configured swarm")
         self.all_slots = np.asarray(slots_for(formation, count), dtype=float)
@@ -121,8 +127,9 @@ class IndependentAgentNode:
         self.peer_latency_jitter_ms = float(peer_latency_jitter_ms)
         self.frame = CommonCoordinateFrame(DATUM_LAT, DATUM_LON, DATUM_ALT)
         self.agent = LocalDroneAgent(
-            self.drone_id, safe_radius=3.0, hybrid=control_mode == "hybrid",
+            self.drone_id, safe_radius=3.0, hybrid=control_mode == "hybrid", mode=control_mode,
         )
+        self.agent.ensure_mode_controllers()   # all three modes must be switchable in flight
         seed = None if peer_seed is None else int(peer_seed) + self.drone_id * 65537
         self.peers = UdpPeerStateTransport(
             self.drone_id, peer_port_base, count,
@@ -467,6 +474,8 @@ class IndependentAgentNode:
                     self.last_command = f"mission:{intent.sequence}"
             elif kind in _TRANSITION_KINDS:
                 self._handle_transition_message(kind, message)
+            elif kind in _MODE_KINDS:
+                self._handle_mode_message(kind, message)
             elif kind == "network_fault":
                 if (not isinstance(message.get("epoch"), str) or
                         message.get("epoch") != self.clock_sync_epoch):
@@ -578,7 +587,12 @@ class IndependentAgentNode:
             return
         wall = time.time()
         operator_now = wall - self.operator_clock_offset_s
-        if kind == "transition_prepare":
+        if kind == "transition_prepare" and self.mode_switch.state != AgentModeSwitch.IDLE:
+            reply = self.transition._ack(message.get("transition_id"), message.get("plan_hash"),
+                                         False, "mode_switch_active")
+            reply["epoch"] = epoch
+            self._send_to_operator(reply)
+        elif kind == "transition_prepare":
             reply = self.transition.on_prepare(message, operator_now,
                                                self._transition_context(wall))
             reply["epoch"] = epoch
@@ -595,6 +609,70 @@ class IndependentAgentNode:
             self.transition.on_done(message)
             if plan is not None and self.transition.state == AgentTransition.IDLE:
                 self._finish_transition(plan)
+
+    def _mode_context(self, wall_now: float) -> ModeContext:
+        fresh = (self.position is not None and bool(self.position_at) and
+                 0.0 <= wall_now - self.position_at <= 1.0)
+        return ModeContext(healthy=bool(fresh and not self.landing),
+                           formation_idle=self.transition.state == AgentTransition.IDLE)
+
+    def _handle_mode_message(self, kind: str, message: dict) -> None:
+        epoch = message.get("epoch")
+        if not isinstance(epoch, str) or epoch != self.clock_sync_epoch:
+            return
+        wall = time.time()
+        operator_now = wall - self.operator_clock_offset_s
+        if kind == "mode_prepare":
+            reply = self.mode_switch.on_prepare(message, operator_now, self._mode_context(wall))
+            reply["epoch"] = epoch
+            self._send_to_operator(reply)
+        elif kind == "mode_go":
+            reply = self.mode_switch.on_go(message, operator_now)
+            if reply is not None:
+                reply["epoch"] = epoch
+                self._send_to_operator(reply)
+        elif kind == "mode_abort":
+            self.mode_switch.on_abort(message, operator_now)
+        elif kind == "mode_done":
+            self.mode_switch.on_done(message)
+
+    def _tick_mode_switch(self, wall_now: float) -> None:
+        operator_now = wall_now - self.operator_clock_offset_s
+        for action in self.mode_switch.tick(operator_now, self._mode_context(wall_now)):
+            if action[0] == "send":
+                message = dict(action[1])
+                message["epoch"] = self.clock_sync_epoch
+                self._send_to_operator(message)
+        mode = self.mode_switch.dominant_mode(operator_now)
+        if mode != self.control_mode:
+            print(f"[NODE {self.drone_id + 1}] control mode {self.control_mode} -> {mode}", flush=True)
+            self.control_mode = mode
+            self.agent.mode = mode
+
+    def _renew_lease_if_autonomous(self) -> None:
+        """Decentralized/hybrid agents keep flying the last mission on peers when the coordinator is gone."""
+        if (self.control_mode not in ("decentralized", "hybrid") or self.current_mission is None or
+                self.coordinator_connected or not self.last_coordinator_message_monotonic):
+            return
+        if time.monotonic() - self.last_coordinator_message_monotonic > self.AUTONOMY_MAX_S:
+            return
+        if not (set(self.peer_ids) & set(self.peers.fresh_link_ids(time.time()))):
+            return          # alone: let the lease lapse and the existing failsafes act
+        self.mission_lease.renew(time.monotonic(), 5.0)
+
+    def _centralized_fail_stop(self, now: float) -> bool:
+        """Centralized mode depends on the coordinator: hold position, then land. True = handled."""
+        if self.control_mode != "centralized" or self.coordinator_connected:
+            self.central_hold_since = None
+            return False
+        if self.central_hold_since is None:
+            self.central_hold_since = now
+            print(f"[NODE {self.drone_id + 1}] centralized: coordinator lost; holding position", flush=True)
+        if self.position is not None:
+            self._send_position_target(np.array(self.position, dtype=float), -float(self.position[2]))
+        if now - self.central_hold_since > self.CENTRAL_HOLD_LAND_S:
+            self._command_land("coordinator_lost_centralized")
+        return True
 
     def _transition_goal(self, operator_now: float):
         """Swarm centre to hold while a transition owns the slots, else None (use the mission goal)."""
@@ -765,6 +843,8 @@ class IndependentAgentNode:
                                                            AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
                 goal_override=self._transition_goal(mission_now),
+                mode_weights=(self.mode_switch.weights(mission_now)
+                              if getattr(self, "mode_switch", None) is not None else None),
             )
         except (TypeError, ValueError) as exc:
             # An airborne agent must never exit merely because mission data became
@@ -860,15 +940,15 @@ class IndependentAgentNode:
             "mission_sequence": self.last_mission_sequence,
             "mission_active": self.mission_lease.active(time.monotonic()) is not None,
             "control_mode": self.control_mode,
-            "coordinator_connected": (self.coordinator_connected
-                                       if self.control_mode == "hybrid" else None),
+            "coordinator_connected": self.coordinator_connected,
+            "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
             "hybrid_mode": (
                 self.agent.hybrid_controller.get_drone_mode(self.drone_id).value
-                if self.agent.hybrid_controller is not None else None
+                if self.control_mode == "hybrid" and self.agent.hybrid_controller is not None else None
             ),
             "hybrid_alpha": (
                 self.agent.hybrid_controller.get_alpha(self.drone_id)
-                if self.agent.hybrid_controller is not None else None
+                if self.control_mode == "hybrid" and self.agent.hybrid_controller is not None else None
             ),
             # Expose the currently accepted shared intent so a replacement operator can
             # resume the same target instead of silently resetting the swarm to home.
@@ -904,12 +984,11 @@ class IndependentAgentNode:
                 # expiry, mission leases, telemetry age, or guidance dt.
                 now = time.time()
                 tick = time.monotonic()
-                if self.control_mode == "hybrid":
-                    self.coordinator_connected = (
-                        self.last_coordinator_message_monotonic > 0 and
-                        time.monotonic() - self.last_coordinator_message_monotonic
-                        <= self.COORDINATOR_TIMEOUT_S
-                    )
+                self.coordinator_connected = (
+                    self.last_coordinator_message_monotonic > 0 and
+                    time.monotonic() - self.last_coordinator_message_monotonic
+                    <= self.COORDINATOR_TIMEOUT_S
+                )
                 if self._link_dead(now):
                     # The flight controller link has been silent for a long time: nothing more
                     # can be commanded. Exit instead of spinning (pymavlink logs every retry).
@@ -923,6 +1002,7 @@ class IndependentAgentNode:
                     now - self.position_at > 1.0 or now - self.last_heartbeat_at > 3.5
                 ):
                     self._command_land("telemetry_timeout")
+                self._renew_lease_if_autonomous()
                 intent = self.mission_lease.active(time.monotonic())
                 if intent is None and self.current_mission is not None:
                     self.current_mission = None
@@ -970,15 +1050,16 @@ class IndependentAgentNode:
                         self.formation_transition_progress = 1.0
                 self._remember_peers(discovered, now)
                 self._tick_transition(now)
+                self._tick_mode_switch(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
                 if self.airborne and intent is not None and not self.landing:
-                    self._run_guidance(
-                        intent, now, tick, last_loop, neighbors,
-                        coordinator_connected=(self.control_mode != "hybrid" or
-                                              self.coordinator_connected),
-                    )
+                    if not self._centralized_fail_stop(now):
+                        self._run_guidance(
+                            intent, now, tick, last_loop, neighbors,
+                            coordinator_connected=self.coordinator_connected,
+                        )
                 self._send_status(now)
                 last_loop = tick
                 time.sleep(max(0.0, 0.1 - (time.monotonic() - tick)))
@@ -1011,7 +1092,7 @@ def main(argv=None):
     parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
                         help="circular local keep-out zone in shared north/east metres; repeatable")
     parser.add_argument("--formation", default="v")
-    parser.add_argument("--control-mode", choices=("decentralized", "hybrid"),
+    parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"),
                         default="decentralized")
     parser.add_argument("--peer-loss", type=float, default=0.0)
     parser.add_argument("--peer-latency-ms", type=float, default=0.0)

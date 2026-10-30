@@ -32,8 +32,14 @@ class LocalDroneAgent:
     LOOKAHEAD_S = 0.7
     POSITION_TARGET_SPEED_M_S = 0.45
 
-    def __init__(self, drone_id: int, safe_radius: float = 3.0, hybrid: bool = False):
+    MODES = ("centralized", "decentralized", "hybrid")
+
+    def __init__(self, drone_id: int, safe_radius: float = 3.0, hybrid: bool = False,
+                 mode: Optional[str] = None):
         self.drone_id = drone_id
+        self.mode = mode if mode is not None else ("hybrid" if hybrid else "decentralized")
+        if self.mode not in self.MODES:
+            raise ValueError(f"unknown control mode {self.mode!r}")
         self.controller = DecentralizedController(
             k_sep=7.0, k_align=1.6, k_form=1.4, k_goal=0.8,
             safe_radius=safe_radius,
@@ -42,6 +48,11 @@ class LocalDroneAgent:
             HybridController(decentral_controller=self.controller, fallback_strategy="hold_target")
             if hybrid else None
         )
+        # "centralized" in the independent runtime = hybrid that never degrades: the agent tracks the
+        # coordinator's target and the coordinator-loss policy (hold, then land) lives in the node.
+        self.central_hybrid = None
+        if self.mode in ("hybrid", "centralized"):
+            self.ensure_mode_controllers()
         self.coordinator_sequence = 0
         self.drone = Drone(
             drone_id, np.zeros(2), max_speed=self.MAX_SPEED,
@@ -62,7 +73,7 @@ class LocalDroneAgent:
                 mission_intent=None, slot_offset=None,
                 track_formation: bool = False,
                 position_setpoint_tracking: bool = False,
-                goal_override=None) -> np.ndarray:
+                goal_override=None, mode_weights=None) -> np.ndarray:
         """Return a short-horizon local position target in the shared N/E frame.
 
         ``goal_override`` replaces the mission goal while a synchronized formation transition
@@ -104,34 +115,25 @@ class LocalDroneAgent:
                 raise ValueError("formation tracking requires a valid mission intent")
             self.position_setpoint_ne = goal.copy()
             return goal.copy()
-        if self.hybrid_controller is not None:
-            if coordinator_connected:
-                self.coordinator_sequence += 1
-                self.hybrid_controller.process_coordinator_heartbeat(
-                    self.drone_id, now, now, self.coordinator_sequence,
-                    target_pos=goal, target_velocity=np.zeros(2, dtype=float),
-                    desired_offsets=desired_offsets,
-                )
-            accel = self.hybrid_controller.compute_hybrid_control(
-                self.drone, current_time=now, dt=dt,
-                neighbor_states=neighbor_states,
-                desired_neighbor_offsets=desired_offsets,
-                target_velocity=np.zeros(2, dtype=float),
-                use_velocity_feedforward=False, drag_coeff=0.0,
-                measured_position=pos, measured_velocity=self.velocity,
-            )
-        else:
-            accel = self.controller.compute_drone_control(
-                self.drone,
-                neighbor_states=neighbor_states,
-                desired_offsets=desired_offsets,
-                goal_pos=goal,
-                goal_vel=np.zeros(2, dtype=float),
-                measured_position=pos,
-                measured_velocity=self.velocity,
-                use_velocity_feedforward=False,
-                drag_coeff=0.0,
-            )
+        modes = mode_weights if mode_weights is not None else (self.mode, self.mode, 1.0)
+        if coordinator_connected and any(
+                controller is not None for controller in (self.hybrid_controller, self.central_hybrid)):
+            # Keep every hybrid-type controller's heartbeat state fresh, whichever mode is active,
+            # so a switch never inherits a stale "coordinator silent" timer.
+            self.coordinator_sequence += 1
+            for controller in (self.hybrid_controller, self.central_hybrid):
+                if controller is not None:
+                    controller.process_coordinator_heartbeat(
+                        self.drone_id, now, now, self.coordinator_sequence,
+                        target_pos=goal, target_velocity=np.zeros(2, dtype=float),
+                        desired_offsets=desired_offsets,
+                    )
+        mode_a, mode_b, weight = modes
+        accel = self._accel_for_mode(mode_a, goal, desired_offsets, neighbor_states, pos, now, dt)
+        if mode_a != mode_b and weight > 0.0:
+            accel_b = self._accel_for_mode(mode_b, goal, desired_offsets, neighbor_states, pos, now, dt)
+            # Bumpless transfer: a smooth blend of the outgoing and incoming command.
+            accel = (1.0 - weight) * np.asarray(accel, dtype=float) + weight * np.asarray(accel_b, dtype=float)
         accel = _limit(np.asarray(accel, dtype=float), self.MAX_ACCEL)
         self.drone.set_control_input(accel)
         if position_setpoint_tracking and intent is not None:
@@ -159,6 +161,40 @@ class LocalDroneAgent:
             self.velocity + self.drone.commanded_accel * dt, self.MAX_SPEED
         )
         return pos + velocity_command * self.LOOKAHEAD_S
+
+    def ensure_mode_controllers(self) -> None:
+        """Create the controllers needed to switch between all three modes in flight."""
+        if self.hybrid_controller is None:
+            self.hybrid_controller = HybridController(
+                decentral_controller=self.controller, fallback_strategy="hold_target")
+        if self.central_hybrid is None:
+            self.central_hybrid = HybridController(
+                degrade_timeout=float("inf"), decentral_controller=self.controller,
+                fallback_strategy="hold_target")
+
+    def _accel_for_mode(self, mode, goal, desired_offsets, neighbor_states, pos, now, dt):
+        if mode == "decentralized":
+            return self.controller.compute_drone_control(
+                self.drone,
+                neighbor_states=neighbor_states,
+                desired_offsets=desired_offsets,
+                goal_pos=goal,
+                goal_vel=np.zeros(2, dtype=float),
+                measured_position=pos,
+                measured_velocity=self.velocity,
+                use_velocity_feedforward=False,
+                drag_coeff=0.0,
+            )
+        self.ensure_mode_controllers()
+        controller = self.hybrid_controller if mode == "hybrid" else self.central_hybrid
+        return controller.compute_hybrid_control(
+            self.drone, current_time=now, dt=dt,
+            neighbor_states=neighbor_states,
+            desired_neighbor_offsets=desired_offsets,
+            target_velocity=np.zeros(2, dtype=float),
+            use_velocity_feedforward=False, drag_coeff=0.0,
+            measured_position=pos, measured_velocity=self.velocity,
+        )
 
     def update_local_state(self, position, sample_time: float) -> None:
         """Update this agent's velocity estimate using only its own telemetry history."""

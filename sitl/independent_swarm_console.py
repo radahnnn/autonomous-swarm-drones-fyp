@@ -21,6 +21,7 @@ from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
+from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, CoordinatorModeSwitch, ModeView
 from sitl.swarm_console import SwarmConsole
 from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan
 
@@ -57,6 +58,7 @@ class IndependentSwarmConsole:
     transition_protocol = False
     formation_hold = False
     transition_pending = None
+    mode_switch = None
 
     def __init__(self, args):
         self.args = args
@@ -114,6 +116,9 @@ class IndependentSwarmConsole:
         self.transition_lock = threading.Lock()
         self.transition_pending = None   # (style, target_slots, resume_goal)
         self.formation_hold = False
+        # Synchronized in-flight control-mode switching (sitl/mode_switch.py).
+        self.mode_switch = CoordinatorModeSwitch(self.count, self.control_mode)
+        self.mode_lock = threading.Lock()
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -282,7 +287,7 @@ class IndependentSwarmConsole:
             self.dashboard_server = start_dashboard(self, dashboard_port)
             print(f">> Visual controller: http://127.0.0.1:{dashboard_port}")
         print(f"\nIndependent {self.control_mode} swarm ready ({self.count} drones). "
-              "Commands: preflight, launch, w/s/a/d [m], u/j [m], status, "
+              "Commands: preflight, launch, w/s/a/d [m], u/j [m], status, mode <centralized|decentralized|hybrid>, "
               "link-block <sender> <recipient>, link-restore <sender> <recipient>, "
               "fail <id>, restart <id>, rescue <id>, coord off/on, q")
 
@@ -438,6 +443,9 @@ class IndependentSwarmConsole:
                         continue
                     if status.get("type") in ("transition_ack", "transition_abort"):
                         self._on_agent_transition_message(index, status)
+                        continue
+                    if status.get("type") in ("mode_ack", "mode_abort"):
+                        self._on_agent_mode_message(index, status)
                         continue
                     if status.get("type") != "status" or status.get("drone_id") != index:
                         continue
@@ -605,6 +613,114 @@ class IndependentSwarmConsole:
         self._send_to_agents({"version": 1, "type": "mission", "epoch": epoch,
                               "intent": intent})
         self.event("mission_intent", **intent)
+
+    # ---- synchronized in-flight control-mode switching
+    def _dispatch_mode(self, actions) -> None:
+        epoch = (self.clock_sync_message or {}).get("epoch")
+        for action in actions:
+            if action[0] == "send":
+                if not epoch:
+                    continue
+                message = dict(action[1])
+                message["epoch"] = epoch
+                try:
+                    self._send_to_agents(message)
+                except OSError as exc:
+                    self.event("mode_send_error", error=str(exc), type=message.get("type"))
+            elif action[0] == "event":
+                self.event(action[1], **action[2])
+                self._on_mode_event(action[1], action[2])
+
+    def _on_mode_event(self, name: str, data: dict) -> None:
+        if name == "mode_switch_complete":
+            self.control_mode = data["mode"]
+            print(f">> Control mode is now {data['mode'].upper()} on all {self.count} drones.", flush=True)
+        elif name == "mode_switch_aborted":
+            print(f"!! Mode switch aborted ({data.get('reason')}); "
+                  f"{'rolling back to ' + self.mode_switch.plan.from_mode.upper() if data.get('started') else 'nothing changed'}.",
+                  flush=True)
+        elif name == "mode_switch_rolled_back":
+            print(f">> Rolled back: all drones are in {self.mode_switch.plan.from_mode.upper()} mode.", flush=True)
+        elif name == "mode_rollback_unverified":
+            print("!! Rollback not confirmed by every drone; check status.", flush=True)
+
+    def _on_agent_mode_message(self, index: int, message: dict) -> None:
+        epoch = (self.clock_sync_message or {}).get("epoch")
+        if message.get("epoch") != epoch:
+            return
+        sender = message.get("drone_id") if message.get("type") == "mode_ack" else message.get("from")
+        if sender != index:
+            return
+        with self.mode_lock:
+            if message["type"] == "mode_ack":
+                actions = self.mode_switch.on_ack(message, time.time())
+            else:
+                actions = self.mode_switch.on_agent_abort(message, time.time())
+        self._dispatch_mode(actions)
+
+    def _mode_views(self, now: float) -> dict:
+        with self.lock:
+            states = {index: state.copy() for index, state in self.latest.items()}
+        views = {}
+        for index, state in states.items():
+            try:
+                age = now - float(state.get("operator_received_at", state.get("timestamp")))
+                position = np.asarray(state.get("position"), dtype=float)
+                info = state.get("mode_switch") or {}
+                views[index] = ModeView(
+                    age_s=age, mode=str(info.get("mode", state.get("control_mode", ""))),
+                    state=str(info.get("state", "IDLE")), switch_id=info.get("switch_id"),
+                    healthy=state.get("safety_state") == "nominal",
+                    position_ne=((float(position[0]), float(position[1]))
+                                 if position.shape == (3,) and np.isfinite(position).all() else None),
+                )
+            except (TypeError, ValueError):
+                continue
+        return views
+
+    def _tick_mode_switch_protocol(self) -> None:
+        if not self.mode_switch.busy:
+            return
+        with self.mode_lock:
+            actions = self.mode_switch.tick(time.time(), self._mode_views(time.time()))
+        self._dispatch_mode(actions)
+
+    def set_control_mode(self, mode: str) -> dict:
+        """Switch the whole swarm to ``mode`` in flight (synchronized, bumpless, with rollback)."""
+        def result(accepted: bool, message: str, **details):
+            self.last_command_result = {"accepted": accepted, "message": message, **details}
+            print((">> " if accepted else ">> Mode switch blocked: ") + message, flush=True)
+            return self.last_command_result
+
+        mode = str(mode).strip().lower()
+        if mode not in CONTROL_MODES:
+            return result(False, f"Unknown mode {mode!r}; choose from {', '.join(CONTROL_MODES)}.")
+        if mode == self.mode_switch.mode and not self.mode_switch.busy:
+            return result(True, f"{mode.upper()} is already active.", unchanged=True)
+        if self.mode_switch.busy:
+            return result(False, "A mode switch is already in progress.", code="mode_switch_active")
+        if (getattr(self, "formation_transition_deadline", None) is not None or
+                (self.transition_protocol and (self.transition.busy or self.formation_hold))):
+            return result(False, "Finish or abort the formation transition first.",
+                          code="transition_active")
+        with self.lock:
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+        now = time.time()
+        if any(not state.get("operator_received_at") or
+               not 0.0 <= now - float(state.get("operator_received_at", 0.0)) <= 2.0
+               for state in states):
+            return result(False, "Every drone needs a fresh status heartbeat.")
+        if any(state.get("safety_state") != "nominal" for state in states):
+            return result(False, "Every drone must report nominal safety status.")
+        with self.mode_lock:
+            self.mode_switch.mode = self.control_mode if self.control_mode in CONTROL_MODES else self.mode_switch.mode
+            actions = self.mode_switch.begin(mode, now)
+        self._dispatch_mode(actions)
+        plan = self.mode_switch.plan
+        return result(True, f"Switching {plan.from_mode.upper()} -> {mode.upper()}: waiting for all "
+                      f"{self.count} drones to acknowledge, common start in "
+                      f"{self.mode_switch.params.lead_s:.0f}s, {plan.ramp_s:.0f}s blend.",
+                      mode=mode, switch_id=plan.switch_id)
 
     def _any_airborne(self) -> bool:
         with self.lock:
@@ -790,6 +906,7 @@ class IndependentSwarmConsole:
         while self.running:
             if self.transition_protocol:
                 self._tick_transition_protocol()
+            self._tick_mode_switch_protocol()
             if self.formation_transition_deadline is not None:
                 reason = self._formation_transition_abort_reason(time.time())
                 if reason and not getattr(self, "formation_abort_issued", False):
@@ -863,6 +980,10 @@ class IndependentSwarmConsole:
                 with self.transition_lock:
                     abort_actions = self.transition.abort("operator_land", time.time())
                 self._dispatch_transition(abort_actions)
+            if self.mode_switch is not None and self.mode_switch.busy:
+                with self.mode_lock:
+                    mode_abort_actions = self.mode_switch.abort("operator_land", time.time())
+                self._dispatch_mode(mode_abort_actions)
         self.operator_sequence += 1
         sequence = self.operator_sequence
         epoch = (self.clock_sync_message or {}).get("epoch")
@@ -1080,6 +1201,9 @@ class IndependentSwarmConsole:
             return result(False, f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
         if not getattr(self.args, "adaptive_swarm", False):
             return result(False, "Formation changes require adaptive swarm mode.")
+        if self.mode_switch is not None and self.mode_switch.busy:
+            return result(False, "A control-mode switch is in progress; wait for it to finish.",
+                          code="mode_switch_active")
         if self.transition_protocol and self.transition.busy:
             return result(False, "A formation transition is already active; wait for it to finish.",
                           code="transition_active", transition_id=self.transition.plan.transition_id)
@@ -1187,6 +1311,10 @@ class IndependentSwarmConsole:
             print(">> Formation is HOLDING after an aborted transition; issue a formation command "
                   "to re-plan, or LAND.")
             return True
+        if (self.mode_switch is not None and self.mode_switch.busy and
+                action not in {"status", "land", "q", "quit"} | numeric_actions):
+            print(">> Control-mode switch in progress; wait for it to finish or command LAND.")
+            return True
         if ((getattr(self, "formation_transition_deadline", None) is not None or
              (self.transition_protocol and self.transition.busy)) and
                 action not in {"status", "land", "q", "quit"}):
@@ -1213,6 +1341,8 @@ class IndependentSwarmConsole:
             return False
         elif action == "status":
             self.status()
+        elif action == "mode" and len(parts) == 2:
+            self.set_control_mode(parts[1])
         elif action in ("shape", "formation") and len(parts) == 2:
             self._set_formation(parts[1])
         elif action == "preflight":
@@ -1330,7 +1460,7 @@ class IndependentSwarmConsole:
             self.target_alt_m = max(0.5, self.target_alt_m - step)
             self._publish_intent()
         else:
-            print("Commands: preflight | launch | w/s/a/d [m] | u/j [m] | status | link-block/restore <sender> <recipient> | "
+            print("Commands: preflight | launch | w/s/a/d [m] | u/j [m] | status | mode <name> | link-block/restore <sender> <recipient> | "
                   "fail <id> | rescue <id> | coord off/on | q")
         return True
 

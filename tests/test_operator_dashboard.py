@@ -66,7 +66,9 @@ def test_dashboard_exposes_all_modes_and_locks_switching_in_flight():
     assert all(f'data-mode="{mode}"' in PAGE
                for mode in ("centralized", "decentralized", "hybrid"))
     assert "Land and disarm all drones before changing architecture" in PAGE
-    assert "b.disabled=!!state.transitioning||state.airborne>0||state.armed>0||!state.healthy" in PAGE
+    # Locked in flight only when the session cannot switch live (mode_switch_enabled=false).
+    assert "((state.airborne>0||state.armed>0)&&!state.mode_switch_enabled)" in PAGE
+    assert "mode_switching" in PAGE
     assert "Formation shape" in PAGE
     assert "Kill agent" in PAGE
     assert "Revive / restart" in PAGE
@@ -200,3 +202,14 @@ def test_mode_relaunch_commands_match_controller_topology():
     assert "--control-mode decentralized --agent-runtime independent" in decentralized
     assert "--control-mode hybrid --agent-runtime independent" in hybrid
     assert decentralized.endswith("--dashboard-port 8765")
+
+
+def test_dashboard_reports_in_flight_mode_switching_when_the_session_supports_it():
+    session = make_session(airborne=True)
+    assert dashboard_state(session)["mode_switch_enabled"] is False
+    session.set_control_mode = lambda mode: {"accepted": True, "message": mode}
+    session.mode_switch = SimpleNamespace(busy=True, state="SWITCHING",
+                                          plan=SimpleNamespace(to_mode="hybrid"))
+    state = dashboard_state(session)
+    assert state["mode_switch_enabled"] is True and state["mode_switching"] is True
+    assert state["mode_switch_state"] == "SWITCHING" and state["mode_switch_target"] == "hybrid"

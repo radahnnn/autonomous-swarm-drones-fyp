@@ -3,6 +3,7 @@
 No SITL, no UDP, no MAVLink: agents are IndependentAgentNode objects with a fake vehicle/transport,
 and time is a controllable clock. Evidence label: INTEGRATION (simulated transport), not SITL.
 """
+import threading
 import time
 from types import SimpleNamespace
 
@@ -11,6 +12,7 @@ import pytest
 
 from sitl.formation_library import slots_for
 from sitl.independent_agent_node import IndependentAgentNode
+from sitl.mode_switch import AgentModeSwitch, CoordinatorModeSwitch
 from sitl.independent_swarm_console import IndependentSwarmConsole
 from sitl.transition_protocol import AgentTransition, CoordinatorTransition
 
@@ -77,6 +79,9 @@ class Swarm:
         node.status_socket, node.status_endpoint, node.operator_auth_key = FakeSocket(), ("h", 1), b"k"
         node.operator_clock_offset_s, node.clock_sync_epoch = 0.0, EPOCH
         node.transition = AgentTransition(i, N)
+        node.mode_switch = AgentModeSwitch(i, "hybrid")
+        node.control_mode = "hybrid"
+        node.agent = SimpleNamespace(mode="hybrid")
         node.peers, node.peer_ids, node._discovered = FakePeers(), [j for j in range(N) if j != i], []
         node._peer_memory = {}
         node.armed = node.airborne = True
@@ -100,7 +105,6 @@ class Swarm:
         c.count = N
         c.transition_protocol = True
         c.transition = CoordinatorTransition(N)
-        import threading
         c.transition_lock, c.lock = threading.Lock(), threading.Lock()
         c.latest = {}
         c.clock_sync_message = {"epoch": EPOCH}
@@ -113,6 +117,13 @@ class Swarm:
         c.formation_transition_deadline = None
         c.formation_resume_goal = None
         c.transition_pending = None
+        c.mode_switch = CoordinatorModeSwitch(N, "hybrid")
+        c.mode_lock = threading.Lock()
+        c.control_mode = "hybrid"
+        c.last_command_result = None
+        c.mission_sequence = 0
+        c.formation_transition_started_at = None
+        c.intent_enabled = True
         c.formation_hold = False
         c.last_formation_result = {}
         c.land_requested = False
@@ -132,6 +143,8 @@ class Swarm:
             for message in agent.status_socket.sent:
                 if message["type"] in ("transition_ack", "transition_abort"):
                     self.console._on_agent_transition_message(i, message)
+                elif message["type"] in ("mode_ack", "mode_abort"):
+                    self.console._on_agent_mode_message(i, message)
             agent.status_socket.sent.clear()
 
     def publish_status(self, now):
@@ -143,6 +156,8 @@ class Swarm:
                     "safety_state": "nominal", "peer_ids": [j for j in range(N) if j != i],
                     "peer_live_ids": [j for j in range(N) if j != i],
                     "transition": agent.transition.status(now),
+                    "mode_switch": agent.mode_switch.status(now),
+                    "control_mode": agent.control_mode,
                 }
 
     # ---- one 0.1 s world step
@@ -168,9 +183,11 @@ class Swarm:
             agent._receive_operator_messages_transition_only()
         for agent in self.agents:
             agent._tick_transition(now)
+            agent._tick_mode_switch(now)
         self._from_agents()
         self.publish_status(now)
         self.console._tick_transition_protocol()
+        self.console._tick_mode_switch_protocol()
         self._from_agents()
 
     def run(self, seconds):
@@ -181,10 +198,12 @@ class Swarm:
 # Agents are built without a real operator socket; reuse the production dispatcher for the four
 # transition message kinds only (everything else needs a live vehicle).
 def _receive_transition_only(self):
-    from sitl.independent_agent_node import _TRANSITION_KINDS
+    from sitl.independent_agent_node import _MODE_KINDS, _TRANSITION_KINDS
     for message in self.operator.poll():
         if message.get("type") in _TRANSITION_KINDS:
             self._handle_transition_message(message["type"], message)
+        elif message.get("type") in _MODE_KINDS:
+            self._handle_mode_message(message["type"], message)
 
 
 IndependentAgentNode._receive_operator_messages_transition_only = _receive_transition_only
@@ -316,3 +335,165 @@ def test_goal_is_claimed_only_after_the_common_start_so_the_swarm_cannot_drift_d
         np.testing.assert_allclose(agent._transition_goal(swarm.clock.t), plan.centroid_ne)
     swarm.run(plan.duration_s + 14.0)                                    # finished: goal released
     assert all(a._transition_goal(swarm.clock.t) is None for a in swarm.agents)
+
+
+
+# ====================================================================== in-flight mode switching
+def modes(swarm):
+    return [a.control_mode for a in swarm.agents]
+
+
+def test_mode_switch_changes_every_agent_together_with_a_smooth_blend(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    assert swarm.console.set_control_mode("decentralized")["accepted"]
+    plan = swarm.console.mode_switch.plan
+    weights = []
+    while swarm.clock.t < plan.start_at + plan.ramp_s + 3.0:
+        swarm.step()
+        if swarm.clock.t < plan.start_at - 0.2:
+            assert modes(swarm) == ["hybrid"] * N                      # nobody moves early
+        weights.append([a.mode_switch.weights(swarm.clock.t)[2] for a in swarm.agents])
+    # every agent runs the same ramp at the same time, and it never decreases
+    assert all(max(row) - min(row) < 1e-6 for row in weights)
+    flat = [row[0] for row in weights if row[0] < 1.0]
+    assert flat == sorted(flat) and flat[0] >= 0.0
+    swarm.run(8.0)
+    assert modes(swarm) == ["decentralized"] * N
+    assert swarm.console.control_mode == "decentralized" and not swarm.console.mode_switch.busy
+    assert [a.mode_switch.state for a in swarm.agents] == [AgentModeSwitch.IDLE] * N
+    names = [e[0] for e in swarm.events]
+    assert "mode_committed" in names and "mode_switch_complete" in names and "mode_switch_aborted" not in names
+
+
+def test_chain_of_switches_through_all_three_modes(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    for target in ("centralized", "decentralized", "hybrid", "centralized"):
+        assert swarm.console.set_control_mode(target)["accepted"], target
+        swarm.run(14.0)
+        assert modes(swarm) == [target] * N and swarm.console.control_mode == target
+    assert [a.agent.mode for a in swarm.agents] == ["centralized"] * N
+
+
+def test_missing_prepare_to_one_agent_cancels_the_switch_and_nothing_changes(monkeypatch):
+    swarm = Swarm(monkeypatch, drop=lambda kind, target: kind == "mode_prepare" and target == 3)
+    assert swarm.console.set_control_mode("centralized")["accepted"]
+    swarm.run(10.0)
+    assert modes(swarm) == ["hybrid"] * N and swarm.console.control_mode == "hybrid"
+    aborted = [e for e in swarm.events if e[0] == "mode_switch_aborted"]
+    assert aborted and aborted[0][1]["started"] is False and "ack_timeout" in aborted[0][1]["reason"]
+
+
+def test_lost_go_to_one_agent_rolls_the_whole_swarm_back_to_the_old_mode(monkeypatch):
+    swarm = Swarm(monkeypatch, drop=lambda kind, target: kind == "mode_go" and target == 2)
+    assert swarm.console.set_control_mode("decentralized")["accepted"]
+    swarm.run(20.0)
+    assert modes(swarm) == ["hybrid"] * N                      # nobody is left in the new mode
+    assert [a.mode_switch.state for a in swarm.agents] == [AgentModeSwitch.IDLE] * N
+    assert swarm.console.control_mode == "hybrid" and not swarm.console.mode_switch.busy
+    names = [e[0] for e in swarm.events]
+    assert "mode_switch_aborted" in names and "mode_switch_rolled_back" in names
+    assert "mode_switch_complete" not in names
+
+
+def test_mode_switch_is_gated_against_conflicting_commands(monkeypatch, capsys):
+    swarm = Swarm(monkeypatch)
+    assert swarm.console.set_control_mode("decentralized")["accepted"]
+    assert swarm.console.set_control_mode("centralized")["code"] == "mode_switch_active"
+    refused = swarm.console._set_formation("line")
+    assert not refused["accepted"] and refused["code"] == "mode_switch_active"
+    swarm.console.handle("formation line")
+    assert "switch in progress" in capsys.readouterr().out.lower()
+    assert swarm.console.handle("w 1") is True                  # movement is still allowed
+    swarm.run(14.0)
+    assert modes(swarm) == ["decentralized"] * N
+
+
+def test_mode_switch_is_refused_during_a_formation_transition(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    assert request(swarm)["accepted"]                           # formation transition prepared
+    refused = swarm.console.set_control_mode("centralized")
+    assert not refused["accepted"] and refused["code"] == "transition_active"
+
+
+def test_land_during_a_mode_switch_rolls_it_back(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    assert swarm.console.set_control_mode("decentralized")["accepted"]
+    plan = swarm.console.mode_switch.plan
+    while swarm.clock.t < plan.start_at + 1.0:
+        swarm.step()
+    swarm.console.mode_switch_abort_for_test = True
+    with swarm.console.mode_lock:
+        actions = swarm.console.mode_switch.abort("operator_land", time.time())
+    swarm.console._dispatch_mode(actions)
+    swarm.run(10.0)
+    assert modes(swarm) == ["hybrid"] * N and not swarm.console.mode_switch.busy
+
+
+def test_unknown_or_unchanged_mode_requests_are_rejected_cleanly(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    assert not swarm.console.set_control_mode("warp")["accepted"]
+    unchanged = swarm.console.set_control_mode("hybrid")
+    assert unchanged["accepted"] and unchanged.get("unchanged")
+    assert not swarm.console.mode_switch.busy
+
+
+# ------------------------------------------------ per-mode coordinator-loss policy (agent side)
+def _policy_node(mode, monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(time, "time", clock)
+    monkeypatch.setattr(time, "monotonic", clock)
+    node = object.__new__(IndependentAgentNode)
+    node.drone_id, node.control_mode = 0, mode
+    node.coordinator_connected = False
+    node.current_mission = {"sequence": 1}
+    node.last_coordinator_message_monotonic = clock.t - 10.0
+    node.peers, node.peer_ids = FakePeers(), [1, 2]
+    node.position = np.array([1.0, 2.0, -5.0])
+    node.central_hold_since = None
+    from sitl.mission_intent import MissionIntent, MissionLease
+    node.mission_lease = MissionLease()
+    intent = MissionIntent(1, clock.t - 1, clock.t + 3, (0.0, 0.0)).to_dict()
+    node.mission_lease.accept(intent, clock.t, clock.t)
+    node.sent, node.landed = [], []
+    node._send_position_target = lambda target, altitude: node.sent.append((target.copy(), altitude))
+    node._command_land = lambda reason: node.landed.append(reason)
+    return node, clock
+
+
+@pytest.mark.parametrize("mode", ["decentralized", "hybrid"])
+def test_decentralized_and_hybrid_keep_flying_the_last_mission_without_a_coordinator(mode, monkeypatch):
+    node, clock = _policy_node(mode, monkeypatch)
+    clock.t += 30.0                                             # far beyond the original 3 s lease
+    node._renew_lease_if_autonomous()
+    assert node.mission_lease.active(clock.t) is not None
+    node.last_coordinator_message_monotonic = clock.t - IndependentAgentNode.AUTONOMY_MAX_S - 1
+    clock.t += 10.0
+    node.mission_lease.deadline_monotonic = clock.t - 1
+    node._renew_lease_if_autonomous()
+    assert node.mission_lease.active(clock.t) is None           # autonomy window exhausted: lapse -> land
+
+
+def test_autonomy_requires_at_least_one_live_peer(monkeypatch):
+    node, clock = _policy_node("hybrid", monkeypatch)
+    node.peers = SimpleNamespace(fresh_link_ids=lambda now: [])
+    clock.t += 30.0
+    node._renew_lease_if_autonomous()
+    assert node.mission_lease.active(clock.t) is None
+
+
+def test_centralized_holds_then_lands_when_the_coordinator_is_lost(monkeypatch):
+    node, clock = _policy_node("centralized", monkeypatch)
+    assert node._centralized_fail_stop(clock.t) is True and node.landed == []
+    target, altitude = node.sent[-1]
+    np.testing.assert_allclose(target, node.position)           # hovering where it is
+    assert altitude == 5.0
+    assert node._centralized_fail_stop(clock.t + IndependentAgentNode.CENTRAL_HOLD_LAND_S + 1) is True
+    assert node.landed == ["coordinator_lost_centralized"]
+    node.coordinator_connected = True                           # coordinator back: normal guidance
+    assert node._centralized_fail_stop(clock.t + 30) is False and node.central_hold_since is None
+
+
+def test_other_modes_never_use_the_centralized_fail_stop(monkeypatch):
+    for mode in ("decentralized", "hybrid"):
+        node, clock = _policy_node(mode, monkeypatch)
+        assert node._centralized_fail_stop(clock.t) is False and node.sent == []
