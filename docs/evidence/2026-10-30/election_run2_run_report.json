@@ -1,0 +1,62 @@
+{
+  "result": "FAIL",
+  "gate_m": 2.5,
+  "gate_metric": "horizontal",
+  "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
+  "duration_s": 172.2,
+  "drones": 10,
+  "airborne_pair_samples": 277,
+  "min_gap_m": 0.101,
+  "min_gap_at_s": 135.6,
+  "min_gap_3d_m": 0.102,
+  "p05_gap_m": 0.622,
+  "violation_episodes": 1,
+  "violation_time_s": 36.9,
+  "warning_episodes": 0,
+  "warn_margin_m": 0.25,
+  "mean_tracking_error_m": 0.289,
+  "p95_tracking_error_m": 0.637,
+  "max_status_age_s": 2.95,
+  "counters": {
+    "route_start": 1,
+    "mode_switch_complete": 1,
+    "coordinator_takeover": 3,
+    "route_stop": 1
+  },
+  "events": [
+    {
+      "t": 37.47,
+      "kind": "route_start",
+      "side_m": 12.0,
+      "speed_m_s": 0.3
+    },
+    {
+      "t": 66.07,
+      "kind": "mode_switch_complete",
+      "switch_id": 1,
+      "mode": "centralized"
+    },
+    {
+      "t": 77.22,
+      "kind": "coordinator_takeover",
+      "drone": 1,
+      "term": 1
+    },
+    {
+      "t": 111.9,
+      "kind": "coordinator_takeover",
+      "drone": 2,
+      "term": 2
+    },
+    {
+      "t": 136.5,
+      "kind": "route_stop"
+    },
+    {
+      "t": 147.36,
+      "kind": "coordinator_takeover",
+      "drone": 2,
+      "term": 3
+    }
+  ]
+}

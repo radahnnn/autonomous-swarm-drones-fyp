@@ -275,3 +275,12 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Limits: coordinator loss simulated by pausing its stream; centralized 20 s landing not exercised; one run per configuration.
 - Recommended Codex review: the interaction between `LocalDroneAgent.POSITION_TARGET_SPEED_M_S` (0.45) and any future faster motion (transitions use the same slew path with `track_formation`); whether the route cap should be derived from that constant instead of duplicated in `sitl/route.py`.
 - Next step: coordinator election, then the control-barrier filter and wind/GPS stress tests; 6-drone Gazebo run still waiting on the user's choice; 17 commits are local only.
+
+### 2026-10-31 — Claude — roadmap feature 3 (acting-coordinator election) and a safety finding
+
+- Commits: `cb278e5` (`sitl/coordinator_election.py`, `publish_coordinator` / `take_coordinator_messages` on the peer transport, agent wiring, dashboard coordinator line, takeover counter), `c977a04` (election pause handling).
+- Live evidence (SITL, 10 drones, centralized, patrol): `docs/reports/COORDINATOR_ELECTION_LIVE_SITL_2026-10-31.md`. Takeover 2.7 s after operator silence, hand-over to D2 (term 2) after D1's agent was killed, operator return ends the acting role. Mutation-checked unit/simulation tests (three mutants caught).
+- Findings: (1) false takeover when an agent is blocked in arm/takeoff (fixed); (2) latent cached-intent expiry during long autonomous periods (fixed); (3) **near-collisions after membership change: survivors' min gap 3.90 m -> 0.10 m** (open, new defect 9; guard authority in the SITL setpoint path is ≤ 0.25 m).
+- Limits: operator loss simulated by pausing its stream; no partition test; acting coordinator republishes the mission only.
+- Recommended Codex review: `CoordinatorElection.on_acting_message` ordering rules, the interplay between `COORDINATOR_TIMEOUT_S` (2.5 s) and `election_timeout_s` (3 s), and how adaptive membership redistributes slots on member loss.
+- Next step: control-barrier safety filter on the commanded setpoint (feature 1), motivated by finding (3); then wind/GPS stress tests; Gazebo; push (user's order: election, CBF, Gazebo, push).
