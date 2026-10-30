@@ -136,6 +136,12 @@ class MissionLease:
         self.deadline_monotonic = float(monotonic_now) + remaining
         return intent
 
+    def renew(self, monotonic_now: float, seconds: float) -> None:
+        """Locally extend an already accepted lease (autonomous continuation without a coordinator)."""
+        if self.intent is None or not math.isfinite(monotonic_now) or seconds <= 0:
+            return
+        self.deadline_monotonic = max(self.deadline_monotonic or 0.0, float(monotonic_now) + float(seconds))
+
     def active(self, monotonic_now: float) -> MissionIntent | None:
         if self.intent is None or self.deadline_monotonic is None:
             return None

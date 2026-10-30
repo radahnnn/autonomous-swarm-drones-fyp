@@ -1,4 +1,5 @@
 import os
+import time
 import math
 from unittest.mock import MagicMock
 
@@ -1193,7 +1194,12 @@ def test_direct_udp_transport_delayed_old_sequence_cannot_overwrite_newer_state(
         sender.publish([1.0, 2.0], [0.0, 0.0], 1.0, [1], 1.0)
         sender.reorder_rate = 0.0
         sender.publish([2.0, 3.0], [0.0, 0.0], 1.01, [1], 1.01)
-        newest = receiver.receive(1.01, [0])
+        newest = []
+        for _ in range(50):                      # real loopback UDP: allow brief delivery lag
+            newest = receiver.receive(1.01, [0])
+            if newest:
+                break
+            time.sleep(0.02)
         assert len(newest) == 1
         assert newest[0]["position"].tolist() == [2.0, 3.0]
         sender._flush(1.5)
