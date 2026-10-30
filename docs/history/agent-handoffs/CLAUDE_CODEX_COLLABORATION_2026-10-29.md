@@ -232,3 +232,15 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit / push: see `git log`; not pushed after `3ce1a0a`.
 - Recommended Codex review: `_publish_intent` protocol-mode branch; whether any dashboard endpoint bypasses `handle`/`_set_formation`; the HOLD semantics when the swarm centre goal is held.
 - Next step: live 5-drone standalone SITL run with `--transition-protocol` (formation change, killed agent, dropped go if possible), record evidence.
+
+### 2026-10-30 — Claude — first live SITL run of the transition protocol (3 runs, 2 bugs fixed)
+
+- Objective: validate the opt-in protocol in live SITL (recommendation 3) and fix what it exposes.
+- Starting commit: `52added`; end: `0c02b7c` (fixes `8e6e4a6`, `0c02b7c`).
+- Method: 5-drone standalone console, driven by a script in the scratchpad (launch, `formation line`, `formation column` + SIGTERM to agent 3 mid-morph, `land`). Process/port ownership and disk checked first; the console's own broad `pkill arducopter` ran (nothing else was running). Teardown verified: no leftover processes or ports.
+- Findings (SITL): run 1 `peer_stale` abort (supervision saw only the current tick's packets) + HOLD-after-pre-start-abort drift; run 2 ~3 m swarm drift because the goal moved to the centroid at prepare time; run 3 success. Fixes: per-peer observation memory; pre-start abort/violation discards the plan (IDLE); slots and a goal override (plan centroid) applied only after the common start and while HOLDING; coordinator never moves the goal in protocol mode; movement commands rejected while HOLDING. Regression tests added and mutation-checked.
+- Result (run 3): LINE complete 19.05 s after prepare (commit 0.21 s, common start 4.02 s), sampled min separation 3.62 m, line spacing 4.0 m; COLUMN + killed agent: peers detected in ~1 s, all 4 survivors HOLD at progress 0.406–0.408, no LAND, 3.85 m sampled min separation, survivors landed on command.
+- Evidence level: SITL (host-only, loopback, standalone 2D). One run per scenario; 1 Hz status sampling; no impairment. Full list of limits in the report.
+- Files: `docs/reports/TRANSITION_PROTOCOL_LIVE_SITL_2026-10-30.md`, `docs/evidence/2026-10-30/transition_protocol_live_summary.json`; raw logs in `runs/independent/transition-protocol-live-20261030/` (not in Git, checksummed).
+- Recommended Codex review: the two root-cause analyses; whether pre-start abort = discard is right when an agent already applied a `go` but the coordinator aborts for a non-safety reason; `_transition_goal` semantics when HOLDING and an operator changes the mission goal.
+- Next step: repeat runs (10 drones, loss/latency, dropped go, coordinator kill, VM split) and decide on making the protocol the default.

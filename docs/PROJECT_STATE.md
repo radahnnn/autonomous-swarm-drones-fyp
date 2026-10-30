@@ -69,7 +69,7 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 | Centralized control | Working | SITL, GAZEBO (5 drones, 20 Oct), QGC (15 Oct) | Repeated matched live runs. |
 | Decentralized control | Working in SITL | SITL (same host), VM-NETWORK (5 and 10 agents, one clean mission each) | Repeated split-host fault runs; radio. |
 | Hybrid switching | Working in SITL | SITL (same host) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
-| Formations + reconfiguration | Partial | UNIT; SITL for earlier formations | V→line morph fails the 2.5 m gate (Phase 2). Transition protocol not built. |
+| Formations + reconfiguration | Partial | UNIT; SITL (earlier formations; one synchronized-transition run, 2026-10-30) | V→line morph fails the 2.5 m gate (Phase 2). Transition protocol not built. |
 | Scaling 5→10 | Partial | 30-seed point-mass pass (2 mm worst margin); one 10-agent VM mission | Thin margin; repeated live/fault runs. |
 | Physical prototype | Bench-checked only | PHYSICAL (USB bench: FC, sensors, GPS fix; props off) | Never flown. ESP32/CAN link is a proposal; CAN enabled in params but no command path confirmed. |
 
@@ -79,7 +79,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 1. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
 2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
-3. Synchronized transition protocol is implemented (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`) and covered by UNIT + INTEGRATION (in-memory channel) tests, but **not yet exercised in live SITL** and not the default; the old intent-driven morph path still runs unless the flag is set. Known limits: agent abort is relayed to peers via the coordinator (peers otherwise detect it through peer-verified progress); command gating covers the REPL/dashboard `handle` and `_set_formation` paths.
+3. Synchronized transition protocol (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`): UNIT + in-memory INTEGRATION tests, and **one live 5-drone standalone SITL run** (`docs/reports/TRANSITION_PROTOCOL_LIVE_SITL_2026-10-30.md`) in which a LINE transition completed and a COLUMN transition with a killed agent ended in a coordinated HOLD (no LAND). The run exposed and fixed two bugs the tests missed. Not repeated, no loss/latency/coordinator-kill/VM runs, not the default. Remaining limits: agent aborts reach peers through the coordinator relay; command gating covers REPL/dashboard `handle` and `_set_formation`.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
 6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
@@ -116,7 +116,7 @@ Not verified / open:
 ## 8. Plan
 
 1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
-2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; state machines + agent/console wiring done behind `--transition-protocol` (unit, lossy-channel and in-memory integration tests). Next: live 5-drone SITL run with the flag (then 10 drones, then VM split), structured command results, then decide whether to make it the default.
+2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; state machines + agent/console wiring done behind `--transition-protocol` (unit, lossy-channel and in-memory integration tests). One live 5-drone run done; next: repeat it, then 10 drones, loss/latency, coordinator kill, VM split; structured command results; then decide whether to make it the default.
 3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
 4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
 5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
@@ -124,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-30 — Claude — First live SITL run of the transition protocol; two fixes (peer memory, goal drift/pre-start abort); report + compact evidence added.
 - 2026-10-30 — Claude — Wired the transition protocol into agent and console (opt-in flag) with INTEGRATION tests; defect 3 updated; test count 417.
 - 2026-10-30 — Claude — Hybrid defaults changed (timeout 1.2 s, fallback dead_reckon) on sweep evidence; defect 8 updated; test count 412.
 - 2026-10-30 — Claude — Algorithm fixes 3.1/3.2/3.6 committed (`17ad625`); hybrid mixed-mode diagnosis recorded; test count 409.
