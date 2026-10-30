@@ -182,3 +182,16 @@ def test_dashboard_state_exposes_the_fence_for_the_map():
     state = dashboard_state(session)
     assert state["geofence"]["kind"] == "box" and state["geofence"]["box"] == [-10, -10, 10, 10]
     assert "state.geofence" in PAGE
+
+
+def test_flying_swarm_altitude_command_has_a_floor(capsys):
+    console = make_console(None)
+    console.mode_switch = None
+    console.transition_protocol = False
+    console.formation_hold = False
+    console.target_alt_m = 5.0
+    console.handle("j 40")
+    assert console.target_alt_m == IndependentSwarmConsole.MIN_FLIGHT_ALT_M == 2.0
+    assert "limited" in capsys.readouterr().out.lower()
+    console.handle("u 100")
+    assert console.target_alt_m == 25.0                      # existing ceiling still applies

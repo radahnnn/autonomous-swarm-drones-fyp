@@ -57,6 +57,7 @@ class IndependentSwarmConsole:
     """Mission entry, display, and logging only; node processes own all MAVLink I/O."""
 
     # Defaults so partially constructed consoles (tests) behave as "protocol off".
+    MIN_FLIGHT_ALT_M = 2.0
     transition_protocol = False
     formation_hold = False
     transition_pending = None
@@ -1525,7 +1526,11 @@ class IndependentSwarmConsole:
             self.target_alt_m = min(25.0, self.target_alt_m + step)
             self._publish_intent()
         elif action in ("j", "down"):
-            self.target_alt_m = max(0.5, self.target_alt_m - step)
+            lowest = self.MIN_FLIGHT_ALT_M
+            if self.target_alt_m - step < lowest:
+                print(f">> Altitude command limited: the flying swarm is kept at {lowest:g} m or higher "
+                      "(near-ground flight breaks the airborne checks); use LAND to descend.")
+            self.target_alt_m = max(lowest, self.target_alt_m - step)
             self._publish_intent()
         else:
             print("Commands: preflight | launch | w/s/a/d [m] | u/j [m] | status | mode <name> | link-block/restore <sender> <recipient> | "
