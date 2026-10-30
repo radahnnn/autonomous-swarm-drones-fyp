@@ -38,8 +38,8 @@ PAGE = r'''<!doctype html><html><head><meta charset="utf-8"><title>Swarm Control
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif;height:100vh;display:grid;grid-template-columns:minmax(0,1fr) 360px}
 main{position:relative;min-width:0}canvas{width:100%;height:100%;display:block}.top{position:absolute;top:18px;left:18px;right:18px;display:flex;gap:10px;pointer-events:none}.pill{background:#111a28e8;border:1px solid var(--edge);border-radius:12px;padding:10px 14px;box-shadow:0 8px 30px #0005}.pill b{font-size:18px}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
 aside{background:var(--card);border-left:1px solid var(--edge);padding:20px;overflow:auto}h1{font-size:20px;margin:0 0 4px}h2{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.11em;margin:22px 0 9px}.sub{color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.grid.two{grid-template-columns:1fr 1fr}button{border:1px solid var(--edge);background:#202c3e;color:var(--text);padding:11px 8px;border-radius:9px;font-weight:650;cursor:pointer}button:hover{background:#2a3a51}button:disabled{opacity:.42;cursor:not-allowed}.modebtn.active,.shape.active{border-color:var(--blue);background:#17375d;box-shadow:0 0 0 1px var(--blue) inset}.launch{background:#176c4b}.land{background:#762c38}.agentsgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.card{background:#101824;border:1px solid var(--edge);border-radius:10px;padding:9px;margin:0;min-width:0}.row{display:flex;justify-content:space-between;gap:6px}.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--ok)}input{width:100%;background:#0d1420;color:var(--text);border:1px solid var(--edge);border-radius:8px;padding:9px}.fault{display:grid;grid-template-columns:1fr 1fr;gap:7px}.msg{min-height:36px;color:var(--muted);font-size:13px;margin-top:10px}details{margin-top:18px;color:var(--muted)}pre{white-space:pre-wrap;font-size:11px}
-.bar{position:relative;height:10px;background:#1c293b;border-radius:6px;margin:8px 0;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}.bar u{position:absolute;top:0;bottom:0;width:2px;background:var(--bad)}.mx{font-variant-numeric:tabular-nums}.big{font-size:22px}
-</style></head><body><main><canvas id="map"></canvas><div class="top"><div class="pill"><b id="mode">CONNECTING</b><br><span id="mission" class="sub">Waiting for status</span></div><div class="pill"><b id="health">0 / 0</b><br><span class="sub">healthy agents</span></div><div class="pill"><b id="leader">—</b><br><span class="sub">elected leader</span></div></div></main>
+.bar{position:relative;height:10px;background:#1c293b;border-radius:6px;margin:8px 0;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}.bar u{position:absolute;top:0;bottom:0;width:2px;background:var(--bad)}.mx{font-variant-numeric:tabular-nums}#rp{position:absolute;left:18px;right:18px;bottom:16px;background:#111a28f0;border:1px solid var(--edge);border-radius:12px;padding:10px 14px;display:none;gap:10px;align-items:center;flex-wrap:wrap}#rp input[type=range]{flex:1;min-width:180px}#rp button,#rp select{background:#1c293b;color:var(--text);border:1px solid var(--edge);border-radius:8px;padding:6px 10px}.big{font-size:22px}
+</style></head><body><main><canvas id="map"></canvas><div id="rp"><button id="rpplay" onclick="rpPlay()">⏸</button><button onclick="rpJump(-1)" title="previous event">⏮</button><input id="rpseek" type="range" min="0" max="1000" value="0" oninput="rpDrag=true" onchange="rpSeek(this.value)"><button onclick="rpJump(1)" title="next event">⏭</button><select id="rpspeed" onchange="rpSpeed(this.value)"><option>0.5</option><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select>×<b id="rptime" class="mx"></b><span class="sub" id="rpmark"></span></div><div class="top"><div class="pill"><b id="mode">CONNECTING</b><br><span id="mission" class="sub">Waiting for status</span></div><div class="pill"><b id="health">0 / 0</b><br><span class="sub">healthy agents</span></div><div class="pill"><b id="leader">—</b><br><span class="sub">elected leader</span></div></div></main>
 <aside><h1>Swarm Control</h1><div class="sub">Simple operator view · map shows local North/East</div>
 <h2>Control architecture</h2><div class="grid"><button class="modebtn" data-mode="centralized" onclick="chooseMode('centralized')">Centralized</button><button class="modebtn" data-mode="decentralized" onclick="chooseMode('decentralized')">Decentralized</button><button class="modebtn" data-mode="hybrid" onclick="chooseMode('hybrid')">Hybrid</button></div><div id="modehelp" class="sub" style="margin-top:7px">Loading active architecture…</div>
 <h2>Flight</h2><div class="grid"><button onclick="send('preflight')">Check safety</button><button class="launch" onclick="send('launch')">Launch all</button><button class="land" onclick="land()">Land all</button></div>
@@ -58,6 +58,13 @@ function land(){if(confirm('Land all drones now?'))send('land')}function link(bl
 async function setShape(style){if(!state||!state.formation_change_allowed||state.formation_transitioning){msg.textContent='Wait for fresh safe status and for any current formation transition to finish.';return}msg.textContent='Planning safe transition to '+style+'…';try{let r=await fetch('/formation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({formation:style})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Formation change failed: '+e}}
 async function agentAction(id,online){let centralized=state&&state.control_mode==='centralized';let detail=online?(centralized?'Fail vehicle D'+id+'? The centralized console will command LAND for that SITL vehicle.':'Stop D'+id+' software agent? Its SITL flight controller stays active and may hold its last target if airborne.'):(centralized?'Revive vehicle D'+id+' in the swarm?':'Restart D'+id+' software agent? If airborne, the replacement agent will command LAND.');if(!confirm(detail))return;send((online?'fail ':'restart ')+id)}
 async function chooseMode(choice){if(!state)return;let flying=state.airborne||state.armed;if(flying&&!state.mode_switch_enabled){msg.textContent='Land and disarm all drones before changing architecture.';return}if(choice===state.control_mode){msg.textContent=choice+' is already active.';return}if(!confirm(flying?('Switch all drones to '+choice+' mode in flight? It is synchronized and blended over a few seconds, and rolls back automatically if any drone fails to follow.'):('Switch to '+choice+' mode? The controller will restart after confirming all drones are grounded and disarmed; SITL and QGroundControl will stay running.')))return;try{let r=await fetch('/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:choice})});let j=await r.json();msg.textContent=j.message}catch(e){msg.textContent='Mode switch failed: '+e}}
+let rpDrag=false;async function rpPost(b){try{await fetch('/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})}catch(e){}}
+function rpPlay(){rpPost({action:state&&state.replay&&state.replay.playing?'pause':'play'})}function rpSpeed(v){rpPost({action:'speed',speed:+v})}
+function rpSeek(v){rpDrag=false;if(state&&state.replay)rpPost({action:'seek',t:v/1000*state.replay.duration})}
+function rpJump(d){let r=state&&state.replay;if(!r)return;let m=r.markers.map(k=>k.t).sort((a,b)=>a-b),t=d>0?m.find(v=>v>r.t+0.6):[...m].reverse().find(v=>v<r.t-0.6);if(t!==undefined)rpPost({action:'seek',t:Math.max(0,t-1)})}
+function renderReplay(){let r=state&&state.replay,bar=document.getElementById('rp');if(!r){bar.style.display='none';return}bar.style.display='flex';document.getElementById('rpplay').textContent=r.playing?'⏸':'▶';
+if(!rpDrag)document.getElementById('rpseek').value=Math.round(r.t/Math.max(0.01,r.duration)*1000);document.getElementById('rptime').textContent=r.t.toFixed(0)+' / '+r.duration.toFixed(0)+' s';
+let past=r.markers.filter(k=>k.t<=r.t).slice(-1)[0];document.getElementById('rpmark').textContent=past?'last event: '+past.label+' (t='+past.t.toFixed(0)+'s)':'no event yet';}
 function renderMetrics(){let m=state&&state.metrics,g=document.getElementById('mxgap');if(!m){document.getElementById('mx').style.display='none';return}document.getElementById('mx').style.display='';
 let col=m.state==='violation'?'var(--bad)':m.state==='warn'?'var(--warn)':'var(--ok)';g.textContent=m.gap_m==null?'—':m.gap_m.toFixed(2)+' m';g.style.color=col;
 document.getElementById('mxstate').textContent=m.gap_m==null?'waiting for flight':(m.state==='ok'?'OK':m.state==='warn'?'LOW MARGIN':'BELOW GATE')+' · gate '+m.gate_m+' m · margin '+(m.margin_m>=0?'+':'')+m.margin_m.toFixed(2)+' m'+(m.pair?' · D'+m.pair[0]+'–D'+m.pair[1]:'');
@@ -69,7 +76,7 @@ let modes={},err=[],age=0;(m.drones||[]).forEach(d=>{if(d.mode)modes[d.mode]=(mo
 document.getElementById('mxdrones').textContent='modes '+(Object.entries(modes).map(([k,v])=>v+'× '+k).join(', ')||'—')+' · tracking err '+(err.length?(err.reduce((a,c)=>a+c,0)/err.length).toFixed(2)+' m avg / '+Math.max(...err).toFixed(2)+' max':'—')+' · oldest status '+age.toFixed(1)+' s';
 let c=m.counters||{};document.getElementById('mxcount').textContent=Object.keys(c).length?Object.entries(c).map(([k,v])=>k.replace(/_/g,' ')+' '+v).join(' · '):''}
 async function poll(){try{let r=await fetch('/state',{cache:'no-store'});state=await r.json();update()}catch(e){mode.textContent='DISCONNECTED';mode.className='bad'}setTimeout(poll,350)}
-function update(){renderMetrics();mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
+function update(){renderMetrics();renderReplay();mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
  document.querySelectorAll('.modebtn').forEach(b=>{let active=b.dataset.mode===state.control_mode;b.classList.toggle('active',active);b.disabled=!!state.transitioning||!!state.mode_switching||((state.airborne>0||state.armed>0)&&!state.mode_switch_enabled)||!state.healthy});modehelp.textContent=state.mode_switching?('Switching to '+state.mode_switch_target+' ('+state.mode_switch_state+')…'):(state.transitioning?'Switching safely to '+state.switch_target+'; the dashboard stays connected.':(state.transition_error||(state.mode_switch_enabled?'Click another mode to switch all drones in flight (synchronized, blended, rolls back on failure).':'Select another mode to restart the grounded controller while SITL remains running.')));
  shapes.innerHTML=state.formations.map(style=>'<button class="shape" onclick="setShape(\''+style+'\')">'+state.formation_labels[style]+'</button>').join('');document.querySelectorAll('.shape').forEach(b=>{b.classList.toggle('active',b.textContent.toLowerCase()===state.formation);b.disabled=!state.formation_change_enabled||!state.formation_change_allowed||!!state.formation_transitioning||!!state.transitioning});shapehelp.textContent=!state.formation_change_enabled?'Formation controls are unavailable in this mode.':(state.formation_transitioning?'Smooth formation transition: '+Math.round(100*(state.formation_transition_progress||0))+'% complete; wait before issuing another change.':(!state.formation_change_allowed?'Waiting for fresh, healthy status and a safe all-grounded or all-airborne swarm.':'Every requested shape is screened for path clearance; unsafe or crowded transitions are rejected.'));
  document.getElementById('blocklink').disabled=!state.peer_fault_enabled||!!state.transitioning;document.getElementById('restorelink').disabled=!state.peer_fault_enabled||!!state.transitioning;recoveryhelp.textContent=state.recovery_help||'Recovery controls depend on the active architecture.';
@@ -159,6 +166,9 @@ def dashboard_state(session) -> dict:
             "minimum_separation_m": _minimum_separation(agents),
         }
 
+    advance = getattr(session, "_advance", None)
+    if advance is not None:
+        advance()               # replay sessions move their cursor lazily on each state request
     now = time.time()
     with session.lock:
         latest = {key: value.copy() for key, value in session.latest.items()}
@@ -230,6 +240,7 @@ def dashboard_state(session) -> dict:
                    for agent in agents) else None
         ),
         "metrics": (session.metrics.snapshot() if getattr(session, "metrics", None) is not None else None),
+        "replay": (session.replay_info() if hasattr(session, "replay_info") else None),
         "mode_switch_enabled": hasattr(session, "set_control_mode"),
         "mode_switching": bool(getattr(getattr(session, "mode_switch", None), "busy", False)),
         "mode_switch_state": getattr(getattr(session, "mode_switch", None), "state", None),
@@ -265,13 +276,23 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
             self.wfile.write(data)
 
         def do_GET(self):
-            if self.path == "/state":
+            if self.path == "/replay" and hasattr(session, "replay_info"):
+                self.send_value(json.dumps(session.replay_info(), allow_nan=False))
+            elif self.path == "/state":
                 state = state_provider() if state_provider else dashboard_state(session)
                 self.send_value(json.dumps(state, allow_nan=False))
             else:
                 self.send_value(PAGE, "text/html; charset=utf-8")
 
         def do_POST(self):
+            if self.path == "/replay" and hasattr(session, "replay_post"):
+                try:
+                    size = min(int(self.headers.get("Content-Length", "0")), 1024)
+                    self.send_value(json.dumps(session.replay_post(json.loads(self.rfile.read(size))),
+                                               allow_nan=False))
+                except (ValueError, KeyError, TypeError) as exc:
+                    self.send_value(json.dumps({"message": f"bad replay request: {exc}"}), status=400)
+                return
             if self.path == "/mode":
                 try:
                     size = min(int(self.headers.get("Content-Length", "0")), 1024)

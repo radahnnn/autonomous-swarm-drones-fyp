@@ -125,3 +125,9 @@ Protocol and limitations: [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md).
 ## Synchronized formation transitions (opt-in)
 
 Add `--transition-protocol` (independent runtime with `--adaptive-swarm`) to run formation changes through prepare -> acknowledge -> common start, with local supervision and HOLD (not LAND) on abort; see `docs/TRANSITION_PROTOCOL_SPEC.md`. Without the flag the original intent-driven morph is used. Evidence so far: unit and in-memory integration tests only; not yet validated in live SITL.
+
+## In-flight mode switching, run metrics and replay
+
+- `mode <centralized|decentralized|hybrid>` (or the dashboard's architecture buttons) switches **all** drones in flight: every drone acknowledges, they start together, the controllers blend over ~2 s, and any failure rolls the swarm back. Per-mode behaviour when the coordinator goes silent: centralized holds then lands after 20 s; decentralized and hybrid keep flying the last mission on their peers (up to 120 s). See `docs/reports/MODE_SWITCH_LIVE_SITL_2026-10-30.md`.
+- The dashboard's **Run metrics** panel shows the live minimum drone-to-drone gap against the 2.5 m gate (sampled from ~1 Hz status), margin, low-margin and violation episodes, per-drone mode / link age / tracking error and event counters. At shutdown the console writes `run_report.json` and `RUN_REPORT.md` (PASS/FAIL against the gate) into the run's evidence folder.
+- **Replay** any recorded run in the same dashboard, read-only: `python3 -m sitl.replay runs/independent/<run>/evidence --port 8766 --speed 4` (a folder or an `events.jsonl`). Play/pause, speed, a scrub slider and previous/next-event buttons (mode switches, formation transitions, coordinator stream on/off, launch/land) are at the bottom of the map.

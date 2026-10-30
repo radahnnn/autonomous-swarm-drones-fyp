@@ -225,4 +225,4 @@ def test_dashboard_state_carries_the_live_run_metrics_and_the_page_renders_them(
     assert state["metrics"]["gate_m"] == 2.5 and state["metrics"]["gap_m"] == 4.0
     assert state["metrics"]["state"] == "ok" and state["metrics"]["drones"][0]["id"] == 1
     json.dumps(state, allow_nan=False)                       # the dashboard serializes strictly
-    assert "function renderMetrics" in PAGE and "renderMetrics();mode.textContent" in PAGE
+    assert "function renderMetrics" in PAGE and "renderMetrics();renderReplay();mode.textContent" in PAGE
