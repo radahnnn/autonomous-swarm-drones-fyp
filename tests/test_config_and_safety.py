@@ -261,8 +261,8 @@ def test_total_coordinator_outage_transition():
     # 2. Sever coordinator link completely (100% loss)
     sim.set_coordinator_link(False)
 
-    # Step for 30 steps (1.5s): exceeds degrade_timeout (0.5s)
-    for _ in range(30):
+    # Step for 60 steps (3.0s): exceeds degrade_timeout (1.2s) plus the 0.8s blend ramp
+    for _ in range(60):
         sim.step()
 
     # Verify all drones transitioned to DECENTRALIZED_FALLBACK
@@ -308,7 +308,7 @@ def test_controller_parameters_and_thresholds_from_profile():
     assert sim_base.decentral_ctrl.k_form == prof_base.get("decentralized_k_form") == 1.4
     assert sim_base.decentral_ctrl.safe_radius == prof_base.get("apf_activation_dist") == 1.20
 
-    assert sim_base.hybrid_ctrl.degrade_timeout == prof_base.get("hybrid_degrade_timeout") == 0.50
+    assert sim_base.hybrid_ctrl.degrade_timeout == prof_base.get("hybrid_degrade_timeout") == 1.20
     assert sim_base.hybrid_ctrl.window_size == prof_base.get("hybrid_recovery_window") == 20
     assert sim_base.hybrid_ctrl.recovery_ratio_threshold == prof_base.get("hybrid_recovery_ratio") == 0.70
     assert sim_base.hybrid_ctrl.min_dwell_time == prof_base.get("hybrid_dwell_time") == 2.00

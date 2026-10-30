@@ -43,7 +43,7 @@ class HybridController:
         ramp_duration: float = 0.8,             # Smooth ramping duration tau_ramp for alpha(t)
         window_size: int = 20,                  # Sliding window size for delivery ratio calculation
         recovery_ratio_threshold: float = 0.70, # Recover if delivery ratio >= 70% in sliding window
-        fallback_strategy: str = "consensus",   # "consensus", "dead_reckon", "hold_target", "hover"
+        fallback_strategy: str = "dead_reckon",  # "dead_reckon" (default), "consensus", "hold_target", "hover"
         dead_reckon_duration: float = 1.5,      # Parameter T: bounded dead reckoning duration in seconds
         central_controller: Optional[CentralizedController] = None,
         decentral_controller: Optional[DecentralizedController] = None,

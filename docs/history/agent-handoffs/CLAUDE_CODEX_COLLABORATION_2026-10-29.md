@@ -208,3 +208,15 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit / push: `17ad625` plus a docs commit; not pushed.
 - Recommended Codex review: confirm the SITL/agent path (`sitl/decentralized_guidance.py`, `sitl/independent_agent_node.py`) does not rely on the old additive guard or the degree-divided repulsion; review the `prioritised_separation_acceleration` semantics (removal of the opposing component is a conservative choice).
 - Next step: implement optional hybrid mode agreement and compare 30 seeds; read the 30-seed guard-distance runs; then resume wiring the transition protocol.
+
+### 2026-10-30 — Claude — hybrid defaults change, margin runs, assignment latching
+
+- Objective: act on the recommendations (defaults, evidence), after the user approved "lets do these".
+- Starting commit: `3ce1a0a` (pushed).
+- Files changed: `swarm_core/config.py` (`hybrid_degrade_timeout` 0.50 → 1.20 with provenance note), `swarm_core/controllers/hybrid.py` and `simulator/engine.py` (default fallback `dead_reckon`), `swarm_core/formations.py` + `controllers/centralized.py` (assignment hysteresis, commit `5da15b0`), tests (`test_config_and_safety.py`, `test_simulation.py`, `test_hybrid_features.py`, `test_safety_priority.py`), `experiments/sweep_hybrid_fallback.py`, report addendum, state file.
+- Design decisions: change the tracked profile parameter in one place so the SITL adapter stays in parity; keep the 2.5 m guard (3.0 m worsens tracking); leave swarm-level mode agreement unimplemented (timeout/strategy fixed the observed violation).
+- Tests and evidence level: numerical simulation + UNIT. Sweep (10 drones, 12 seeds): `dead_reckon`/1.2 s → mean 2.717 m, worst 2.613 m, 41 switches vs old default 2.640/2.560, 77. 30-seed runs: 2.5 m guard all cells 30/30, worst hybrid 2.552 m. Permanent loss: separation held, mission not continued (lag 5.4–6.0 m). Full suite passes.
+- Failures or unresolved risks: no SITL/hardware evidence; dead reckoning for up to 1.5 s is blind motion; hybrid does not continue the mission; the SITL agent path (`sitl/decentralized_guidance.py`, default timeout 0.5, `hold_target`) was not changed.
+- Commit / push: see `git log`; the previous commits were pushed at the user's request.
+- Recommended Codex review: the defaults change (is blind dead reckoning acceptable before physical tests?); whether `sitl/decentralized_guidance.py` should adopt the new timeout/strategy.
+- Next step: wire the transition protocol into the agent and console.

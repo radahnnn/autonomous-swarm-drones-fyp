@@ -50,7 +50,7 @@ class SwarmSimulation:
         p_g_to_b: float = 0.05,
         p_b_to_g: float = 0.20,
         profile: Optional[Union[str, SwarmConfigProfile]] = None,
-        fallback_strategy: str = "consensus",
+        fallback_strategy: str = "dead_reckon",
         dead_reckon_duration: float = 1.5,
         separation_minimum_m: float = 2.5,
     ):

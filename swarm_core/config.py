@@ -250,11 +250,15 @@ def _build_assumed_baseline_profile() -> SwarmConfigProfile:
         ),
         "hybrid_degrade_timeout": ParameterProvenance(
             name="hybrid_degrade_timeout",
-            value=0.50,
+            value=1.20,
             unit="s",
             meaning="Duration of coordinator silence before triggering fallback to decentralized mode",
             provenance="assumed",
-            notes="Ensures rapid fallback after ~5 dropped heartbeats at 10 Hz.",
+            notes=("Raised from 0.50 s on 2026-10-30 after a numerical sweep (10 drones, 10% loss, bursts, "
+                   "two 3 s outages, 12-30 seeds): 0.50 s gave ~75 mode switches per run and, with the "
+                   "consensus fallback, one trial below the 2.5 m gate; 1.2 s gave ~41 switches and no "
+                   "violation. Stale commands are still rejected separately by max_command_age. "
+                   "See docs/reports/ALGORITHM_REVIEW_2026-10-29.md; not validated in SITL or hardware."),
         ),
         "hybrid_recovery_window_s": ParameterProvenance(
             name="hybrid_recovery_window_s",

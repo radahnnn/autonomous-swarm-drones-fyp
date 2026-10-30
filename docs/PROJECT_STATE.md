@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 409 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 412 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration. Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 409 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 412 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -84,7 +84,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
 6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
 7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
-8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`), status after 2026-10-30: **fixed** — guard priority over goal term (3.1), demo pass/fail label and 3.0 m demo spacing (3.2), decentralized repulsion capped-sum (3.6). **Open** — swarm-level hybrid mode agreement (3.4: diagnosed, not yet implemented), permanent-coordinator-loss scenario (3.5), assignment latching/consolidation (3.7), 30-seed margin runs at 2.5 m vs 3.0 m guard (3.3: runs started, results not yet read), altitude staggering and gain sweeps (3.8).
+8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): guard priority, demo label, repulsion, assignment latching, recovery-rule pin and the hybrid defaults (`hybrid_degrade_timeout` 1.2 s, fallback `dead_reckon`) are done (numerical simulation only). **Open:** hybrid fallback does not continue the mission after permanent coordinator loss (quantified; design decision), altitude staggering, gain sweeps, SITL/hardware validation of all of it.
 9. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
 
 ## 6. Hardware facts
@@ -124,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-30 — Claude — Hybrid defaults changed (timeout 1.2 s, fallback dead_reckon) on sweep evidence; defect 8 updated; test count 412.
 - 2026-10-30 — Claude — Algorithm fixes 3.1/3.2/3.6 committed (`17ad625`); hybrid mixed-mode diagnosis recorded; test count 409.
 - 2026-10-29 — Claude — Added `docs/reports/ALGORITHM_REVIEW_2026-10-29.md` (numerical-simulation evidence) and its findings as defect 8.
 - 2026-10-29 — Claude — Added `sitl/transition_protocol.py` + 41 UNIT/simulated-channel tests (not yet wired into the runtime). Test count 359.

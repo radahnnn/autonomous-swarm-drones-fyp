@@ -87,3 +87,25 @@ The default `fallback_strategy="consensus"` sets `v_cmd = 0` and a goal of `None
 **Diagnosis for 3.4** (replay of the worst 10-drone hybrid burst trial, seed 20261021): drones were in mixed modes (some fallback, some centralized) in 448 of 600 ticks, including when no outage was injected; 63 of the 73 ticks below 2.65 m separation were mixed-mode; the minimum (2.552 m, t = 10.3 s) occurred with 8 centralized + 2 fallback drones. Correlational, not yet causal. Note that the comparison script uses the `hold_target` fallback, one V formation drifting at 0.4 m/s and no formation morphs, so it is a gentle scenario.
 
 **Not done yet:** optional swarm-level mode agreement in `HybridController` (engine already builds `perceived_neighbors`; add each neighbor's mode and a majority/hysteresis rule, then compare 30 seeds with and without), permanent-coordinator-loss scenario, assignment latching, consolidation, altitude staggering, gain sweeps. 30-seed 10-drone runs at guard 2.5 m and 3.0 m were started in the scratchpad; their JSON was not yet read.
+
+## 6. Addendum 2026-10-30 (later) — fallback sweep, margin runs, and the defaults change
+
+Numerical engine only; reproduce with `experiments/sweep_hybrid_fallback.py` (12 seeds, 10 drones, `assumed_baseline`).
+
+**Burst + two 3 s outages** (mean / worst min separation, gate 2.5 m; mode switches per run):
+
+| Fallback | timeout 0.5 s | timeout 1.2 s |
+|---|---|---|
+| consensus (old default) | 2.640 / 2.560; 77 | 2.665 / 2.560; 42 |
+| dead_reckon (new default) | 2.711 / 2.613; 75 | **2.717 / 2.613; 41** |
+| hold_target | 2.669 / 2.552; 75 | 2.679 / **2.480 (1 below gate)**; 42 |
+
+An earlier 30-seed run (same scenario) showed the old default `consensus` at 0.5 s with one trial below the gate (2.488 m) and `hover` worst on mean.
+
+**Permanent coordinator loss** (link cut at 5 s, target keeps moving to 20 s): every mode kept separation ≥ 2.613 m, but none continues the mission: mission lag 5.4 m (`dead_reckon`) to 6.0 m (`hold_target`, centralized). So hybrid fallback is "hold formation safely", not "carry on". Finding 3.5 stands: either say so in the thesis or give agents local mission knowledge (waypoints) so the local controller can keep going.
+
+**Guard distance, 30 seeds, 10 drones, after the priority fix:** with the default 2.5 m guard every cell passes 30/30 with none below the gate; worst hybrid burst margin 2.552 m (52 mm; was ~2 mm before the fix). A 3.0 m guard lifts the worst case to 2.603 m but raises steady error (hybrid p95 0.125 → 0.18 m; decentralized burst 0.204 → 0.394 m) because the guard then fights the 3.0 m formation spacing. Keep 2.5 m unless the formation spacing is also increased.
+
+**Change made (approved by the user, 2026-10-30):** profile `hybrid_degrade_timeout` 0.50 → 1.20 s and default fallback `consensus` → `dead_reckon` (profile note records the evidence). The SITL adapter reads the same profile, so parity holds. Three tests that pinned the old timing were updated (outage tests now outlast 1.2 s + the 0.8 s ramp). **Not validated in SITL or hardware.** Dead reckoning continues on the last received velocity for up to 1.5 s before braking: acceptable in simulation, to be reviewed before any physical flight.
+
+**Status of findings:** 3.1, 3.2, 3.6, 3.7 (engine already latched; `CentralizedController` now latches with hysteresis), 3.8 (recovery rule pinned; latency threshold set via profile) fixed or closed; 3.3 closed with the data above; 3.4 mitigated by the timeout/strategy (swarm-level mode agreement not implemented, not shown to be needed); 3.5 quantified, design decision open; altitude staggering and gain sweeps still open.

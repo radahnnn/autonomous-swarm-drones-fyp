@@ -109,10 +109,10 @@ def test_outage_and_feedforward_simulation():
     sim.set_formation(FormationType.LINE, centroid=np.array([0.0, 0.0]))
     sim.centroid_velocity = np.array([0.8, 0.3])
     
-    # Schedule full outage from t = 2.0s to 3.0s
-    sim.channel.add_outage(start_time=2.0, duration=1.0)
+    # Schedule a full outage from t = 2.0s to 4.0s (longer than the 1.2s degrade timeout)
+    sim.channel.add_outage(start_time=2.0, duration=2.0)
 
-    for step_i in range(120):  # 6.0 seconds
+    for step_i in range(160):  # 8.0 seconds
         t = step_i * sim.dt
         sim.centroid_target += sim.centroid_velocity * sim.dt
         sim.step()
