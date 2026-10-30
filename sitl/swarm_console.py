@@ -1171,6 +1171,10 @@ def main():
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass"), default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
+    parser.add_argument("--transition-protocol", action="store_true",
+                        help="independent runtime (opt-in): synchronized formation transitions with "
+                             "prepare/ack/common start, local supervision and HOLD on abort "
+                             "(docs/TRANSITION_PROTOCOL_SPEC.md)")
     parser.add_argument("--adaptive-swarm", action="store_true",
                         help="independent runtime: dynamic membership, topology repair, leader election and slot redistribution")
     parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",

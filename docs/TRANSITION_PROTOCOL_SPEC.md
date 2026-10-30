@@ -1,6 +1,6 @@
 # Formation-transition protocol — design spec (DRAFT for Codex review)
 
-Status: **state machines implemented and unit-tested** in `sitl/transition_protocol.py` (pure logic, `tests/test_transition_protocol.py`); **not yet wired** into the agent node or console, and no SITL evidence. Defaults taken for the open questions: abort = HOLD, and coordinator loss during a transition = HOLD (conservative). Written 2026-10-29 by Claude against commit `1b700b8`. Nothing here is validated; thresholds are starting values to be calibrated from measured latency and clock-sync uncertainty.
+Status: **state machines implemented and unit-tested** in `sitl/transition_protocol.py` (pure logic, `tests/test_transition_protocol.py`); **wired** into `sitl/independent_agent_node.py` and `sitl/independent_swarm_console.py` behind the opt-in `--transition-protocol` flag and covered by in-memory integration tests (`tests/test_transition_wiring.py`); **no live SITL evidence yet**. Defaults taken for the open questions: abort = HOLD, and coordinator loss during a transition = HOLD (conservative). Written 2026-10-29 by Claude against commit `1b700b8`. Nothing here is validated; thresholds are starting values to be calibrated from measured latency and clock-sync uncertainty.
 
 Accurate claim if implemented: *centralized transition planning, distributed synchronized execution, and distributed local supervision.* It is **not** decentralized formation negotiation.
 

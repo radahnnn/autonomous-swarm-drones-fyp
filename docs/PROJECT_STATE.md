@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 412 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 417 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration. Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 412 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 417 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -79,7 +79,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 
 1. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
 2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
-3. No prepare/ack/common-start/abort for synchronized transitions; supervision is coordinator-only (see spec §1); command gating during transitions is client-side only (`_operator_command` and dashboard endpoints are not gated server-side); link-loss/coordinator-loss/membership semantics undefined.
+3. Synchronized transition protocol is implemented (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`) and covered by UNIT + INTEGRATION (in-memory channel) tests, but **not yet exercised in live SITL** and not the default; the old intent-driven morph path still runs unless the flag is set. Known limits: agent abort is relayed to peers via the coordinator (peers otherwise detect it through peer-verified progress); command gating covers the REPL/dashboard `handle` and `_set_formation` paths.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
 6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
@@ -116,7 +116,7 @@ Not verified / open:
 ## 8. Plan
 
 1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
-2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; pure state machines done and unit-tested (`sitl/transition_protocol.py`, 41 tests incl. a lossy-channel simulation). Next: wire into the agent node and console, structured command results/gating, then SITL (defect 3).
+2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; state machines + agent/console wiring done behind `--transition-protocol` (unit, lossy-channel and in-memory integration tests). Next: live 5-drone SITL run with the flag (then 10 drones, then VM split), structured command results, then decide whether to make it the default.
 3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
 4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
 5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
@@ -124,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-30 — Claude — Wired the transition protocol into agent and console (opt-in flag) with INTEGRATION tests; defect 3 updated; test count 417.
 - 2026-10-30 — Claude — Hybrid defaults changed (timeout 1.2 s, fallback dead_reckon) on sweep evidence; defect 8 updated; test count 412.
 - 2026-10-30 — Claude — Algorithm fixes 3.1/3.2/3.6 committed (`17ad625`); hybrid mixed-mode diagnosis recorded; test count 409.
 - 2026-10-29 — Claude — Added `docs/reports/ALGORITHM_REVIEW_2026-10-29.md` (numerical-simulation evidence) and its findings as defect 8.

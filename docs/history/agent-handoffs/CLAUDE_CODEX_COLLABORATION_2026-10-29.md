@@ -220,3 +220,15 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Commit / push: see `git log`; the previous commits were pushed at the user's request.
 - Recommended Codex review: the defaults change (is blind dead reckoning acceptable before physical tests?); whether `sitl/decentralized_guidance.py` should adopt the new timeout/strategy.
 - Next step: wire the transition protocol into the agent and console.
+
+### 2026-10-30 — Claude — transition protocol wired into agent and console (opt-in)
+
+- Objective: connect `sitl/transition_protocol.py` to the runtime without changing default behavior.
+- Starting commit: `4acdc66`.
+- Files changed: `sitl/independent_agent_node.py` (transition message handling, context snapshot, slot ownership while RUNNING/ARRIVED/HOLD, `track_formation`, `transition` status field), `sitl/independent_swarm_console.py` (`--transition-protocol` path in `_set_formation`, ack/abort intake in `_status_loop`, `_tick_transition_protocol` in the intent loop, server-side gating in `handle`/`_set_formation`, land aborts to HOLD, airborne intents carry no formation/slots in protocol mode), `sitl/swarm_console.py` (flag), docs, new `tests/test_transition_wiring.py`.
+- Design decisions: opt-in flag because there is no live evidence yet; agents never move while STAGED; abort = HOLD; airborne protocol-mode intents use `formation="configured"` and no slots so a stale intent can never overwrite frozen slots; agent aborts reach peers through the coordinator relay.
+- Tests and evidence level: INTEGRATION (real coordinator + real agent logic over an in-memory channel with a controllable clock; no SITL/UDP/MAVLink): success path (all start together, finish in target formation, nobody moves before `start_at`), missing prepare (cancelled, nobody moved), lost go (others HOLD, agent 2 never starts, no LAND, re-plan possible), server-side gating (`transition_active`), land during morph. Full suite passes.
+- Failures or unresolved risks: no live SITL run yet; peer-to-peer abort broadcast not implemented (coordinator relays); gating covers REPL/dashboard `handle` + `_set_formation` only; clock-sync uncertainty cap from the spec is not enforced; thresholds are initial values.
+- Commit / push: see `git log`; not pushed after `3ce1a0a`.
+- Recommended Codex review: `_publish_intent` protocol-mode branch; whether any dashboard endpoint bypasses `handle`/`_set_formation`; the HOLD semantics when the swarm centre goal is held.
+- Next step: live 5-drone standalone SITL run with `--transition-protocol` (formation change, killed agent, dropped go if possible), record evidence.

@@ -21,6 +21,7 @@ from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
+from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
 
 
 OPERATOR_VERSION = 1
@@ -28,6 +29,9 @@ STATUS_PORT_BASE = 22000
 NODE_COMMAND_PORT_BASE = 21000
 PEER_PORT_BASE = 20000
 _TYPE_MASK_POS_YAW = 0b0000101111111000
+
+
+_TRANSITION_KINDS = ("transition_prepare", "transition_go", "transition_abort", "transition_done")
 
 
 class IndependentAgentNode:
@@ -68,6 +72,10 @@ class IndependentAgentNode:
         self.formation_transition_started_at = None
         self.formation_transition_duration_s = 0.0
         self.formation_transition_progress = 1.0
+        # Synchronized transition protocol (docs/TRANSITION_PROTOCOL_SPEC.md); idle unless the
+        # coordinator runs with --transition-protocol.
+        self.transition = AgentTransition(drone_id, count)
+        self._discovered = []
         if control_mode not in ("decentralized", "hybrid"):
             raise ValueError("independent agent control mode must be decentralized or hybrid")
         self.control_mode = control_mode
@@ -451,6 +459,8 @@ class IndependentAgentNode:
                 # mission intent continuously, but a fresh mission does not imply takeoff.
                 if not self.landing and not (not self.airborne and self.last_command == "landed"):
                     self.last_command = f"mission:{intent.sequence}"
+            elif kind in _TRANSITION_KINDS:
+                self._handle_transition_message(kind, message)
             elif kind == "network_fault":
                 if (not isinstance(message.get("epoch"), str) or
                         message.get("epoch") != self.clock_sync_epoch):
@@ -517,6 +527,90 @@ class IndependentAgentNode:
                         self.command_in_progress = False
                 elif action == "land":
                     self._command_land("operator")
+
+    def _send_to_operator(self, message: dict) -> None:
+        self.status_socket.sendto(encode_message(message, self.operator_auth_key),
+                                  self.status_endpoint)
+
+    def _transition_context(self, wall_now: float) -> AgentContext:
+        """Snapshot of what this agent knows, for the transition state machine."""
+        fresh = set(self.peers.fresh_link_ids(wall_now))
+        peers = {}
+        for peer in self._discovered:
+            try:
+                peers[int(peer["id"])] = PeerObservation(
+                    (float(peer["position"][0]), float(peer["position"][1])),
+                    float(peer.get("age", 0.0)))
+            except (KeyError, TypeError, ValueError, IndexError):
+                continue
+        own_fresh = (self.position is not None and bool(self.position_at) and
+                     0.0 <= wall_now - self.position_at <= 1.0)
+        coordinator_age = (time.monotonic() - self.last_coordinator_message_monotonic
+                           if self.last_coordinator_message_monotonic else float("inf"))
+        return AgentContext(
+            airborne_armed=bool(self.armed and self.airborne and not self.landing),
+            own_fresh=own_fresh,
+            peers_live=set(self.peer_ids) <= fresh,
+            own_position_ne=(None if self.position is None
+                             else (float(self.position[0]), float(self.position[1]))),
+            peers=peers, coordinator_age_s=coordinator_age,
+        )
+
+    def _handle_transition_message(self, kind: str, message: dict) -> None:
+        epoch = message.get("epoch")
+        if not isinstance(epoch, str) or epoch != self.clock_sync_epoch:
+            return
+        wall = time.time()
+        operator_now = wall - self.operator_clock_offset_s
+        if kind == "transition_prepare":
+            reply = self.transition.on_prepare(message, operator_now,
+                                               self._transition_context(wall))
+            reply["epoch"] = epoch
+            self._send_to_operator(reply)
+        elif kind == "transition_go":
+            reply = self.transition.on_go(message, operator_now)
+            if reply is not None:
+                reply["epoch"] = epoch
+                self._send_to_operator(reply)
+        elif kind == "transition_abort":
+            self.transition.on_abort(message, operator_now)
+        elif kind == "transition_done":
+            plan = self.transition.plan
+            self.transition.on_done(message)
+            if plan is not None and self.transition.state == AgentTransition.IDLE:
+                self._finish_transition(plan)
+
+    def _finish_transition(self, plan) -> None:
+        """The morph is complete: adopt the target formation exactly."""
+        self.formation = plan.formation
+        if self.membership is not None:
+            self.membership.formation = plan.formation
+        target = np.asarray(plan.target_slots, dtype=float)
+        self.operator_formation_slots = target.copy()
+        self.all_slots = target.copy()
+        self.slot = self.all_slots[self.drone_id].copy()
+        self.formation_transition_progress = 1.0
+        self.membership_revision += 1
+
+    def _tick_transition(self, wall_now: float) -> None:
+        if self.transition.state == AgentTransition.IDLE:
+            return
+        plan = self.transition.plan
+        operator_now = wall_now - self.operator_clock_offset_s
+        for action in self.transition.tick(operator_now, self._transition_context(wall_now)):
+            if action[0] == "send":
+                message = dict(action[1])
+                message["epoch"] = self.clock_sync_epoch
+                self._send_to_operator(message)
+            elif action[1] == "arrived_timeout_close" and plan is not None:
+                self._finish_transition(plan)
+        if self.transition.state in (AgentTransition.RUNNING, AgentTransition.ARRIVED,
+                                     AgentTransition.HOLD):
+            slots = self.transition.current_slots(operator_now)
+            self.all_slots = slots.copy()
+            self.slot = self.all_slots[self.drone_id].copy()
+            self.formation_transition_progress = float(
+                self.transition.status(operator_now)["progress"] or 0.0)
 
     def _send_command_ack(self, sequence: int, action: str, epoch: str) -> None:
         ack = {
@@ -635,7 +729,11 @@ class IndependentAgentNode:
                 mission_intent=self.pending_intent,
                 slot_offset=self.slot[:2],
                 coordinator_connected=coordinator_connected,
-                track_formation=intent.formation_transition_s > 0.0,
+                track_formation=(intent.formation_transition_s > 0.0 or
+                                 getattr(self, "transition", None) is not None and
+                                 self.transition.state in (AgentTransition.RUNNING,
+                                                           AgentTransition.ARRIVED,
+                                                           AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
             )
         except (TypeError, ValueError) as exc:
@@ -721,6 +819,7 @@ class IndependentAgentNode:
             "formation": self.formation,
             "formation_transition_active": self.formation_transition_progress < 1.0,
             "formation_transition_progress": self.formation_transition_progress,
+            "transition": self.transition.status(now - self.operator_clock_offset_s),
             "adaptive_swarm": self.adaptive_swarm,
             "active_member_ids": (sorted(self.membership.active_ids)
                                   if self.membership is not None else list(range(self.count))),
@@ -833,6 +932,8 @@ class IndependentAgentNode:
                         self.formation_transition_started_at = None
                         self.formation_transition_duration_s = 0.0
                         self.formation_transition_progress = 1.0
+                self._discovered = discovered
+                self._tick_transition(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)

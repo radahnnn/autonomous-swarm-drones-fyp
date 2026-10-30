@@ -22,6 +22,7 @@ from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.swarm_console import SwarmConsole
+from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan
 
 
 SITL_SENSOR_PROFILE_OVERRIDES = {
@@ -51,6 +52,11 @@ _CLOCK_RESYNC_INTERVAL_S = 60.0
 
 class IndependentSwarmConsole:
     """Mission entry, display, and logging only; node processes own all MAVLink I/O."""
+
+    # Defaults so partially constructed consoles (tests) behave as "protocol off".
+    transition_protocol = False
+    formation_hold = False
+    transition_pending = None
 
     def __init__(self, args):
         self.args = args
@@ -102,6 +108,12 @@ class IndependentSwarmConsole:
         self.formation_transition_started_at = None
         self.formation_resume_goal = None
         self.formation_abort_issued = False
+        # Synchronized transition protocol (opt-in): prepare -> ack -> common start -> HOLD on abort.
+        self.transition_protocol = bool(getattr(args, "transition_protocol", False))
+        self.transition = CoordinatorTransition(self.count)
+        self.transition_lock = threading.Lock()
+        self.transition_pending = None   # (style, target_slots, resume_goal)
+        self.formation_hold = False
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -290,6 +302,8 @@ class IndependentSwarmConsole:
             dashboard_port = int(getattr(self.args, "dashboard_port", 0) or 0)
             if dashboard_port:
                 base += ["--dashboard-port", str(dashboard_port)]
+            if self.transition_protocol:
+                base += ["--transition-protocol"]
         return " ".join(base)
 
     @staticmethod
@@ -421,6 +435,9 @@ class IndependentSwarmConsole:
                             self.command_acks[index] = (ack_sequence, ack_action, ack_epoch)
                         self.event("command_ack", drone_id=index, sequence=ack_sequence,
                                    action=ack_action, epoch=ack_epoch)
+                        continue
+                    if status.get("type") in ("transition_ack", "transition_abort"):
+                        self._on_agent_transition_message(index, status)
                         continue
                     if status.get("type") != "status" or status.get("drone_id") != index:
                         continue
@@ -566,20 +583,21 @@ class IndependentSwarmConsole:
         self.mission_sequence += 1
         now = time.time()
         issued_at = self.formation_transition_started_at or now
+        airborne_protocol = self.transition_protocol and self._any_airborne()
         intent = MissionIntent(
             sequence=self.mission_sequence,
             issued_at=issued_at,
             expires_at=issued_at + 60.0,
             goal_ne=(float(self.goal_ne[0]), float(self.goal_ne[1])),
-            formation=self.formation,
+            formation="configured" if airborne_protocol else self.formation,
             target_alt_m=float(self.target_alt_m),
-            formation_slots=(None if self.formation_slots is None else
+            formation_slots=(None if self.formation_slots is None or airborne_protocol else
                              tuple(tuple(float(component) for component in slot)
                                    for slot in self.formation_slots)),
-            formation_start_slots=(None if self.formation_start_slots is None else
+            formation_start_slots=(None if self.formation_start_slots is None or airborne_protocol else
                                    tuple(tuple(float(component) for component in slot)
                                          for slot in self.formation_start_slots)),
-            formation_transition_s=float(self.formation_transition_s),
+            formation_transition_s=0.0 if airborne_protocol else float(self.formation_transition_s),
         ).to_dict()
         epoch = (self.clock_sync_message or {}).get("epoch")
         if not epoch:
@@ -587,6 +605,122 @@ class IndependentSwarmConsole:
         self._send_to_agents({"version": 1, "type": "mission", "epoch": epoch,
                               "intent": intent})
         self.event("mission_intent", **intent)
+
+    def _any_airborne(self) -> bool:
+        with self.lock:
+            return any(state.get("airborne") is True for state in self.latest.values())
+
+    def _dispatch_transition(self, actions) -> None:
+        """Send protocol messages and react to protocol events (called without holding locks)."""
+        epoch = (self.clock_sync_message or {}).get("epoch")
+        for action in actions:
+            if action[0] == "send":
+                if not epoch:
+                    continue
+                message = dict(action[1])
+                message["epoch"] = epoch
+                try:
+                    self._send_to_agents(message)
+                except OSError as exc:
+                    self.event("transition_send_error", error=str(exc), type=message.get("type"))
+            elif action[0] == "event":
+                self.event(action[1], **action[2])
+                self._on_transition_event(action[1], action[2])
+
+    def _on_transition_event(self, name: str, data: dict) -> None:
+        pending = self.transition_pending
+        if name == "transition_complete" and pending is not None:
+            style, slots, resume_goal = pending
+            self.formation = style
+            self.formation_slots = slots
+            self.goal_ne = resume_goal
+            self.transition_pending = None
+            self.formation_hold = False
+            self.event("formation_transition_complete", formation=style)
+            print(f">> Formation transition to {style.upper()} complete.", flush=True)
+        elif name == "transition_aborted" and pending is not None:
+            _, _, resume_goal = pending
+            if data.get("moved"):
+                # Drones froze mid-transition: keep the swarm centre held and let the operator re-plan.
+                self.formation_hold = True
+                print(f"!! Formation transition aborted ({data.get('reason')}); drones are HOLDING "
+                      "position. Re-issue a formation command to re-plan, or LAND.", flush=True)
+            else:
+                self.goal_ne = resume_goal
+                self.transition_pending = None
+                print(f">> Formation transition cancelled before start ({data.get('reason')}); "
+                      "no drone moved.", flush=True)
+        elif name == "needs_operator":
+            print("!! Formation HOLD has lasted too long; command a new formation or LAND.", flush=True)
+
+    def _on_agent_transition_message(self, index: int, message: dict) -> None:
+        if not self.transition_protocol:
+            return
+        epoch = (self.clock_sync_message or {}).get("epoch")
+        if message.get("epoch") != epoch:
+            return
+        sender = message.get("drone_id") if message.get("type") == "transition_ack" else message.get("from")
+        if sender != index:
+            return
+        with self.transition_lock:
+            if message["type"] == "transition_ack":
+                actions = self.transition.on_ack(message, time.time())
+            else:
+                actions = self.transition.on_agent_abort(message, time.time())
+        self._dispatch_transition(actions)
+
+    def _transition_views(self, now: float) -> dict:
+        with self.lock:
+            states = {index: state.copy() for index, state in self.latest.items()}
+        views = {}
+        for index, state in states.items():
+            try:
+                age = now - float(state.get("operator_received_at", state.get("timestamp")))
+                position = np.asarray(state.get("position"), dtype=float)
+                if position.shape != (3,) or not np.isfinite(position).all():
+                    continue
+                info = state.get("transition") or {}
+                views[index] = AgentView(
+                    age_s=age,
+                    armed_airborne=state.get("armed") is True and state.get("airborne") is True,
+                    safety_nominal=state.get("safety_state") == "nominal",
+                    position_ne=(float(position[0]), float(position[1])),
+                    state=str(info.get("state", "IDLE")),
+                    transition_id=info.get("transition_id"),
+                )
+            except (TypeError, ValueError):
+                continue
+        return views
+
+    def _tick_transition_protocol(self) -> None:
+        now = time.time()
+        views = self._transition_views(now)
+        with self.transition_lock:
+            actions = self.transition.tick(now, views)
+        self._dispatch_transition(actions)
+
+    def _begin_protocol_transition(self, style, plan, positions, centroid, now, result):
+        start_slots = np.column_stack((positions - centroid, np.zeros(self.count)))
+        try:
+            tplan = TransitionPlan.build(
+                self.transition.next_id(), style, centroid, start_slots, plan.slots_by_drone,
+                plan.duration_s, now + self.transition.params.lead_s)
+        except ValueError as exc:
+            return result(False, f"Transition plan rejected: {exc}")
+        self.transition_pending = (style, np.asarray(plan.slots_by_drone, dtype=float).copy(),
+                                   self.goal_ne.copy())
+        self.goal_ne = centroid.copy()   # hold the swarm centre while morphing
+        self.formation_hold = False
+        with self.transition_lock:
+            actions = self.transition.begin(tplan, now)
+        self._dispatch_transition(actions)
+        return result(True, f"Transition to {style.upper()} prepared; waiting for all {self.count} "
+                      f"drones to acknowledge, then a common start in "
+                      f"{self.transition.params.lead_s:.0f}s ({plan.duration_s:.1f}s morph, "
+                      f"path clearance {plan.minimum_path_separation_m:.2f}m).",
+                      formation=style, transition_id=tplan.transition_id,
+                      duration_s=plan.duration_s,
+                      minimum_path_separation_m=plan.minimum_path_separation_m)
 
     def _send_to_agents(self, message: dict) -> int:
         return send_to_nodes(message, endpoints=self.operator_targets,
@@ -656,6 +790,8 @@ class IndependentSwarmConsole:
     def _intent_loop(self) -> None:
         next_intent_publish = 0.0
         while self.running:
+            if self.transition_protocol:
+                self._tick_transition_protocol()
             if self.formation_transition_deadline is not None:
                 reason = self._formation_transition_abort_reason(time.time())
                 if reason and not getattr(self, "formation_abort_issued", False):
@@ -725,6 +861,10 @@ class IndependentSwarmConsole:
     def _operator_command(self, action: str) -> dict:
         if action == "land":
             self.land_requested = True
+            if self.transition_protocol:
+                with self.transition_lock:
+                    abort_actions = self.transition.abort("operator_land", time.time())
+                self._dispatch_transition(abort_actions)
         self.operator_sequence += 1
         sequence = self.operator_sequence
         epoch = (self.clock_sync_message or {}).get("epoch")
@@ -942,7 +1082,10 @@ class IndependentSwarmConsole:
             return result(False, f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
         if not getattr(self.args, "adaptive_swarm", False):
             return result(False, "Formation changes require adaptive swarm mode.")
-        if style == self.formation:
+        if self.transition_protocol and self.transition.busy:
+            return result(False, "A formation transition is already active; wait for it to finish.",
+                          code="transition_active", transition_id=self.transition.plan.transition_id)
+        if style == self.formation and not self.formation_hold:
             return result(True, f"Formation {style.upper()} is already active; no transition needed.",
                           formation=style, unchanged=True)
         if getattr(self, "formation_transition_deadline", None) is not None:
@@ -1012,6 +1155,8 @@ class IndependentSwarmConsole:
             )
         except (TypeError, ValueError) as exc:
             return result(False, str(exc))
+        if self.transition_protocol:
+            return self._begin_protocol_transition(style, plan, positions, centroid, now, result)
         self.formation_resume_goal = self.goal_ne.copy()
         self.goal_ne = centroid.copy()  # hold the swarm center during the morph
         self.formation = style
@@ -1039,7 +1184,8 @@ class IndependentSwarmConsole:
             return True
         action = parts[0]
         numeric_actions = {"w", "north", "s", "south", "a", "west", "d", "east", "u", "up", "j", "down"}
-        if (getattr(self, "formation_transition_deadline", None) is not None and
+        if ((getattr(self, "formation_transition_deadline", None) is not None or
+             (self.transition_protocol and self.transition.busy)) and
                 action not in {"status", "land", "q", "quit"}):
             print(">> Formation transition active; wait for it to finish or command LAND.")
             return True

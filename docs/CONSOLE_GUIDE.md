@@ -120,3 +120,8 @@ The adaptive ten-agent run and visual controller are documented in
 - Controller process failure requests LAND; restart the session to restore that controller.
 
 Protocol and limitations: [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md).
+
+
+## Synchronized formation transitions (opt-in)
+
+Add `--transition-protocol` (independent runtime with `--adaptive-swarm`) to run formation changes through prepare -> acknowledge -> common start, with local supervision and HOLD (not LAND) on abort; see `docs/TRANSITION_PROTOCOL_SPEC.md`. Without the flag the original intent-driven morph is used. Evidence so far: unit and in-memory integration tests only; not yet validated in live SITL.
