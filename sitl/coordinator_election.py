@@ -78,6 +78,14 @@ class CoordinatorElection:
         self.term = max(self.term, term)
         return True, actions
 
+    def resume_after_local_pause(self, now: float) -> None:
+        """This agent was blocked (arming, takeoff, a stalled loop) and was not listening: silence proves
+        nothing, so restart the operator and acting-coordinator silence timers instead of taking over."""
+        if self.last_operator_at is not None:
+            self.last_operator_at = now
+        if self.last_acting_at is not None:
+            self.last_acting_at = now
+
     # ---------------------------------------------------------------- periodic
     def operator_silent(self, now: float) -> bool:
         return (self.last_operator_at is not None and

@@ -288,3 +288,26 @@ def test_console_notes_takeovers_once_per_role_change():
         c._update_metrics()
     assert c.metrics.counters.get("coordinator_takeover") == 2
     assert [k for k, _ in c.events].count("coordinator_stepdown") == 1
+
+
+# ------------------------------------------------------------------ a local pause is not operator silence
+def test_a_blocked_agent_does_not_take_over_when_it_wakes_up():
+    e = CoordinatorElection(0)
+    e.note_operator(100.0)
+    e.resume_after_local_pause(110.0)               # blocked in arm/takeoff for 10 s
+    assert e.tick(110.1, 0, 3) == [] and e.state == e.FOLLOWER
+    assert e.tick(113.5, 0, 3) != []                # still a real takeover if the operator stays silent after the pause
+    assert CoordinatorElection(0).resume_after_local_pause(5.0) is None   # no operator heard yet: nothing to reset
+
+
+def test_a_long_gap_between_ticks_is_treated_as_a_local_pause(monkeypatch):
+    clock, nodes = make_swarm(monkeypatch)
+    node = nodes[0]
+    node._last_election_tick = clock["t"]
+    clock["t"] += 20.0                               # the agent loop stalled for 20 s (operator silent only "apparently")
+    node._tick_election(clock["t"])
+    assert node.election.state == "FOLLOWER" and node.election.takeovers == 0
+    for _ in range(9):                               # genuinely silent for > 3 s after waking (0.5 s ticks)
+        clock["t"] += 0.5
+        node._tick_election(clock["t"])
+    assert node.election.state == "ACTING"

@@ -553,6 +553,7 @@ class IndependentAgentNode:
                         self.position_at = time.time()
                         if self.membership is not None:
                             self.membership.resume_after_local_pause(time.time())
+                        self.election.resume_after_local_pause(time.monotonic())
                         self.command_in_progress = False
                 elif action == "land":
                     self._command_land("operator")
@@ -726,8 +727,14 @@ class IndependentAgentNode:
             if action[0] == "event":
                 print(f"[NODE {self.drone_id + 1}] {action[1].replace('_', ' ')} {action[2]}", flush=True)
 
+    LOCAL_PAUSE_S = 2.0   # a longer gap between election ticks means this agent, not the operator, went quiet
+
     def _tick_election(self, wall_now: float) -> None:
         mono = time.monotonic()
+        last = getattr(self, "_last_election_tick", None)
+        if last is not None and mono - last > self.LOCAL_PAUSE_S:
+            self.election.resume_after_local_pause(mono)
+        self._last_election_tick = mono
         for message in self.peers.take_coordinator_messages():
             self._handle_acting_intent(message, wall_now, mono)
         if getattr(self, "membership", None) is None:
