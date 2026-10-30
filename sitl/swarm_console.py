@@ -1171,6 +1171,20 @@ def main():
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass"), default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
+    parser.add_argument("--geofence-radius", type=float, default=None, metavar="M",
+                        help="independent runtime: circular software fence around the local origin")
+    parser.add_argument("--geofence-box", default=None, metavar="N0,E0,N1,E1",
+                        help="independent runtime: rectangular software fence (north/east metres)")
+    parser.add_argument("--geofence-max-alt", type=float, default=None, metavar="M",
+                        help="independent runtime: maximum altitude")
+    parser.add_argument("--geofence-margin", type=float, default=2.0, metavar="M",
+                        help="commanded targets and operator moves stay this far inside the fence")
+    parser.add_argument("--altitude-layers", type=int, default=1, choices=range(1, 6), metavar="K",
+                        help="independent runtime: K vertical layers (drone ID mod K) for extra vertical separation")
+    parser.add_argument("--layer-spacing", type=float, default=1.5, metavar="M",
+                        help="metres between altitude layers")
+    parser.add_argument("--gate-metric", choices=("horizontal", "3d"), default="horizontal",
+                        help="separation measure for the run report: horizontal (project gate) or 3d")
     parser.add_argument("--transition-protocol", action="store_true",
                         help="independent runtime (opt-in): synchronized formation transitions with "
                              "prepare/ack/common start, local supervision and HOLD on abort "

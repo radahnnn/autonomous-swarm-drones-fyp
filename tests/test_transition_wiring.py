@@ -455,7 +455,7 @@ def _policy_node(mode, monkeypatch):
     intent = MissionIntent(1, clock.t - 1, clock.t + 3, (0.0, 0.0)).to_dict()
     node.mission_lease.accept(intent, clock.t, clock.t)
     node.sent, node.landed = [], []
-    node._send_position_target = lambda target, altitude: node.sent.append((target.copy(), altitude))
+    node._send_position_target = lambda target, altitude, apply_layer=True: node.sent.append((target.copy(), altitude))
     node._command_land = lambda reason: node.landed.append(reason)
     return node, clock
 

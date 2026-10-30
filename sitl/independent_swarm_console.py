@@ -15,12 +15,13 @@ import numpy as np
 from pymavlink import mavutil
 
 from sitl.fleet import build_fleet
-from sitl.formation_library import STYLES
+from sitl.formation_library import STYLES, slots_for
 from sitl.formation_transition import plan_formation_transition
 from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
+from sitl.geofence import Geofence
 from sitl.run_metrics import RunMetrics
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, CoordinatorModeSwitch, ModeView
 from sitl.swarm_console import SwarmConsole
@@ -61,6 +62,8 @@ class IndependentSwarmConsole:
     transition_pending = None
     mode_switch = None
     metrics = None
+    geofence = None
+    _fence_seen = None
 
     def __init__(self, args):
         self.args = args
@@ -121,7 +124,14 @@ class IndependentSwarmConsole:
         # Synchronized in-flight control-mode switching (sitl/mode_switch.py).
         self.mode_switch = CoordinatorModeSwitch(self.count, self.control_mode)
         self.mode_lock = threading.Lock()
-        self.metrics = RunMetrics(self.count)
+        try:
+            self.geofence = Geofence.from_options(
+                getattr(args, "geofence_radius", None), getattr(args, "geofence_box", None),
+                getattr(args, "geofence_max_alt", None), getattr(args, "geofence_margin", 2.0))
+        except ValueError as exc:
+            raise SystemExit(f"invalid geofence: {exc}")
+        self.metrics = RunMetrics(self.count, gate_metric=getattr(args, "gate_metric", "horizontal"))
+        self._fence_seen = {}
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -220,6 +230,13 @@ class IndependentSwarmConsole:
             command.append("--adaptive-swarm")
         for obstacle in getattr(self.args, "obstacle", ()):
             command += ["--obstacle", str(obstacle)]
+        for flag, attr in (("--geofence-radius", "geofence_radius"), ("--geofence-box", "geofence_box"),
+                           ("--geofence-max-alt", "geofence_max_alt")):
+            if getattr(self.args, attr, None) is not None:
+                command += [flag, str(getattr(self.args, attr))]
+        command += ["--geofence-margin", str(getattr(self.args, "geofence_margin", 2.0)),
+                    "--altitude-layers", str(getattr(self.args, "altitude_layers", 1)),
+                    "--layer-spacing", str(getattr(self.args, "layer_spacing", 1.5))]
         if self.args.peer_roster:
             command += ["--peer-roster", str(self.args.peer_roster)]
         if self.args.peer_auth_key_file:
@@ -727,6 +744,27 @@ class IndependentSwarmConsole:
                       f"{self.mode_switch.params.lead_s:.0f}s, {plan.ramp_s:.0f}s blend.",
                       mode=mode, switch_id=plan.switch_id)
 
+    def _slot_points(self, goal_ne, formation=None, slots=None) -> np.ndarray:
+        """North/East positions every drone would hold for a goal (current or given formation slots)."""
+        if slots is None:
+            slots = (self.formation_slots if getattr(self, "formation_slots", None) is not None
+                     and formation is None else slots_for(formation or self.formation, self.count))
+        return np.asarray(goal_ne, dtype=float) + np.asarray(slots, dtype=float)[:, :2]
+
+    def _fence_problem(self, points_ne, altitude_m=None) -> str | None:
+        """None if every point fits inside the fence (margin-shrunk), else a message for the operator."""
+        fence = self.geofence
+        if fence is None:
+            return None
+        for index, point in enumerate(np.atleast_2d(points_ne)):
+            if not fence.contains(point, inner=True):
+                return (f"D{index + 1} would be at N {point[0]:.1f} E {point[1]:.1f}, outside the geofence "
+                        f"(kept {fence.margin_m:g} m inside).")
+        if altitude_m is not None and fence.max_alt_m is not None and \
+                altitude_m > fence.clamp_altitude(fence.max_alt_m):
+            return f"{altitude_m:.1f} m is above the geofence ceiling ({fence.max_alt_m:g} m)."
+        return None
+
     def _note_metric(self, kind: str, **data) -> None:
         if self.metrics is not None:
             self.metrics.note_event(kind, time.time(), **data)
@@ -737,6 +775,12 @@ class IndependentSwarmConsole:
         with self.lock:
             states = {index: state.copy() for index, state in self.latest.items()}
         self.metrics.update(time.time(), states)
+        for index, state in states.items():
+            fence = state.get("geofence") or {}
+            current = fence.get("state")
+            if current == "breach" and self._fence_seen.get(index) != "breach":
+                self._note_metric("geofence_breach", drone=index + 1)
+            self._fence_seen[index] = current
 
     def _any_airborne(self) -> bool:
         with self.lock:
@@ -1296,6 +1340,9 @@ class IndependentSwarmConsole:
             )
         except (TypeError, ValueError) as exc:
             return result(False, str(exc))
+        problem = self._fence_problem(self._slot_points(centroid, slots=plan.slots_by_drone))
+        if problem:
+            return result(False, f"Geofence: {problem}", code="geofence")
         if self.transition_protocol:
             return self._begin_protocol_transition(style, plan, positions, centroid, now, result)
         self.formation_resume_goal = self.goal_ne.copy()
@@ -1460,6 +1507,8 @@ class IndependentSwarmConsole:
             print(f">> Mission intent stream {'resumed' if self.intent_enabled else 'paused'}; agents retain the last accepted goal until expiry.")
             if self.intent_enabled:
                 self._publish_intent()
+        elif action in numeric_actions and self._movement_blocked(action, step):
+            pass
         elif action in ("w", "north"):
             self.goal_ne[0] += step
             self._publish_intent()
@@ -1482,6 +1531,31 @@ class IndependentSwarmConsole:
             print("Commands: preflight | launch | w/s/a/d [m] | u/j [m] | status | mode <name> | link-block/restore <sender> <recipient> | "
                   "fail <id> | rescue <id> | coord off/on | q")
         return True
+
+    def _movement_blocked(self, action: str, step: float) -> bool:
+        """Refuse a move (or altitude change) that would take any drone outside the geofence."""
+        if self.geofence is None:
+            return False
+        goal = self.goal_ne.copy()
+        altitude = self.target_alt_m
+        if action in ("w", "north"):
+            goal[0] += step
+        elif action in ("s", "south"):
+            goal[0] -= step
+        elif action in ("a", "west"):
+            goal[1] -= step
+        elif action in ("d", "east"):
+            goal[1] += step
+        elif action in ("u", "up"):
+            altitude += step
+        elif action in ("j", "down"):
+            altitude -= step
+        problem = self._fence_problem(self._slot_points(goal), altitude)
+        if problem:
+            print(f">> Move blocked by the geofence: {problem}")
+            self.last_command_result = {"accepted": False, "message": f"Geofence: {problem}"}
+            return True
+        return False
 
     def _rescue_agent(self, index: int, timeout: float = 60.0) -> tuple[bool, list[float] | None]:
         """Emergency-only connection for landing a vehicle after its local agent process dies."""

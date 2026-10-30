@@ -21,6 +21,7 @@ from sitl.operator_udp import NodeOperatorSocket, encode_message
 from sitl.peer_udp import PeerLinkWatchdog, UdpPeerStateTransport
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
+from sitl.geofence import Geofence, altitude_layer_offset
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
 
@@ -40,6 +41,7 @@ class IndependentAgentNode:
     """Owns one MAVLink connection, local guidance loop, and direct peer datagrams."""
 
     LINK_DEAD_EXIT_S = 30.0
+    FENCE_BREACH_LAND_S = 8.0     # a breach that lasts this long lands the drone
     CENTRAL_HOLD_LAND_S = 20.0    # centralized: hold this long without a coordinator, then land
     AUTONOMY_MAX_S = 120.0        # decentralized/hybrid: keep flying the last mission this long without one
     COORDINATOR_TIMEOUT_S = 2.5
@@ -58,7 +60,9 @@ class IndependentAgentNode:
                  command_port_base: int = NODE_COMMAND_PORT_BASE,
                  status_port_base: int = STATUS_PORT_BASE,
                  baudrate: int = 115200, mavlink_system_id: int | None = None,
-                 adaptive_swarm: bool = False, obstacles=()):
+                 adaptive_swarm: bool = False, obstacles=(),
+                 geofence: Geofence | None = None, altitude_layers: int = 1,
+                 layer_spacing_m: float = 1.5):
         self.drone_id = int(drone_id)
         self.count = int(count)
         self.endpoint = endpoint
@@ -86,6 +90,11 @@ class IndependentAgentNode:
             raise ValueError("independent agent control mode must be centralized, decentralized or hybrid")
         self.control_mode = control_mode
         self.mode_switch = AgentModeSwitch(drone_id, control_mode)
+        self.geofence = geofence
+        self.altitude_offset_m = altitude_layer_offset(drone_id, altitude_layers, layer_spacing_m)
+        self.fence_state = "inside"
+        self.fence_breach_since = None
+        self.fence_breaches = 0
         self.central_hold_since = None
         if not 0 <= self.drone_id < self.count:
             raise ValueError("agent ID must be within the configured swarm")
@@ -649,6 +658,26 @@ class IndependentAgentNode:
             self.control_mode = mode
             self.agent.mode = mode
 
+    def _tick_geofence(self) -> None:
+        """Detection: report inside/warn/breach and land if a breach persists."""
+        fence = getattr(self, "geofence", None)
+        if fence is None or self.position is None:
+            return
+        state = fence.status(self.position[:2], -float(self.position[2]))
+        if state != self.fence_state:
+            if state == "breach":
+                self.fence_breaches += 1
+            print(f"[NODE {self.drone_id + 1}] geofence {self.fence_state} -> {state}", flush=True)
+            self.fence_state = state
+        if state != "breach":
+            self.fence_breach_since = None
+            return
+        now = time.monotonic()
+        if self.fence_breach_since is None:
+            self.fence_breach_since = now
+        elif now - self.fence_breach_since > self.FENCE_BREACH_LAND_S and not self.landing:
+            self._command_land("geofence_breach")
+
     def _renew_lease_if_autonomous(self) -> None:
         """Decentralized/hybrid agents keep flying the last mission on peers when the coordinator is gone."""
         if (self.control_mode not in ("decentralized", "hybrid") or self.current_mission is None or
@@ -669,7 +698,8 @@ class IndependentAgentNode:
             self.central_hold_since = now
             print(f"[NODE {self.drone_id + 1}] centralized: coordinator lost; holding position", flush=True)
         if self.position is not None:
-            self._send_position_target(np.array(self.position, dtype=float), -float(self.position[2]))
+            self._send_position_target(np.array(self.position, dtype=float), -float(self.position[2]),
+                                       apply_layer=False)
         if now - self.central_hold_since > self.CENTRAL_HOLD_LAND_S:
             self._command_land("coordinator_lost_centralized")
         return True
@@ -802,11 +832,20 @@ class IndependentAgentNode:
             self.safety_reason = None
             self.last_command = "peer_links_restored"
 
-    def _send_position_target(self, target_global: np.ndarray, altitude_m: float) -> None:
+    def _send_position_target(self, target_global: np.ndarray, altitude_m: float,
+                              apply_layer: bool = True) -> None:
         if self.global_origin is None:
             return
         target = np.asarray(target_global, dtype=float).copy()
-        target[2] = -float(altitude_m)
+        altitude_m = float(altitude_m)
+        if apply_layer:
+            altitude_m += getattr(self, "altitude_offset_m", 0.0)   # per-drone altitude layer
+        fence = getattr(self, "geofence", None)
+        if fence is not None:
+            # Prevention: nothing outside the (margin-shrunk) fence is ever commanded.
+            target[:2] = fence.clamp(target[:2])
+            altitude_m = fence.clamp_altitude(altitude_m)
+        target[2] = -altitude_m
         local = target - self.global_origin
         self.last_position_target_ne = target[:2].copy()
         self.last_position_target_local_ne = local[:2].copy()
@@ -942,6 +981,11 @@ class IndependentAgentNode:
             "control_mode": self.control_mode,
             "coordinator_connected": self.coordinator_connected,
             "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
+            "altitude_layer_m": self.altitude_offset_m,
+            "geofence": (None if self.geofence is None else {
+                "state": self.fence_state, "breaches": self.fence_breaches,
+                "edge_m": (None if self.position is None else
+                           round(self.geofence.distance_to_edge(self.position[:2]), 2))}),
             "hybrid_mode": (
                 self.agent.hybrid_controller.get_drone_mode(self.drone_id).value
                 if self.control_mode == "hybrid" and self.agent.hybrid_controller is not None else None
@@ -1051,6 +1095,7 @@ class IndependentAgentNode:
                 self._remember_peers(discovered, now)
                 self._tick_transition(now)
                 self._tick_mode_switch(now)
+                self._tick_geofence()
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
@@ -1091,6 +1136,16 @@ def main(argv=None):
                         help="discover membership, repair a one-hop ring, elect a leader and redistribute slots")
     parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
                         help="circular local keep-out zone in shared north/east metres; repeatable")
+    parser.add_argument("--geofence-radius", type=float, default=None,
+                        help="circular software fence around the local origin, metres")
+    parser.add_argument("--geofence-box", default=None, metavar="N0,E0,N1,E1",
+                        help="rectangular software fence in shared north/east metres")
+    parser.add_argument("--geofence-max-alt", type=float, default=None, help="maximum altitude, metres")
+    parser.add_argument("--geofence-margin", type=float, default=2.0,
+                        help="commanded targets stay this far inside the fence")
+    parser.add_argument("--altitude-layers", type=int, default=1,
+                        help="vertical layers (drone ID mod layers) added on top of horizontal separation")
+    parser.add_argument("--layer-spacing", type=float, default=1.5, help="metres between altitude layers")
     parser.add_argument("--formation", default="v")
     parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"),
                         default="decentralized")
@@ -1169,8 +1224,15 @@ def main(argv=None):
                 or obstacle[2] <= 0):
             parser.error("--obstacle must contain finite north,east and positive radius")
         obstacles.append(obstacle)
+    try:
+        geofence = Geofence.from_options(args.geofence_radius, args.geofence_box,
+                                         args.geofence_max_alt, args.geofence_margin)
+        altitude_layer_offset(args.id, args.altitude_layers, args.layer_spacing)
+    except ValueError as exc:
+        parser.error(str(exc))
     node = IndependentAgentNode(
         args.id, args.count, args.endpoint, args.formation,
+        geofence=geofence, altitude_layers=args.altitude_layers, layer_spacing_m=args.layer_spacing,
         control_mode=args.control_mode,
         peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
         peer_latency_jitter_ms=args.peer_jitter_ms,
