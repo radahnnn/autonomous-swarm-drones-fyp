@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 559 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 573 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 559 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 573 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -124,6 +124,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-10-31 — Claude — Geofence + altitude layers (`sitl/geofence.py`), operator altitude floor (2 m), metrics/replay validated live with 10 drones; roadmap features 4, 5, 7 of 7 done (remaining: mission continuation, coordinator election, control-barrier filter, wind/GPS stress tests). Test count 573.
 - 2026-10-31 — Claude — Added live run-metrics panel + run report (`sitl/run_metrics.py`) and read-only replay (`python3 -m sitl.replay`); roadmap features 4 and 5 of 7 done (remaining: geofence + altitude staggering, mission continuation, coordinator election, control-barrier filter, wind/GPS stress tests). Test count 559.
 - 2026-10-30 — Claude — In-flight synchronized control-mode switching (`sitl/mode_switch.py`, console `mode <name>`, dashboard buttons) validated live with 10 drones; per-mode coordinator-loss policy; 10-drone ring/CI/link-loss hardening; research report added; test count 543.
 - 2026-10-30 — Claude — First live SITL run of the transition protocol; two fixes (peer memory, goal drift/pre-start abort); report + compact evidence added.

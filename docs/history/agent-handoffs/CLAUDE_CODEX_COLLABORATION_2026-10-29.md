@@ -255,3 +255,14 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Limits: one run, no injected failures during a switch, centralized 20 s landing and live rollback not exercised, no 3D yet, no Python 3.10/3.11 runtime test (grammar-checked only).
 - Recommended Codex review: `sitl/mode_switch.py` (abort/done retransmission, verify deadlines), the per-mode fault policy in `independent_agent_node.py`, and whether the dashboard supervisor (`ModeSupervisor`) should forward in-flight `/mode` requests to the child console.
 - Next step: Gazebo 6-drone run, failure-injection repeats, ring-morph margin.
+
+### 2026-10-31 — Claude — roadmap features 4, 5, 7 (metrics, replay, geofence + altitude layers)
+
+- Objective: the user asked for all seven research-recommended features; started with the cheap, demo-visible ones.
+- Commits: `19a0cfa` (`sitl/run_metrics.py`, dashboard panel, run report), `84acf5e` (`sitl/replay.py`, dashboard replay bar), `efc9e15` (`sitl/geofence.py`, altitude layers, console pre-checks, fence drawn on the map), `031ea48` (2 m altitude floor, 3-D gap in the panel).
+- Live evidence (SITL, 10 drones): `docs/reports/GEOFENCE_LAYERS_METRICS_LIVE_2026-10-31.md`. Replay verified on the earlier mode-switch recording. Run 1 exposed that the swarm could be commanded down to 0.5 m (fixed). Run report PASS: min horizontal gap 3.108 m, 3-D 3.452 m.
+- Limits: real fence breach not exercised live; layers not shown to improve the horizontal minimum; one run per configuration; software fence only.
+- Pitfalls hit (for the next session): `pkill -f` patterns that appear in the same shell command kill the shell itself — stop servers by PID; the browser pane can show the live dashboard (port 8765) and the replay (8766).
+- Not yet done from the roadmap: mission continuation after coordinator loss, coordinator election, control-barrier safety filter, wind/GPS-noise stress tests; 6-drone Gazebo run still waiting on the user's choice.
+- Recommended Codex review: `sitl/run_metrics.py` (violation accounting), `sitl/replay.py` metric rebuild, the `_send_position_target` choke point (clamp + layer + ceiling), console `_movement_blocked`.
+- Next step: mission continuation (feature 2), then coordinator election.
