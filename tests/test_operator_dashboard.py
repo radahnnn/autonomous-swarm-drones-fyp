@@ -213,3 +213,16 @@ def test_dashboard_reports_in_flight_mode_switching_when_the_session_supports_it
     state = dashboard_state(session)
     assert state["mode_switch_enabled"] is True and state["mode_switching"] is True
     assert state["mode_switch_state"] == "SWITCHING" and state["mode_switch_target"] == "hybrid"
+
+
+def test_dashboard_state_carries_the_live_run_metrics_and_the_page_renders_them():
+    from sitl.run_metrics import RunMetrics
+    session = make_session(airborne=True)
+    assert dashboard_state(session)["metrics"] is None
+    session.metrics = RunMetrics(2)
+    session.metrics.update(time.time(), session.latest)
+    state = dashboard_state(session)
+    assert state["metrics"]["gate_m"] == 2.5 and state["metrics"]["gap_m"] == 4.0
+    assert state["metrics"]["state"] == "ok" and state["metrics"]["drones"][0]["id"] == 1
+    json.dumps(state, allow_nan=False)                       # the dashboard serializes strictly
+    assert "function renderMetrics" in PAGE and "renderMetrics();mode.textContent" in PAGE

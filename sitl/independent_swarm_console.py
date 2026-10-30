@@ -21,6 +21,7 @@ from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
+from sitl.run_metrics import RunMetrics
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, CoordinatorModeSwitch, ModeView
 from sitl.swarm_console import SwarmConsole
 from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan
@@ -59,6 +60,7 @@ class IndependentSwarmConsole:
     formation_hold = False
     transition_pending = None
     mode_switch = None
+    metrics = None
 
     def __init__(self, args):
         self.args = args
@@ -119,6 +121,7 @@ class IndependentSwarmConsole:
         # Synchronized in-flight control-mode switching (sitl/mode_switch.py).
         self.mode_switch = CoordinatorModeSwitch(self.count, self.control_mode)
         self.mode_lock = threading.Lock()
+        self.metrics = RunMetrics(self.count)
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -632,6 +635,8 @@ class IndependentSwarmConsole:
                 self._on_mode_event(action[1], action[2])
 
     def _on_mode_event(self, name: str, data: dict) -> None:
+        if name in ("mode_switch_complete", "mode_switch_aborted", "mode_switch_rolled_back"):
+            self._note_metric(name, **{k: v for k, v in data.items() if isinstance(v, (str, int, float, bool))})
         if name == "mode_switch_complete":
             self.control_mode = data["mode"]
             print(f">> Control mode is now {data['mode'].upper()} on all {self.count} drones.", flush=True)
@@ -722,6 +727,17 @@ class IndependentSwarmConsole:
                       f"{self.mode_switch.params.lead_s:.0f}s, {plan.ramp_s:.0f}s blend.",
                       mode=mode, switch_id=plan.switch_id)
 
+    def _note_metric(self, kind: str, **data) -> None:
+        if self.metrics is not None:
+            self.metrics.note_event(kind, time.time(), **data)
+
+    def _update_metrics(self) -> None:
+        if self.metrics is None:
+            return
+        with self.lock:
+            states = {index: state.copy() for index, state in self.latest.items()}
+        self.metrics.update(time.time(), states)
+
     def _any_airborne(self) -> bool:
         with self.lock:
             return any(state.get("airborne") is True for state in self.latest.values())
@@ -744,6 +760,8 @@ class IndependentSwarmConsole:
                 self._on_transition_event(action[1], action[2])
 
     def _on_transition_event(self, name: str, data: dict) -> None:
+        if name in ("transition_complete", "transition_aborted", "needs_operator"):
+            self._note_metric(name, **{k: v for k, v in data.items() if isinstance(v, (str, int, float, bool))})
         pending = self.transition_pending
         if name == "transition_complete" and pending is not None:
             style, slots, _ = pending
@@ -907,6 +925,7 @@ class IndependentSwarmConsole:
             if self.transition_protocol:
                 self._tick_transition_protocol()
             self._tick_mode_switch_protocol()
+            self._update_metrics()
             if self.formation_transition_deadline is not None:
                 reason = self._formation_transition_abort_reason(time.time())
                 if reason and not getattr(self, "formation_abort_issued", False):
@@ -1586,6 +1605,13 @@ class IndependentSwarmConsole:
             self.launcher.cleanup()
         elif not landed:
             print("!! Landing was not confirmed; leaving SITL and agent processes running.")
+        if self.metrics is not None:
+            try:
+                json_path, _ = self.metrics.write_report(self.run_dir, time.time())
+                result = self.metrics.report()["result"]
+                print(f">> Run report ({result}): {json_path}")
+            except OSError as exc:
+                print(f">> Could not write the run report: {exc}")
         self.event("session_end", agent_processes=len(self.nodes), landed=landed,
                    sim_processes_kept_for_safety=not landed)
         with self.log_lock:
