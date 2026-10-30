@@ -23,6 +23,7 @@ from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.geofence import Geofence
 from sitl.run_metrics import RunMetrics
+from sitl.route import Route, square_patrol
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, CoordinatorModeSwitch, ModeView
 from sitl.swarm_console import SwarmConsole
 from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan
@@ -65,6 +66,7 @@ class IndependentSwarmConsole:
     metrics = None
     geofence = None
     _fence_seen = None
+    route: Route | None = None
 
     def __init__(self, args):
         self.args = args
@@ -627,6 +629,10 @@ class IndependentSwarmConsole:
                                    tuple(tuple(float(component) for component in slot)
                                          for slot in self.formation_start_slots)),
             formation_transition_s=0.0 if airborne_protocol else float(self.formation_transition_s),
+            **({} if self.route is None else {
+                "route_waypoints": self.route.waypoints, "route_start_at": self.route.start_at,
+                "route_speed_m_s": self.route.speed_m_s,
+                "route_loop_start": -1 if self.route.loop_start is None else self.route.loop_start}),
         ).to_dict()
         epoch = (self.clock_sync_message or {}).get("epoch")
         if not epoch:
@@ -971,6 +977,8 @@ class IndependentSwarmConsole:
                 self._tick_transition_protocol()
             self._tick_mode_switch_protocol()
             self._update_metrics()
+            if self.route is not None:
+                self.goal_ne = np.asarray(self.route.position(time.time()), dtype=float)
             if self.formation_transition_deadline is not None:
                 reason = self._formation_transition_abort_reason(time.time())
                 if reason and not getattr(self, "formation_abort_issued", False):
@@ -1265,6 +1273,9 @@ class IndependentSwarmConsole:
             return result(False, f"Unknown formation {style!r}; choose from {', '.join(STYLES)}.")
         if not getattr(self.args, "adaptive_swarm", False):
             return result(False, "Formation changes require adaptive swarm mode.")
+        if self.route is not None:
+            return result(False, "A route is active; stop it first (route stop) before changing formation.",
+                          code="route_active")
         if self.mode_switch is not None and self.mode_switch.busy:
             return result(False, "A control-mode switch is in progress; wait for it to finish.",
                           code="mode_switch_active")
@@ -1408,6 +1419,10 @@ class IndependentSwarmConsole:
             return False
         elif action == "status":
             self.status()
+        elif action == "patrol":
+            self.start_patrol(parts[1:])
+        elif action == "route":
+            self.route_command(parts[1:])
         elif action == "mode" and len(parts) == 2:
             self.set_control_mode(parts[1])
         elif action in ("shape", "formation") and len(parts) == 2:
@@ -1537,8 +1552,66 @@ class IndependentSwarmConsole:
                   "fail <id> | rescue <id> | coord off/on | q")
         return True
 
+    def start_patrol(self, args) -> dict:
+        """patrol square <side_m> [speed_m_s]: every drone carries the route and keeps flying it."""
+        def result(accepted, message, **details):
+            self.last_command_result = {"accepted": accepted, "message": message, **details}
+            print((">> " if accepted else ">> Patrol blocked: ") + message, flush=True)
+            return self.last_command_result
+        if len(args) < 2 or args[0] != "square":
+            return result(False, "usage: patrol square <side_m> [speed_m_s]")
+        if self.route is not None:
+            return result(False, "A route is already active; use 'route stop' first.", code="route_active")
+        if self.mode_switch is not None and self.mode_switch.busy:
+            return result(False, "A control-mode switch is in progress.", code="mode_switch_active")
+        if (getattr(self, "formation_transition_deadline", None) is not None or
+                (self.transition_protocol and (self.transition.busy or self.formation_hold))):
+            return result(False, "Finish or abort the formation transition first.", code="transition_active")
+        try:
+            side = float(args[1])
+            speed = float(args[2]) if len(args) > 2 else 0.5
+            route = square_patrol(self.goal_ne, side, time.time() + 2.0, speed)
+        except ValueError as exc:
+            return result(False, str(exc))
+        for index, waypoint in enumerate(route.waypoints):
+            problem = self._fence_problem(self._slot_points(waypoint), self.target_alt_m)
+            if problem:
+                return result(False, f"waypoint {index + 1} does not fit the geofence: {problem}", code="geofence")
+        self.route = route
+        self._note_metric("route_start", side_m=side, speed_m_s=speed)
+        self.event("route_start", waypoints=[list(p) for p in route.waypoints], speed_m_s=speed,
+                   start_at=route.start_at)
+        self._publish_intent()
+        return result(True, f"Patrol square {side:g} m at {speed:g} m/s starts in 2 s. Every drone carries the "
+                      "route, so decentralized and hybrid swarms keep patrolling even if the coordinator is lost.",
+                      side_m=side, speed_m_s=speed)
+
+    def route_command(self, args) -> None:
+        if not args or args[0] not in ("stop", "status"):
+            print(">> usage: route stop | route status")
+            return
+        if self.route is None:
+            print(">> No route is active.")
+            return
+        now = time.time()
+        position = self.route.position(now)
+        if args[0] == "status":
+            print(f">> Route: {len(self.route.waypoints)} waypoints, {self.route.speed_m_s:g} m/s, "
+                  f"goal now N {position[0]:.1f} E {position[1]:.1f}")
+            return
+        self.goal_ne = np.asarray(position, dtype=float)    # hold where the route is: no jump
+        self.route = None
+        self._note_metric("route_stop")
+        self.event("route_stop", goal_ne=[float(self.goal_ne[0]), float(self.goal_ne[1])])
+        self._publish_intent()
+        print(f">> Route stopped; holding N {self.goal_ne[0]:.1f} E {self.goal_ne[1]:.1f}.")
+
     def _movement_blocked(self, action: str, step: float) -> bool:
         """Refuse a move (or altitude change) that would take any drone outside the geofence."""
+        if self.route is not None and action in ("w", "north", "s", "south", "a", "west", "d", "east"):
+            print(">> Move blocked: a route is active; use 'route stop' first.")
+            self.last_command_result = {"accepted": False, "message": "A route is active."}
+            return True
         if self.geofence is None:
             return False
         goal = self.goal_ne.copy()

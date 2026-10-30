@@ -7,6 +7,7 @@ from typing import Any, Dict
 import numpy as np
 
 from sitl.formation_library import MIN_SPACING
+from sitl.route import Route
 
 
 VERSION = 1
@@ -30,6 +31,16 @@ class MissionIntent:
     formation_slots: tuple[tuple[float, float, float], ...] | None = None
     formation_start_slots: tuple[tuple[float, float, float], ...] | None = None
     formation_transition_s: float = 0.0
+    # Optional route every drone carries (see sitl/route.py): the swarm goal becomes a function of the
+    # shared clock, so it keeps flying the route even if the coordinator disappears.
+    route_waypoints: tuple[tuple[float, float], ...] | None = None
+    route_start_at: float = 0.0
+    route_speed_m_s: float = 0.0
+    route_loop_start: int = -1
+
+    def route(self) -> Route | None:
+        return Route.from_fields(self.route_waypoints, self.route_start_at, self.route_speed_m_s,
+                                 self.route_loop_start)
 
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
@@ -115,8 +126,20 @@ class MissionIntent:
             raise ValueError("formation start slots require formation target slots")
         elif transition_s != 0.0:
             raise ValueError("formation transition duration requires formation slots")
+        route_waypoints = None
+        raw_route = value.get("route_waypoints")
+        route_start_at = float(value.get("route_start_at", 0.0))
+        route_speed = float(value.get("route_speed_m_s", 0.0))
+        route_loop_start = value.get("route_loop_start", -1)
+        if raw_route is not None:
+            route = Route.from_fields(raw_route, route_start_at, route_speed, route_loop_start)  # validates
+            route_waypoints = route.waypoints
+        elif not (math.isfinite(route_start_at) and math.isfinite(route_speed)):
+            raise ValueError("route fields must be finite")
         return cls(sequence, issued_at, expires_at, goal_ne, formation, target_alt_m,
-                   VERSION, FRAME, formation_slots, formation_start_slots, transition_s)
+                   VERSION, FRAME, formation_slots, formation_start_slots, transition_s,
+                   route_waypoints, route_start_at, route_speed, int(route_loop_start)
+                   if isinstance(route_loop_start, int) and not isinstance(route_loop_start, bool) else -1)
 
 
 @dataclass

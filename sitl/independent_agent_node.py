@@ -704,6 +704,16 @@ class IndependentAgentNode:
             self._command_land("coordinator_lost_centralized")
         return True
 
+    def _route_goal(self, intent, operator_now: float):
+        """Goal along the mission route (a pure function of the shared clock), or None."""
+        route = intent.route() if hasattr(intent, "route") else None
+        return None if route is None else route.position(operator_now)
+
+    def _goal_override(self, intent, operator_now: float):
+        """A formation transition owns the swarm centre; otherwise the route (if any) drives the goal."""
+        held = self._transition_goal(operator_now)
+        return held if held is not None else self._route_goal(intent, operator_now)
+
     def _transition_goal(self, operator_now: float):
         """Swarm centre to hold while a transition owns the slots, else None (use the mission goal)."""
         transition = getattr(self, "transition", None)
@@ -881,7 +891,7 @@ class IndependentAgentNode:
                                                            AgentTransition.ARRIVED,
                                                            AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
-                goal_override=self._transition_goal(mission_now),
+                goal_override=self._goal_override(intent, mission_now),
                 mode_weights=(self.mode_switch.weights(mission_now)
                               if getattr(self, "mode_switch", None) is not None else None),
             )
@@ -982,6 +992,8 @@ class IndependentAgentNode:
             "coordinator_connected": self.coordinator_connected,
             "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
             "altitude_layer_m": self.altitude_offset_m,
+            "route_active": bool(self.mission_lease.intent is not None and
+                                 self.mission_lease.intent.route_waypoints is not None),
             "geofence": (None if self.geofence is None else {
                 "state": self.fence_state, "breaches": self.fence_breaches,
                 "edge_m": (None if self.position is None else

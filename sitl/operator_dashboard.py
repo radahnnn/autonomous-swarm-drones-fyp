@@ -83,7 +83,7 @@ function update(){renderMetrics();renderReplay();mode.textContent=state.transiti
  agents.innerHTML=state.agents.map(a=>'<div class="card"><div class="row"><b><span class="dot" style="background:'+(a.health==='OK'?'var(--ok)':a.health==='STALE'?'var(--bad)':'var(--warn)')+'"></span>D'+a.id+(a.leader?' ★':'')+'</b><b>'+a.health+'</b></div><div class="row sub"><span>'+(a.airborne?'Airborne':'Grounded')+' · '+a.safety+'</span><span>'+a.members+' members</span></div><div class="row sub"><span>Agent '+(a.agent_online?'online':'stopped')+'</span><span>'+String(a.formation||state.formation).toUpperCase()+'</span></div><button onclick="agentAction('+a.id+','+(a.agent_online?'true':'false')+')" '+(a.agent_action_enabled?'':'disabled')+'>'+(a.agent_online?(state.recovery_label||'Kill agent'):'Revive / restart')+'</button></div>').join('');raw.textContent=JSON.stringify(state,null,2)}
 function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);let s=18*devicePixelRatio,W=c.width,H=c.height,cn=0,ce=0,n=0;if(state)state.agents.forEach(a=>{if(a.position){cn+=a.position[0];ce+=a.position[1];n++}});if(n){cn/=n;ce/=n}let X=e=>W/2+(e-ce)*s,Y=q=>H/2-(q-cn)*s;
  x.strokeStyle='#1c293b';x.lineWidth=1;for(let i=-30;i<=30;i+=5){x.beginPath();x.moveTo(X(i),0);x.lineTo(X(i),H);x.stroke();x.beginPath();x.moveTo(0,Y(i));x.lineTo(W,Y(i));x.stroke()}x.fillStyle='#91a0b8';x.font=13*devicePixelRatio+'px system-ui';x.fillText('N ↑',W-55*devicePixelRatio,28*devicePixelRatio);
- if(!state)return;if(state.geofence){let f=state.geofence,m=f.margin_m||0;x.save();x.lineWidth=2*devicePixelRatio;x.strokeStyle='#ffbd59';x.setLineDash([]);
+ if(!state)return;if(state.route&&state.route.waypoints.length>1){x.save();x.strokeStyle='#38d996aa';x.lineWidth=2*devicePixelRatio;x.setLineDash([3*devicePixelRatio,5*devicePixelRatio]);x.beginPath();state.route.waypoints.forEach((p,i)=>i?x.lineTo(X(p[1]),Y(p[0])):x.moveTo(X(p[1]),Y(p[0])));x.stroke();x.restore()}if(state.geofence){let f=state.geofence,m=f.margin_m||0;x.save();x.lineWidth=2*devicePixelRatio;x.strokeStyle='#ffbd59';x.setLineDash([]);
   const ring=(r,dash)=>{x.setLineDash(dash?[6*devicePixelRatio,6*devicePixelRatio]:[]);x.beginPath();x.arc(X(f.center[1]),Y(f.center[0]),r*s,0,Math.PI*2);x.stroke()};
   const rect=(a,dash)=>{x.setLineDash(dash?[6*devicePixelRatio,6*devicePixelRatio]:[]);x.strokeRect(X(a[1]),Y(a[2]),(a[3]-a[1])*s,(a[2]-a[0])*s)};
   if(f.kind==='circle'&&f.radius_m<1e5){ring(f.radius_m,false);ring(f.radius_m-m,true)}else if(f.kind==='box'){rect(f.box,false);rect([f.box[0]+m,f.box[1]+m,f.box[2]-m,f.box[3]-m],true)}x.restore()}
@@ -245,6 +245,9 @@ def dashboard_state(session) -> dict:
         ),
         "metrics": (session.metrics.snapshot() if getattr(session, "metrics", None) is not None else None),
         "replay": (session.replay_info() if hasattr(session, "replay_info") else None),
+        "route": (None if getattr(session, "route", None) is None else
+                  {"waypoints": [list(p) for p in session.route.waypoints],
+                   "loop_start": session.route.loop_start, "speed_m_s": session.route.speed_m_s}),
         "geofence": (session.geofence.describe() if getattr(session, "geofence", None) is not None else None),
         "mode_switch_enabled": hasattr(session, "set_control_mode"),
         "mode_switching": bool(getattr(getattr(session, "mode_switch", None), "busy", False)),
