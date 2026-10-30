@@ -1171,6 +1171,10 @@ def main():
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass"), default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
+    parser.add_argument("--safety-filter", choices=("on", "off"), default="on",
+                        help="independent runtime: control-barrier filter on the commanded setpoint (default on)")
+    parser.add_argument("--safety-distance", type=float, default=2.8, metavar="M",
+                        help="independent runtime: barrier distance of the safety filter")
     parser.add_argument("--geofence-radius", type=float, default=None, metavar="M",
                         help="independent runtime: circular software fence around the local origin")
     parser.add_argument("--geofence-box", default=None, metavar="N0,E0,N1,E1",

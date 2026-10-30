@@ -16,6 +16,7 @@ from swarm_core.controllers.decentralized import DecentralizedController
 from swarm_core.controllers.hybrid import HybridController
 from swarm_core.drone import Drone
 from sitl.peer_state_bus import PeerStateBus
+from sitl.cbf_filter import filtered_setpoint
 from sitl.mission_intent import MissionIntent
 
 
@@ -66,8 +67,11 @@ class LocalDroneAgent:
         self.cached_mission_intent = None
         self.cached_slot_offset = None
         self.position_setpoint_ne = None
+        self.safety_filter_enabled = True
+        self.safety_last_active = False
+        self.safety_ticks = self.safety_active_ticks = self.safety_infeasible_ticks = 0
 
-    def command(self, position, sample_time: float, goal, neighbor_states,
+    def _command_unfiltered(self, position, sample_time: float, goal, neighbor_states,
                 desired_offsets: Dict[int, np.ndarray], dt: float,
                 coordinator_connected: bool = True, now: Optional[float] = None,
                 mission_intent=None, slot_offset=None,
@@ -161,6 +165,40 @@ class LocalDroneAgent:
             self.velocity + self.drone.commanded_accel * dt, self.MAX_SPEED
         )
         return pos + velocity_command * self.LOOKAHEAD_S
+
+    SAFETY_DISTANCE_M = 2.8      # barrier distance: above the 2.5 m gate to absorb lag and sampling
+    SAFETY_ALPHA = 3.0
+
+    def command(self, position, sample_time: float, goal, neighbor_states, desired_offsets, dt: float,
+                *args, safety_neighbors=None, **kwargs) -> np.ndarray:
+        """Anchored position target, passed through the control-barrier safety filter.
+
+        ``safety_neighbors`` should list *every* nearby drone (the control neighbours are only the two ring
+        neighbours, but collisions also happen between non-neighbours); defaults to ``neighbor_states``.
+        """
+        target = self._command_unfiltered(position, sample_time, goal, neighbor_states,
+                                          desired_offsets, dt, *args, **kwargs)
+        if not self.safety_filter_enabled:
+            return target
+        pos = np.asarray(position, dtype=float)[:2]
+        others = safety_neighbors if safety_neighbors is not None else neighbor_states
+        pairs = []
+        for item in others or ():
+            try:
+                pairs.append((np.asarray(item["position"], dtype=float), np.asarray(item["velocity"], dtype=float)))
+            except (KeyError, TypeError, ValueError):
+                continue
+        safe, result = filtered_setpoint(pos, np.asarray(target, dtype=float)[:2], pairs,
+                                         distance=self.SAFETY_DISTANCE_M, alpha=self.SAFETY_ALPHA)
+        self.safety_last_active = result.active
+        self.safety_ticks += 1
+        if result.active:
+            self.safety_active_ticks += 1
+            if not result.feasible:
+                self.safety_infeasible_ticks += 1
+            self.position_setpoint_ne = safe.copy()      # continue the slew from the safe setpoint
+            return safe
+        return target
 
     def ensure_mode_controllers(self) -> None:
         """Create the controllers needed to switch between all three modes in flight."""

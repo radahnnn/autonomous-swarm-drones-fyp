@@ -67,6 +67,7 @@ class IndependentSwarmConsole:
     geofence = None
     _fence_seen = None
     _acting_seen = None
+    _safety_seen = None
     route: Route | None = None
 
     def __init__(self, args):
@@ -137,6 +138,7 @@ class IndependentSwarmConsole:
         self.metrics = RunMetrics(self.count, gate_metric=getattr(args, "gate_metric", "horizontal"))
         self._fence_seen = {}
         self._acting_seen = {}
+        self._safety_seen = {}
         self.last_formation_result = {"accepted": False, "message": "No formation request yet."}
         self.last_command_result = None
         self.external_agents = bool(getattr(args, "external_agents", False))
@@ -239,7 +241,9 @@ class IndependentSwarmConsole:
                            ("--geofence-max-alt", "geofence_max_alt")):
             if getattr(self.args, attr, None) is not None:
                 command += [flag, str(getattr(self.args, attr))]
-        command += ["--geofence-margin", str(getattr(self.args, "geofence_margin", 2.0)),
+        command += ["--safety-filter", str(getattr(self.args, "safety_filter", "on")),
+                    "--safety-distance", str(getattr(self.args, "safety_distance", 2.8)),
+                    "--geofence-margin", str(getattr(self.args, "geofence_margin", 2.0)),
                     "--altitude-layers", str(getattr(self.args, "altitude_layers", 1)),
                     "--layer-spacing", str(getattr(self.args, "layer_spacing", 1.5))]
         if self.args.peer_roster:
@@ -785,6 +789,8 @@ class IndependentSwarmConsole:
             self._fence_seen = {}
         if self._acting_seen is None:
             self._acting_seen = {}
+        if self._safety_seen is None:
+            self._safety_seen = {}
         with self.lock:
             states = {index: state.copy() for index, state in self.latest.items()}
         self.metrics.update(time.time(), states)
@@ -804,6 +810,10 @@ class IndependentSwarmConsole:
                 self.event("coordinator_stepdown", drone=index + 1)
                 print(f">> D{index + 1} is no longer acting coordinator.", flush=True)
             self._acting_seen[index] = acting
+            filt = bool((state.get("safety_filter") or {}).get("active"))
+            if filt and not self._safety_seen.get(index):
+                self._note_metric("safety_filter_activation", drone=index + 1)
+            self._safety_seen[index] = filt
 
     def _any_airborne(self) -> bool:
         with self.lock:

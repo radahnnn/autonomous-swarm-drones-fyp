@@ -63,7 +63,8 @@ class IndependentAgentNode:
                  baudrate: int = 115200, mavlink_system_id: int | None = None,
                  adaptive_swarm: bool = False, obstacles=(),
                  geofence: Geofence | None = None, altitude_layers: int = 1,
-                 layer_spacing_m: float = 1.5):
+                 layer_spacing_m: float = 1.5, safety_filter: bool = True,
+                 safety_distance_m: float = 2.8):
         self.drone_id = int(drone_id)
         self.count = int(count)
         self.endpoint = endpoint
@@ -143,6 +144,8 @@ class IndependentAgentNode:
             self.drone_id, safe_radius=3.0, hybrid=control_mode == "hybrid", mode=control_mode,
         )
         self.agent.ensure_mode_controllers()   # all three modes must be switchable in flight
+        self.agent.safety_filter_enabled = bool(safety_filter)
+        self.agent.SAFETY_DISTANCE_M = float(safety_distance_m)
         seed = None if peer_seed is None else int(peer_seed) + self.drone_id * 65537
         self.peers = UdpPeerStateTransport(
             self.drone_id, peer_port_base, count,
@@ -625,6 +628,15 @@ class IndependentAgentNode:
             if plan is not None and self.transition.state == AgentTransition.IDLE:
                 self._finish_transition(plan)
 
+    def _safety_neighbors(self, wall_now: float, max_age_s: float = 1.5) -> list:
+        """Every recently heard peer (not just the two ring neighbours) for the barrier safety filter."""
+        peers = []
+        for position, velocity, age_at_receipt, received_wall in getattr(self, "_peer_memory", {}).values():
+            age = age_at_receipt + max(0.0, wall_now - received_wall)
+            if age <= max_age_s:
+                peers.append({"position": position + velocity * age, "velocity": velocity})
+        return peers
+
     def _mode_context(self, wall_now: float) -> ModeContext:
         fresh = (self.position is not None and bool(self.position_at) and
                  0.0 <= wall_now - self.position_at <= 1.0)
@@ -974,6 +986,7 @@ class IndependentAgentNode:
                                                            AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
                 goal_override=self._goal_override(intent, mission_now),
+                safety_neighbors=self._safety_neighbors(time.time()),
                 mode_weights=(self.mode_switch.weights(mission_now)
                               if getattr(self, "mode_switch", None) is not None else None),
             )
@@ -1075,6 +1088,10 @@ class IndependentAgentNode:
             "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
             "altitude_layer_m": self.altitude_offset_m,
             "coordinator": self.election.status(time.monotonic()),
+            "safety_filter": {"enabled": self.agent.safety_filter_enabled, "active": self.agent.safety_last_active,
+                              "active_ticks": self.agent.safety_active_ticks, "ticks": self.agent.safety_ticks,
+                              "infeasible_ticks": self.agent.safety_infeasible_ticks,
+                              "distance_m": self.agent.SAFETY_DISTANCE_M},
             "route_active": bool(self.mission_lease.intent is not None and
                                  self.mission_lease.intent.route_waypoints is not None),
             "geofence": (None if self.geofence is None else {
@@ -1242,6 +1259,9 @@ def main(argv=None):
     parser.add_argument("--altitude-layers", type=int, default=1,
                         help="vertical layers (drone ID mod layers) added on top of horizontal separation")
     parser.add_argument("--layer-spacing", type=float, default=1.5, help="metres between altitude layers")
+    parser.add_argument("--safety-filter", choices=("on", "off"), default="on",
+                        help="control-barrier filter on the commanded setpoint, using every recently heard peer")
+    parser.add_argument("--safety-distance", type=float, default=2.8, help="barrier distance in metres")
     parser.add_argument("--formation", default="v")
     parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"),
                         default="decentralized")
@@ -1329,6 +1349,7 @@ def main(argv=None):
     node = IndependentAgentNode(
         args.id, args.count, args.endpoint, args.formation,
         geofence=geofence, altitude_layers=args.altitude_layers, layer_spacing_m=args.layer_spacing,
+        safety_filter=args.safety_filter == "on", safety_distance_m=args.safety_distance,
         control_mode=args.control_mode,
         peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
         peer_latency_jitter_ms=args.peer_jitter_ms,
