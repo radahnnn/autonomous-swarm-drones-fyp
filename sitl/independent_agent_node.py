@@ -591,6 +591,17 @@ class IndependentAgentNode:
             if plan is not None and self.transition.state == AgentTransition.IDLE:
                 self._finish_transition(plan)
 
+    def _transition_goal(self, operator_now: float):
+        """Swarm centre to hold while a transition owns the slots, else None (use the mission goal)."""
+        transition = getattr(self, "transition", None)
+        if transition is None or transition.plan is None:
+            return None
+        if transition.state == AgentTransition.HOLD or (
+                transition.state in (AgentTransition.RUNNING, AgentTransition.ARRIVED) and
+                operator_now >= transition.plan.start_at):
+            return np.asarray(transition.plan.centroid_ne, dtype=float)
+        return None
+
     def _finish_transition(self, plan) -> None:
         """The morph is complete: adopt the target formation exactly."""
         self.formation = plan.formation
@@ -748,6 +759,7 @@ class IndependentAgentNode:
                                                            AgentTransition.ARRIVED,
                                                            AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
+                goal_override=self._transition_goal(mission_now),
             )
         except (TypeError, ValueError) as exc:
             # An airborne agent must never exit merely because mission data became

@@ -129,3 +129,23 @@ def test_centralized_controller_keeps_its_assignment_between_steps():
     assert ctrl._assignment.tolist() == first.tolist()
     ctrl.compute_control_inputs(drones, FormationType.GRID, np.array([0.0, 0.0]))  # new formation re-solves
     assert ctrl._assignment_key[0] == FormationType.GRID
+
+
+def test_guidance_goal_override_replaces_the_mission_goal_but_still_validates_the_intent():
+    from sitl.decentralized_guidance import LocalDroneAgent
+    from sitl.mission_intent import MissionIntent
+    peers = [{"id": 2, "position": np.array([0.0, 6.0]), "velocity": np.zeros(2)}]
+    far_goal = MissionIntent(1, 10.0, 11.0, (40.0, 0.0)).to_dict()
+    plain = LocalDroneAgent(0).command(
+        np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0, mission_intent=far_goal,
+        slot_offset=np.zeros(2))
+    held = LocalDroneAgent(0).command(
+        np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0, mission_intent=far_goal,
+        slot_offset=np.zeros(2), goal_override=np.array([0.0, 0.0]))
+    assert plain[0] > 0.1              # heads for the far mission goal
+    assert abs(held[0]) < 1e-6         # holds the plan centroid instead
+    expired = MissionIntent(2, 1.0, 2.0, (40.0, 0.0)).to_dict()
+    with pytest.raises(ValueError):    # the intent is still validated under an override
+        LocalDroneAgent(0).command(np.zeros(2), 10.0, None, peers, {}, 0.1, now=10.0,
+                                   mission_intent=expired, slot_offset=np.zeros(2),
+                                   goal_override=np.zeros(2))

@@ -630,23 +630,20 @@ class IndependentSwarmConsole:
     def _on_transition_event(self, name: str, data: dict) -> None:
         pending = self.transition_pending
         if name == "transition_complete" and pending is not None:
-            style, slots, resume_goal = pending
+            style, slots, _ = pending
             self.formation = style
             self.formation_slots = slots
-            self.goal_ne = resume_goal
             self.transition_pending = None
             self.formation_hold = False
             self.event("formation_transition_complete", formation=style)
             print(f">> Formation transition to {style.upper()} complete.", flush=True)
         elif name == "transition_aborted" and pending is not None:
-            _, _, resume_goal = pending
             if data.get("moved"):
-                # Drones froze mid-transition: keep the swarm centre held and let the operator re-plan.
+                # Drones froze mid-transition at the plan's centroid; the operator re-plans or lands.
                 self.formation_hold = True
                 print(f"!! Formation transition aborted ({data.get('reason')}); drones are HOLDING "
                       "position. Re-issue a formation command to re-plan, or LAND.", flush=True)
             else:
-                self.goal_ne = resume_goal
                 self.transition_pending = None
                 print(f">> Formation transition cancelled before start ({data.get('reason')}); "
                       "no drone moved.", flush=True)
@@ -707,9 +704,10 @@ class IndependentSwarmConsole:
                 plan.duration_s, now + self.transition.params.lead_s)
         except ValueError as exc:
             return result(False, f"Transition plan rejected: {exc}")
+        # The mission goal is left untouched: agents hold the plan's centroid themselves while the
+        # transition owns the slots, then resume this goal when it completes.
         self.transition_pending = (style, np.asarray(plan.slots_by_drone, dtype=float).copy(),
                                    self.goal_ne.copy())
-        self.goal_ne = centroid.copy()   # hold the swarm centre while morphing
         self.formation_hold = False
         with self.transition_lock:
             actions = self.transition.begin(tplan, now)
@@ -1184,6 +1182,11 @@ class IndependentSwarmConsole:
             return True
         action = parts[0]
         numeric_actions = {"w", "north", "s", "south", "a", "west", "d", "east", "u", "up", "j", "down"}
+        if self.transition_protocol and self.formation_hold and not self.transition.busy and \
+                action not in {"status", "land", "q", "quit", "shape", "formation"}:
+            print(">> Formation is HOLDING after an aborted transition; issue a formation command "
+                  "to re-plan, or LAND.")
+            return True
         if ((getattr(self, "formation_transition_deadline", None) is not None or
              (self.transition_protocol and self.transition.busy)) and
                 action not in {"status", "land", "q", "quit"}):

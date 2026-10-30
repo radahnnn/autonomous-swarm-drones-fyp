@@ -298,3 +298,21 @@ def test_abort_before_the_start_time_returns_everyone_to_idle_with_slots_untouch
     np.testing.assert_allclose(swarm.positions, start)
     aborted = [e for e in swarm.events if e[0] == "transition_aborted"]
     assert aborted and aborted[0][1]["moved"] is False
+
+
+def test_goal_is_claimed_only_after_the_common_start_so_the_swarm_cannot_drift_during_the_lead_time(monkeypatch):
+    # Regression for the second live-SITL finding: moving the goal at prepare time translated the
+    # whole swarm ~3 m before any morph started.
+    swarm = Swarm(monkeypatch)
+    goal_before = swarm.console.goal_ne.copy()
+    assert request(swarm)["accepted"]
+    plan = swarm.console.transition.plan
+    np.testing.assert_allclose(swarm.console.goal_ne, goal_before)       # coordinator never moves it
+    while swarm.clock.t < plan.start_at - 0.3:
+        swarm.step()
+        assert all(a._transition_goal(swarm.clock.t) is None for a in swarm.agents)
+    swarm.run(1.0)                                                       # past start_at
+    for agent in swarm.agents:
+        np.testing.assert_allclose(agent._transition_goal(swarm.clock.t), plan.centroid_ne)
+    swarm.run(plan.duration_s + 14.0)                                    # finished: goal released
+    assert all(a._transition_goal(swarm.clock.t) is None for a in swarm.agents)

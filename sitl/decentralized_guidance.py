@@ -61,8 +61,13 @@ class LocalDroneAgent:
                 coordinator_connected: bool = True, now: Optional[float] = None,
                 mission_intent=None, slot_offset=None,
                 track_formation: bool = False,
-                position_setpoint_tracking: bool = False) -> np.ndarray:
-        """Return a short-horizon local position target in the shared N/E frame."""
+                position_setpoint_tracking: bool = False,
+                goal_override=None) -> np.ndarray:
+        """Return a short-horizon local position target in the shared N/E frame.
+
+        ``goal_override`` replaces the mission goal while a synchronized formation transition
+        owns the swarm centre (the plan's centroid); the mission intent is still validated.
+        """
         self.update_local_state(position, sample_time)
         pos = np.asarray(position, dtype=float)[:2]
         now = time.time() if now is None else now
@@ -85,7 +90,8 @@ class LocalDroneAgent:
         if intent is not None:
             if slot_offset is not None and mission_intent is None:
                 slot = np.asarray(slot_offset, dtype=float)
-            goal = np.asarray(intent.goal_ne, dtype=float) + slot
+            base = intent.goal_ne if goal_override is None else goal_override
+            goal = np.asarray(base, dtype=float)[:2] + slot
         else:
             goal = np.asarray(goal, dtype=float)[:2]
         if track_formation:
