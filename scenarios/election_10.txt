@@ -1,0 +1,24 @@
+# 10 drones: patrol, coordinator loss, acting-coordinator takeover, leader killed, operator returns.
+wait swarm ready 900
+send launch
+wait airborne armed=yes 240
+sleep 20
+send patrol square 12 0.3
+sleep 20
+send mode centralized
+expect Control mode is now CENTRALIZED 60
+send coord off
+expect ACTING COORDINATOR 30
+sleep 14
+status
+kill-agent 1
+sleep 22
+status
+send coord on
+sleep 14
+status
+send route stop
+sleep 8
+send land
+expect (landed|Landed) 120
+health
