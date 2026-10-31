@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-10-29, branch `wip/decentralized-sitl-handoff-20261029`, 618 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 671 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 618 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 671 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -82,10 +82,11 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 3. Synchronized transition protocol (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`): UNIT + in-memory INTEGRATION tests, and **one live 5-drone standalone SITL run** (`docs/reports/TRANSITION_PROTOCOL_LIVE_SITL_2026-10-30.md`) in which a LINE transition completed and a COLUMN transition with a killed agent ended in a coordinated HOLD (no LAND). The run exposed and fixed two bugs the tests missed. Not repeated, no loss/latency/coordinator-kill/VM runs, not the default. Remaining limits: agent aborts reach peers through the coordinator relay; command gating covers REPL/dashboard `handle` and `_set_formation`.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
 5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
-6. Several formation/slot-assignment implementations exist (`swarm_core/formations.py`, `sitl/formation_library.py`, others).
+6. ~~Several slot-assignment implementations~~ — the Hungarian cost/latching code is now one function (`swarm_core/assignment.py`) used by the simulator, library and planner (2026-11-01). Formation *shape* generators are still two sets (`swarm_core/formations.py` for the simulator, `sitl/formation_library.py` for live); merging them would change recorded simulator results, so it is deliberately not done.
 7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
 8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): guard priority, demo label, repulsion, assignment latching, recovery-rule pin and the hybrid defaults (`hybrid_degrade_timeout` 1.2 s, fallback `dead_reckon`) are done (numerical simulation only). **Closed 2026-10-31:** missions can now continue without a coordinator when the swarm carries a route (`sitl/route.py`; live SITL, see `docs/reports/ROUTE_CONTINUATION_LIVE_SITL_2026-10-31.md`). **Open:** altitude staggering, gain sweeps, SITL/hardware validation of all of it.
-9. **Membership-change near-collisions (found 2026-10-31):** when a drone's agent dies the formation is redistributed across the survivors and they fly straight to their new slots; with 10 drones in centralized mode on a route the survivors' minimum gap fell from 3.90 m to 0.10 m (`docs/reports/COORDINATOR_ELECTION_LIVE_SITL_2026-10-31.md`). In the SITL position-setpoint path the separation guard can shift a setpoint by only 0.25 m. To be addressed by the control-barrier filter (acts on the commanded setpoint) and/or a transition-protocol-style slot hand-over.
+9. **Membership-change near-collisions (found 2026-10-31, mitigated 2026-11-01):** after a drone's agent died, rank-based slot redistribution sent survivors across each other (min gap 0.10 m). Barrier filter (`sitl/cbf_filter.py`) + minimum-motion Hungarian slot reassignment (`sitl/adaptive_membership.py`): live 10-drone SITL, one dead agent (the V apex), min gap **3.62 m, PASS** (`docs/reports/SAFETY_FILTER_AND_MEMBERSHIP_LIVE_SITL_2026-10-31.md`). One run per configuration; other losses / two losses / rejoin are UNIT only.
+11. **Position error dominates safety (SIMULATION, 2026-11-01):** with 1.5 m GPS error all three modes fell to 0.4-0.8 m median minimum gap with collisions in about half of 30-seed trials; wind of 3-5 m/s changed little (`docs/reports/STRESS_AND_SENSITIVITY_2026-10-31.md`). The 2.5 m gate and 2.8 m barrier distance are not justified for plain GNSS; re-derive from measured error (`docs/HARDWARE_READINESS_CHECKLIST.md`, gate 3.3).
 10. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
 
 ## 6. Hardware facts
@@ -125,6 +126,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-11-01 — Claude — Barrier filter + minimum-motion slot reassignment validated live (defect 9: min gap 0.10 -> 3.62 m, PASS); added wind model + 30-seed stress sweep, parameter-sensitivity sweep, min-jerk smoothing consolidation, clock-sync error budget (leads that cannot cover it are refused), ellipsoid separation gate, single assignment function, scenario runner `sitl/fleet_ctl.py`, hardware-readiness checklist; fixed relative `--evidence-dir` start failure. Test count 671. Remaining: Gazebo 6-drone run, push.
 - 2026-10-31 — Claude — Acting-coordinator failover (`sitl/coordinator_election.py`) validated live with 10 drones (centralized survives operator loss; leader death hands over with a higher term); live run exposed near-collisions after a membership change (min gap 0.10 m among survivors) -> new defect 9; cached-intent expiry bug fixed; roadmap features 2, 3, 4, 5, 7 of 7 done (remaining: control-barrier filter, wind/GPS stress tests). Test count 618.
 - 2026-10-31 — Claude — Mission routes (`sitl/route.py`, `patrol`/`route` commands): decentralized and hybrid swarms keep patrolling without a coordinator, centralized holds; live run exposed and fixed a route-speed vs setpoint-slew flaw (cap 0.4 m/s); roadmap features 2, 4, 5, 7 of 7 done (remaining: coordinator election, control-barrier filter, wind/GPS stress tests). Test count 595.
 - 2026-10-31 — Claude — Geofence + altitude layers (`sitl/geofence.py`), operator altitude floor (2 m), metrics/replay validated live with 10 drones; roadmap features 4, 5, 7 of 7 done (remaining: mission continuation, coordinator election, control-barrier filter, wind/GPS stress tests). Test count 573.

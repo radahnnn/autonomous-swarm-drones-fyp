@@ -284,3 +284,15 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Limits: operator loss simulated by pausing its stream; no partition test; acting coordinator republishes the mission only.
 - Recommended Codex review: `CoordinatorElection.on_acting_message` ordering rules, the interplay between `COORDINATOR_TIMEOUT_S` (2.5 s) and `election_timeout_s` (3 s), and how adaptive membership redistributes slots on member loss.
 - Next step: control-barrier safety filter on the commanded setpoint (feature 1), motivated by finding (3); then wind/GPS stress tests; Gazebo; push (user's order: election, CBF, Gazebo, push).
+
+### 2026-11-01 — Claude — safety follow-up (defect 9) and roadmap features 7, 9-15
+
+- Order given by the user: finish the election/barrier work, then features #7, #9, #10, #11, #12, #13, #14, #15, then Gazebo, then push.
+- Commits (see `git log`): `fa8c2d0` barrier filter; `6a94db1` minimum-motion slot reassignment; wind model + stress harness; `sitl/smoothing.py`; `sitl/clock_budget.py` (+ console refuses starts whose lead is shorter than the clock budget); `swarm_core/assignment.py`; `sitl/separation_geometry.py` + `--gate-metric ellipsoid --vertical-radius`; `sitl/fleet_ctl.py` + `scenarios/election_10.txt`; sensitivity sweep; evidence-dir fix.
+- Live evidence (SITL, 10 drones): `docs/reports/SAFETY_FILTER_AND_MEMBERSHIP_LIVE_SITL_2026-10-31.md` — survivors' min gap 0.10 m (no filter) -> 1.92 m (filter) -> **3.62 m PASS** (filter + slot reassignment). One run per configuration.
+- SIMULATION evidence: `docs/reports/STRESS_AND_SENSITIVITY_2026-10-31.md` (GPS error, not wind, is what breaks separation; no tested gain is sensitive within 0.5-2x; two of the nine rows are identical because the parameter is inactive, explained there).
+- Feature #9 turned out to be already implemented (quintic smoothstep = minimum jerk); consolidated into one tested function. #13: only the assignment code was merged; the two shape-generator sets stay (merging changes recorded simulator results). #14 is a document only.
+- Honest gaps: ellipsoid vertical radius is an input, not measured; wind model is assumed, not fitted; clock budget assumes 100 ppm drift and has only Monte-Carlo (SIM) support; `fleet_ctl` scenario's landing expectation did not match console output (landing completion not verified in the last run); an unexplained SITL start failure occurred once right after a previous run.
+- Pitfalls hit: relative `--evidence-dir` broke start (fixed); `pgrep/pkill -f <pattern>` in the same shell command kills the shell (use PID-only filters via `ps | awk`); `timeout` on the console leaves SITL and agents running (stop by PID).
+- Recommended Codex review: `sitl/cbf_filter.py` constraint derivation, `AdaptiveMembership.slot_map` (baseline = full-count template; behaviour when the count of survivors is 1), `sitl/clock_budget.py` assumptions, `Runner.agents()` process-ancestry matching.
+- Next step: Gazebo 6-drone run. Needs a measured real-time factor with 6 SITL first, then a time-scale for slew speed, route speed, transition/ramp durations and telemetry-age limits; then push (about 45 commits local only).
