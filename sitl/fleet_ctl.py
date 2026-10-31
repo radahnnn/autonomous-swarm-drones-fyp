@@ -118,8 +118,9 @@ class Runner:
         self.buffer: List[str] = []
         self.killed: set[int] = set()
         self.failed = False
-        threading.Thread(target=self._read, daemon=True).start()
-        threading.Thread(target=self._monitor, daemon=True).start()
+        self.threads = [threading.Thread(target=self._read, daemon=True), threading.Thread(target=self._monitor, daemon=True)]
+        for thread in self.threads:
+            thread.start()
 
     def _read(self):
         with open(self.out / "console.log", "w") as handle:
@@ -265,8 +266,10 @@ class Runner:
                 except ProcessLookupError:
                     pass
                 time.sleep(3)
-        write_checksums(self.out)
+        for thread in self.threads:        # finish writing the logs before they are checksummed
+            thread.join(timeout=10)
         self.log(f"driver done; failed={self.failed}")
+        write_checksums(self.out)
 
 
 def main(argv=None) -> int:

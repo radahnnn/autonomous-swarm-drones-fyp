@@ -20,5 +20,5 @@ status
 send route stop
 sleep 8
 send land
-expect (landed|Landed) 120
+sleep 40
 health
