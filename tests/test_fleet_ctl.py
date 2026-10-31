@@ -27,6 +27,14 @@ def test_parse_rejects_malformed_steps(bad):
         parse_scenario(bad)
 
 
+def test_poll_step_parses_and_validates():
+    step = parse_scenario("poll 10 300 airborne armed=yes")[0]
+    assert (step.kind, step.arg, step.timeout_s) == ("poll", "10 airborne armed=yes", 300.0)
+    for bad in ("poll", "poll x 5 a", "poll 0 5 a", "poll 3 -1 a", "poll 3 5"):
+        with pytest.raises(ValueError):
+            parse_scenario(bad)
+
+
 def test_shipped_scenario_parses():
     from pathlib import Path
     assert parse_scenario(Path("scenarios/election_10.txt").read_text())

@@ -13,6 +13,8 @@ Scenario file, one step per line (``#`` starts a comment):
     expect <regex> <timeout_s>    send nothing; same as wait but the step is named "expect" in the log
     sleep <seconds>
     status                        shorthand for: send status
+    poll <n> <timeout_s> <regex>  send 'status' every few seconds until one status listing matches the
+                                  regex at least n times (e.g. all drones airborne); FAILED on timeout
     kill-agent <drone number>     SIGTERM that drone's agent process (1-based, as the console shows them)
     health                        check that every agent process of this run is alive; FAIL if one died
                                   unexpectedly (agents killed with kill-agent are exempt)
@@ -61,6 +63,16 @@ def parse_scenario(text: str) -> List[Step]:
             if not pattern or timeout_s <= 0:
                 raise ValueError(f"line {number}: '{word}' needs a pattern and a positive timeout")
             steps.append(Step(word, pattern, timeout_s, number))
+        elif word == "poll":
+            parts = rest.split(None, 2)
+            try:
+                need, timeout_s, pattern = int(parts[0]), float(parts[1]), parts[2]
+                re.compile(pattern)
+            except (ValueError, IndexError, re.error) as exc:
+                raise ValueError(f"line {number}: 'poll' needs '<count> <timeout_s> <regex>' ({exc})") from exc
+            if need < 1 or timeout_s <= 0:
+                raise ValueError(f"line {number}: poll needs a positive count and timeout")
+            steps.append(Step("poll", f"{need} {pattern}", timeout_s, number))
         elif word == "send":
             if not rest:
                 raise ValueError(f"line {number}: 'send' needs a command")
@@ -147,15 +159,27 @@ class Runner:
             time.sleep(5)
 
     def agents(self) -> dict[int, int]:
-        """Drone number (1-based) -> pid for this run's agent processes."""
-        found = {}
-        output = subprocess.run(["ps", "-eo", "pid=,pgid=,args="], capture_output=True, text=True).stdout
+        """Drone number (1-based) -> pid for this run's agent processes (descendants of the console)."""
+        output = subprocess.run(["ps", "-eo", "pid=,ppid=,args="], capture_output=True, text=True).stdout
+        rows = []
         for line in output.splitlines():
             parts = line.split(None, 2)
-            if len(parts) == 3 and parts[1] == str(self.proc.pid) and "independent_agent_node" in parts[2]:
-                match = re.search(r"--id[ =](\d+)", parts[2])
+            if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+                rows.append((int(parts[0]), int(parts[1]), parts[2]))
+        family = {self.proc.pid}
+        grew = True
+        while grew:
+            grew = False
+            for pid, ppid, _ in rows:
+                if ppid in family and pid not in family:
+                    family.add(pid)
+                    grew = True
+        found = {}
+        for pid, _, args in rows:
+            if pid in family and "independent_agent_node" in args:
+                match = re.search(r"--id[ =](\d+)", args)
                 if match:
-                    found[int(match.group(1)) + 1] = int(parts[0])
+                    found[int(match.group(1)) + 1] = pid
         return found
 
     def wait_for(self, pattern: str, timeout_s: float, since: int) -> bool:
@@ -189,6 +213,18 @@ class Runner:
                 elif step.kind in ("wait", "expect"):
                     ok = self.wait_for(step.arg, step.timeout_s, 0 if step.kind == "wait" else mark)
                     self.log(f"{step.kind} {step.arg!r} (line {step.line_no}): {'OK' if ok else 'TIMEOUT'}")
+                    self.failed |= not ok
+                elif step.kind == "poll":
+                    need, pattern = step.arg.split(" ", 1)
+                    compiled, end, ok = re.compile(pattern), time.time() + step.timeout_s, False
+                    while time.time() < end and self.proc.poll() is None and not ok:
+                        mark = len(self.buffer)
+                        self.send("status")
+                        time.sleep(6)
+                        count = len(compiled.findall("".join(self.buffer[mark:])))
+                        self.log(f"  poll {pattern!r}: {count}/{need}")
+                        ok = count >= int(need)
+                    self.log(f"poll {pattern!r} x{need} (line {step.line_no}): {'OK' if ok else 'TIMEOUT'}")
                     self.failed |= not ok
                 elif step.kind == "sleep":
                     time.sleep(step.timeout_s)

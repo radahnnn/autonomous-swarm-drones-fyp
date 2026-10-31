@@ -1,7 +1,7 @@
 # 10 drones: patrol, coordinator loss, acting-coordinator takeover, leader killed, operator returns.
 wait swarm ready 900
 send launch
-wait airborne armed=yes 240
+poll 10 300 airborne armed=yes
 sleep 20
 send patrol square 12 0.3
 sleep 20
