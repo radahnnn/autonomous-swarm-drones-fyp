@@ -148,7 +148,8 @@ class IndependentSwarmConsole:
         self.status_thread = None
         self.intent_thread = None
         self.dashboard_server = None
-        evidence_parent = (Path(args.evidence_dir) if getattr(args, "evidence_dir", None)
+        # resolved: SITL and the agents run from other working directories, a relative path then points elsewhere
+        evidence_parent = (Path(args.evidence_dir).resolve() if getattr(args, "evidence_dir", None)
                            else self.root / "runs" / "independent")
         self.run_dir = evidence_parent / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         self.run_dir.mkdir(parents=True, exist_ok=False)

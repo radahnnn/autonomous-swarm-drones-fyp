@@ -96,7 +96,8 @@ def write_checksums(folder: Path) -> Path:
 
 class Runner:
     def __init__(self, steps: List[Step], console_args: List[str], out: Path):
-        self.steps, self.out = steps, out
+        self.steps, self.out = steps, out.resolve()   # agents and SITL run from other directories
+        out = self.out
         out.mkdir(parents=True, exist_ok=True)
         self.proc = subprocess.Popen(
             [sys.executable, "-u", "-m", "sitl.swarm_console", *console_args, "--evidence-dir", str(out / "evidence")],
