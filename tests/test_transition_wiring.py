@@ -110,6 +110,8 @@ class Swarm:
         c.transition_lock, c.lock = threading.Lock(), threading.Lock()
         c.latest = {}
         c.clock_sync_message = {"epoch": EPOCH}
+        c.clock_uncertainty_s = {i: 0.005 for i in range(N)}
+        c.last_clock_sync_measurement = time.monotonic()
         c.goal_ne = self.centroid.copy()
         c.target_alt_m = 5.0
         c.formation = "v"
@@ -507,3 +509,14 @@ def test_other_modes_never_use_the_centralized_fail_stop(monkeypatch):
     for mode in ("decentralized", "hybrid"):
         node, clock = _policy_node(mode, monkeypatch)
         assert node._centralized_fail_stop(clock.t) is False and node.sent == []
+
+
+def test_start_lead_shorter_than_clock_budget_is_refused(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    console.clock_uncertainty_s = {i: 2.0 for i in range(N)}      # 2 s of offset uncertainty: no 3-4 s lead is safe
+    assert "clock budget" in console._lead_too_short(console.transition.params.lead_s)
+    refused = console.set_control_mode("decentralized")
+    assert not refused["accepted"] and "clock budget" in refused["message"]
+    console.clock_uncertainty_s = {i: 0.005 for i in range(N)}
+    assert console._lead_too_short(console.transition.params.lead_s) is None

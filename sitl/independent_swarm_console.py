@@ -17,6 +17,7 @@ from pymavlink import mavutil
 from sitl.fleet import build_fleet
 from sitl.formation_library import STYLES, slots_for
 from sitl.formation_transition import plan_formation_transition
+from sitl.clock_budget import compute_budget
 from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
@@ -607,7 +608,8 @@ class IndependentSwarmConsole:
                            offsets_s={str(index): value for index, value in offsets.items()},
                            uncertainty_s={str(index): value
                                           for index, value in uncertainty.items()},
-                           resynchronized=self.clock_sync_sequence > 1)
+                           resynchronized=self.clock_sync_sequence > 1,
+                           budget=self._clock_budget_dict())
                 self.last_clock_sync_measurement = time.monotonic()
                 return
             if time.monotonic() >= next_retry:
@@ -747,6 +749,9 @@ class IndependentSwarmConsole:
             return result(False, "Every drone needs a fresh status heartbeat.")
         if any(state.get("safety_state") != "nominal" for state in states):
             return result(False, "Every drone must report nominal safety status.")
+        problem = self._lead_too_short(self.mode_switch.params.lead_s)
+        if problem:
+            return result(False, problem)
         with self.mode_lock:
             self.mode_switch.mode = self.control_mode if self.control_mode in CONTROL_MODES else self.mode_switch.mode
             actions = self.mode_switch.begin(mode, now)
@@ -907,7 +912,33 @@ class IndependentSwarmConsole:
             actions = self.transition.tick(now, views)
         self._dispatch_transition(actions)
 
+    def _clock_budget(self):
+        """Worst-case start skew and minimum safe lead from the measured offset uncertainties (None if unknown)."""
+        if not self.clock_uncertainty_s:
+            return None
+        age = max(0.0, time.monotonic() - self.last_clock_sync_measurement) if self.last_clock_sync_measurement else \
+            _CLOCK_RESYNC_INTERVAL_S
+        try:
+            return compute_budget(self.clock_uncertainty_s, age_s=min(age, _CLOCK_RESYNC_INTERVAL_S * 2))
+        except ValueError:
+            return None
+
+    def _clock_budget_dict(self):
+        budget = self._clock_budget()
+        return None if budget is None else budget.as_dict()
+
+    def _lead_too_short(self, lead_s):
+        """Message if the announcement lead cannot cover the clock-error budget, else None."""
+        budget = self._clock_budget()
+        if budget is not None and lead_s < budget.required_lead_s:
+            return (f"The {lead_s:.1f}s start lead is shorter than the clock budget needs "
+                    f"({budget.required_lead_s:.2f}s: skew bound {budget.skew_bound_s * 1000:.0f} ms).")
+        return None
+
     def _begin_protocol_transition(self, style, plan, positions, centroid, now, result):
+        problem = self._lead_too_short(self.transition.params.lead_s)
+        if problem:
+            return result(False, problem)
         start_slots = np.column_stack((positions - centroid, np.zeros(self.count)))
         try:
             tplan = TransitionPlan.build(
