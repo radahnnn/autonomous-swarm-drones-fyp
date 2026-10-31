@@ -6,7 +6,7 @@ Supports: Line, V-Formation, Circle, and Grid formations, plus Hungarian matchin
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 import numpy as np
-from scipy.optimize import linear_sum_assignment
+from swarm_core.assignment import assign, squared_cost
 
 
 class FormationType(Enum):
@@ -148,24 +148,7 @@ def assign_slot_indices(
     """
     current = np.asarray(current_positions, dtype=np.float64)
     slots = np.asarray(target_slots, dtype=np.float64)
-    n = len(current)
-    cost = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(n):
-            cost[i, j] = np.sum((current[i] - slots[j]) ** 2)
-    rows, cols = linear_sum_assignment(cost)
-    best = np.zeros(n, dtype=int)
-    best[rows] = cols
-    if previous_indices is None:
-        return best
-    previous = np.asarray(previous_indices, dtype=int)
-    if previous.shape != (n,) or sorted(previous.tolist()) != list(range(n)):
-        return best
-    old_cost = float(cost[np.arange(n), previous].sum())
-    new_cost = float(cost[np.arange(n), best].sum())
-    if new_cost < (1.0 - float(hysteresis)) * old_cost - 1e-9:
-        return best
-    return previous.copy()
+    return assign(squared_cost(current, slots), previous_indices, hysteresis)
 
 
 def assign_optimal_slots(current_positions: np.ndarray, target_slots: np.ndarray) -> np.ndarray:

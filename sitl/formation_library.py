@@ -12,7 +12,7 @@ import math
 from typing import Dict, List
 
 import numpy as np
-from scipy.optimize import linear_sum_assignment
+from swarm_core.assignment import assign, squared_cost
 
 MIN_SPACING = 2.5  # metres, smallest allowed distance between two slots
 RING_SPACING_M = 4.0  # adjacent-slot spacing of the ring template
@@ -134,10 +134,4 @@ def assign_slots(current_offsets: np.ndarray, slots: np.ndarray, z_weight: float
     slots = np.asarray(slots, dtype=float)
     if len(current) != len(slots):
         raise ValueError("Need exactly one slot per drone")
-    diff = current[:, None, :] - slots[None, :, :]
-    cost = diff[..., 0] ** 2 + diff[..., 1] ** 2 + z_weight * diff[..., 2] ** 2
-    rows, cols = linear_sum_assignment(cost)
-    out = [0] * len(current)
-    for r, c in zip(rows, cols):
-        out[r] = int(c)
-    return out
+    return [int(c) for c in assign(squared_cost(current, slots, (1.0, 1.0, z_weight)))]

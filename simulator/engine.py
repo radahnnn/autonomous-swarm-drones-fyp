@@ -5,7 +5,7 @@ Coordinates the physics step, wireless network exchange, control computation, an
 
 from typing import Any, Dict, List, Optional, Union
 import numpy as np
-from scipy.optimize import linear_sum_assignment
+from swarm_core.assignment import assign, squared_cost
 
 from swarm_core.config import (
     SwarmConfigProfile,
@@ -204,12 +204,7 @@ class SwarmSimulation:
         )
         world_slots = create_world_slots(self.current_local_offsets, self.centroid_target[:2])
         curr_pos = np.array([d.position[:2] for d in self.drones], dtype=np.float64)
-        cost_matrix = np.zeros((n, n), dtype=np.float64)
-        for i in range(n):
-            for j in range(n):
-                cost_matrix[i, j] = np.sum((curr_pos[i] - world_slots[j]) ** 2)
-        row_ind, col_ind = linear_sum_assignment(cost_matrix)
-        self.drone_slot_map = {int(r): int(c) for r, c in zip(row_ind, col_ind)}
+        self.drone_slot_map = {i: int(c) for i, c in enumerate(assign(squared_cost(curr_pos, world_slots)))}
 
         # Update target_slots
         self.target_slots = np.zeros((n, 2), dtype=np.float64)
