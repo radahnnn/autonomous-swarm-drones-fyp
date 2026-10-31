@@ -24,6 +24,7 @@ from sitl.adaptive_membership import AdaptiveMembership
 from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
+from sitl.smoothing import min_jerk
 from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
 
 
@@ -1187,9 +1188,7 @@ class IndependentAgentNode:
                                   float(self.formation_transition_started_at or 0.0))
                     duration = max(0.1, self.formation_transition_duration_s)
                     alpha = min(1.0, elapsed / duration)
-                    # Quintic smoothstep starts and ends with zero velocity and
-                    # acceleration, avoiding a setpoint jerk at either endpoint.
-                    eased = alpha ** 3 * (10.0 - 15.0 * alpha + 6.0 * alpha ** 2)
+                    eased = min_jerk(alpha)   # zero velocity and acceleration at both ends
                     self.all_slots = (
                         self.formation_transition_start_slots * (1.0 - eased) +
                         self.formation_transition_target_slots * eased

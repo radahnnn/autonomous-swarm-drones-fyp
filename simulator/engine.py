@@ -53,6 +53,7 @@ class SwarmSimulation:
         fallback_strategy: str = "dead_reckon",
         dead_reckon_duration: float = 1.5,
         separation_minimum_m: float = 2.5,
+        wind=None,
     ):
         self.drones = drones
         self.num_drones = len(drones)
@@ -64,6 +65,7 @@ class SwarmSimulation:
         self.fallback_strategy = str(fallback_strategy).lower()
         self.dead_reckon_duration = float(dead_reckon_duration)
         self.separation_minimum_m = float(separation_minimum_m)
+        self.wind = wind                    # optional swarm_core.wind.WindModel
         if not np.isfinite(self.separation_minimum_m) or self.separation_minimum_m <= 0:
             raise ValueError("separation_minimum_m must be finite and positive")
 
@@ -516,7 +518,10 @@ class SwarmSimulation:
                 )
                 d.set_control_input(accel_i)
 
-        # 6. Physical integration step for each drone
+        # 6. Physical integration step for each drone (wind enters as an acceleration the controllers cannot see)
+        if self.wind is not None:
+            for drone_id, accel in self.wind.advance(self.dt, [d.id for d in self.drones]).items():
+                next(d for d in self.drones if d.id == drone_id).wind_vector = accel
         for d in self.drones:
             d.step(self.dt)
 

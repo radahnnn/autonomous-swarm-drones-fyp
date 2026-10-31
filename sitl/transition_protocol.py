@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from sitl.formation_library import MIN_SPACING
+from sitl.smoothing import min_jerk
 
 VERSION = 1
 Action = Tuple[Any, ...]  # ("send", message) or ("event", name, data)
@@ -44,10 +45,7 @@ class TransitionParams:
     arrived_close_s: float = 7.0
 
 
-def _ease(alpha: float) -> float:
-    """Quintic smoothstep (zero velocity and acceleration at both ends)."""
-    alpha = min(1.0, max(0.0, alpha))
-    return alpha ** 3 * (10.0 - 15.0 * alpha + 6.0 * alpha ** 2)
+_ease = min_jerk
 
 
 def _is_int(value: Any) -> bool:
