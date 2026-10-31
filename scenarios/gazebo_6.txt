@@ -1,0 +1,27 @@
+# 6 drones in Gazebo (run with --gazebo --time-scale 0.16 --control-mode hybrid): takeoff, a synchronized formation
+# change, in-flight mode switches through all three modes, landing. Wall-clock waits are long because the
+# simulator runs at ~0.16x real time.
+wait swarm ready 1800
+send launch
+poll 6 1500 airborne armed=yes
+sleep 40
+status
+send formation line
+expect Formation transition to LINE complete 600
+sleep 30
+status
+send mode decentralized
+expect Control mode is now DECENTRALIZED 300
+sleep 60
+status
+send mode centralized
+expect Control mode is now CENTRALIZED 300
+sleep 60
+send formation v
+expect Formation transition to V complete 600
+sleep 30
+status
+health
+send land
+sleep 240
+status
