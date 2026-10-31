@@ -27,7 +27,7 @@ from sitl.run_metrics import RunMetrics
 from sitl.route import Route, square_patrol
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, CoordinatorModeSwitch, ModeView
 from sitl.swarm_console import SwarmConsole
-from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan
+from sitl.transition_protocol import AgentView, CoordinatorTransition, TransitionPlan, scaled_params
 
 
 SITL_SENSOR_PROFILE_OVERRIDES = {
@@ -59,6 +59,7 @@ class IndependentSwarmConsole:
     """Mission entry, display, and logging only; node processes own all MAVLink I/O."""
 
     # Defaults so partially constructed consoles (tests) behave as "protocol off".
+    time_scale = 1.0
     MIN_FLIGHT_ALT_M = 2.0
     transition_protocol = False
     formation_hold = False
@@ -123,7 +124,8 @@ class IndependentSwarmConsole:
         self.formation_abort_issued = False
         # Synchronized transition protocol (opt-in): prepare -> ack -> common start -> HOLD on abort.
         self.transition_protocol = bool(getattr(args, "transition_protocol", False))
-        self.transition = CoordinatorTransition(self.count)
+        self.time_scale = float(getattr(args, "time_scale", 1.0))
+        self.transition = CoordinatorTransition(self.count, scaled_params(self.time_scale))
         self.transition_lock = threading.Lock()
         self.transition_pending = None   # (style, target_slots, resume_goal)
         self.formation_hold = False
@@ -248,7 +250,8 @@ class IndependentSwarmConsole:
                     "--safety-distance", str(getattr(self.args, "safety_distance", 2.8)),
                     "--geofence-margin", str(getattr(self.args, "geofence_margin", 2.0)),
                     "--altitude-layers", str(getattr(self.args, "altitude_layers", 1)),
-                    "--layer-spacing", str(getattr(self.args, "layer_spacing", 1.5))]
+                    "--layer-spacing", str(getattr(self.args, "layer_spacing", 1.5)),
+                    "--time-scale", str(self.time_scale)]
         if self.args.peer_roster:
             command += ["--peer-roster", str(self.args.peer_roster)]
         if self.args.peer_auth_key_file:
@@ -1373,7 +1376,8 @@ class IndependentSwarmConsole:
                 return result(False, "Position reports are incomplete or invalid.")
             centroid = positions.mean(axis=0)
             try:
-                plan = plan_formation_transition(positions, style, centroid_ne=centroid)
+                plan = plan_formation_transition(positions, style, centroid_ne=centroid,
+                                                 time_scale=self.time_scale)
             except (TypeError, ValueError) as exc:
                 return result(False, str(exc))
             self.formation_resume_goal = self.goal_ne.copy()
@@ -1407,7 +1411,7 @@ class IndependentSwarmConsole:
         centroid = positions.mean(axis=0)
         try:
             plan = plan_formation_transition(
-                positions, style, centroid_ne=centroid, obstacles=obstacles,
+                positions, style, centroid_ne=centroid, obstacles=obstacles, time_scale=self.time_scale,
             )
         except (TypeError, ValueError) as exc:
             return result(False, str(exc))

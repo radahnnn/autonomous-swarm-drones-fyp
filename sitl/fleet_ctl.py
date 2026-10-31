@@ -278,10 +278,11 @@ def main(argv=None) -> int:
     parser.add_argument("--drones", type=int, default=10)
     parser.add_argument("--control-mode", default="hybrid")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--gazebo", action="store_true", help="use a running Gazebo world instead of standalone SITL")
     parser.add_argument("--extra", default="", help="extra swarm_console arguments, quoted")
     args = parser.parse_args(argv)
     steps = parse_scenario(args.scenario.read_text())
-    console_args = ["--drones", str(args.drones), "--standalone", "--control-mode", args.control_mode,
+    console_args = ["--drones", str(args.drones), "--gazebo" if args.gazebo else "--standalone", "--control-mode", args.control_mode,
                     "--agent-runtime", "independent", "--adaptive-swarm", "--transition-protocol",
                     *args.extra.split()]
     runner = Runner(steps, console_args, args.out)

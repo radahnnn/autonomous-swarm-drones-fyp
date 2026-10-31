@@ -19,6 +19,16 @@ from sitl.formation_library import MIN_SPACING
 from sitl.smoothing import min_jerk
 
 VERSION = 1
+def scaled_params(time_scale: float) -> TransitionParams:
+    """Params for a simulator running at ``time_scale`` x real time: the vehicle-response timeouts stretch, the
+    message-level ones (acks, retries, peer staleness) stay in wall time."""
+    if not 0.02 <= time_scale <= 1.0:
+        raise ValueError("time scale must be between 0.02 and 1")
+    base = TransitionParams()
+    return TransitionParams(dwell_s=base.dwell_s / time_scale, overrun_s=base.overrun_s / time_scale,
+                            hold_timeout_s=base.hold_timeout_s, arrived_close_s=base.arrived_close_s / time_scale)
+
+
 Action = Tuple[Any, ...]  # ("send", message) or ("event", name, data)
 
 

@@ -25,7 +25,7 @@ from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.smoothing import min_jerk
-from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation
+from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation, scaled_params
 
 
 OPERATOR_VERSION = 1
@@ -65,7 +65,7 @@ class IndependentAgentNode:
                  adaptive_swarm: bool = False, obstacles=(),
                  geofence: Geofence | None = None, altitude_layers: int = 1,
                  layer_spacing_m: float = 1.5, safety_filter: bool = True,
-                 safety_distance_m: float = 2.8):
+                 safety_distance_m: float = 2.8, time_scale: float = 1.0):
         self.drone_id = int(drone_id)
         self.count = int(count)
         self.endpoint = endpoint
@@ -86,7 +86,7 @@ class IndependentAgentNode:
         self.formation_transition_progress = 1.0
         # Synchronized transition protocol (docs/TRANSITION_PROTOCOL_SPEC.md); idle unless the
         # coordinator runs with --transition-protocol.
-        self.transition = AgentTransition(drone_id, count)
+        self.transition = AgentTransition(drone_id, count, scaled_params(time_scale))
         self._discovered = []
         self._peer_memory = {}   # peer id -> (position, velocity, age at receipt, receipt wall time)
         if control_mode not in CONTROL_MODES:
@@ -147,6 +147,11 @@ class IndependentAgentNode:
         self.agent.ensure_mode_controllers()   # all three modes must be switchable in flight
         self.agent.safety_filter_enabled = bool(safety_filter)
         self.agent.SAFETY_DISTANCE_M = float(safety_distance_m)
+        if not 0.02 <= time_scale <= 1.0:
+            raise ValueError("time scale must be between 0.02 and 1")
+        self.time_scale = float(time_scale)
+        # A simulator running slower than the wall clock moves the vehicle proportionally slower per wall second.
+        self.agent.POSITION_TARGET_SPEED_M_S = LocalDroneAgent.POSITION_TARGET_SPEED_M_S * self.time_scale
         seed = None if peer_seed is None else int(peer_seed) + self.drone_id * 65537
         self.peers = UdpPeerStateTransport(
             self.drone_id, peer_port_base, count,
@@ -1265,6 +1270,8 @@ def main(argv=None):
     parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"),
                         default="decentralized")
     parser.add_argument("--peer-loss", type=float, default=0.0)
+    parser.add_argument("--time-scale", type=float, default=1.0,
+                        help="simulator speed relative to the wall clock (Gazebo: ~0.15); scales speeds and timeouts")
     parser.add_argument("--peer-latency-ms", type=float, default=0.0)
     parser.add_argument("--peer-jitter-ms", type=float, default=None,
                         help="standard deviation of per-packet peer delay in milliseconds; default 5 when mean delay is nonzero")
@@ -1348,7 +1355,7 @@ def main(argv=None):
     node = IndependentAgentNode(
         args.id, args.count, args.endpoint, args.formation,
         geofence=geofence, altitude_layers=args.altitude_layers, layer_spacing_m=args.layer_spacing,
-        safety_filter=args.safety_filter == "on", safety_distance_m=args.safety_distance,
+        safety_filter=args.safety_filter == "on", safety_distance_m=args.safety_distance, time_scale=args.time_scale,
         control_mode=args.control_mode,
         peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
         peer_latency_jitter_ms=args.peer_jitter_ms,

@@ -111,6 +111,7 @@ class Swarm:
         c.latest = {}
         c.clock_sync_message = {"epoch": EPOCH}
         c.clock_uncertainty_s = {i: 0.005 for i in range(N)}
+        c.time_scale = 1.0
         c.last_clock_sync_measurement = time.monotonic()
         c.goal_ne = self.centroid.copy()
         c.target_alt_m = 5.0
@@ -520,3 +521,20 @@ def test_start_lead_shorter_than_clock_budget_is_refused(monkeypatch):
     assert not refused["accepted"] and "clock budget" in refused["message"]
     console.clock_uncertainty_s = {i: 0.005 for i in range(N)}
     assert console._lead_too_short(console.transition.params.lead_s) is None
+
+
+def test_time_scale_slows_plans_and_stretches_timeouts():
+    from sitl.formation_transition import plan_formation_transition
+    from sitl.transition_protocol import TransitionParams, scaled_params
+    rng = np.random.default_rng(1)
+    positions = np.column_stack([np.linspace(-8, 8, 6), np.zeros(6)]) + rng.normal(0, 0.05, (6, 2))
+    normal = plan_formation_transition(positions, "v", max_transition_s=500.0)
+    slow = plan_formation_transition(positions, "v", max_transition_s=500.0, time_scale=0.25)
+    assert slow.duration_s == pytest.approx(normal.duration_s * 4.0)
+    np.testing.assert_allclose(slow.slots_by_drone, normal.slots_by_drone)
+    assert scaled_params(1.0) == TransitionParams()
+    assert scaled_params(0.25).overrun_s == pytest.approx(TransitionParams().overrun_s * 4.0)
+    with pytest.raises(ValueError):
+        plan_formation_transition(positions, "v", time_scale=0.0)
+    with pytest.raises(ValueError):
+        scaled_params(1.5)

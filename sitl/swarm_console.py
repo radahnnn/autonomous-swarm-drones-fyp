@@ -1187,6 +1187,9 @@ def main():
                         help="independent runtime: K vertical layers (drone ID mod K) for extra vertical separation")
     parser.add_argument("--layer-spacing", type=float, default=1.5, metavar="M",
                         help="metres between altitude layers")
+    parser.add_argument("--time-scale", type=float, default=1.0, metavar="R",
+                        help="independent runtime: simulator speed relative to the wall clock (Gazebo about 0.15); "
+                             "slows setpoint/transition speeds and stretches vehicle-response timeouts")
     parser.add_argument("--gate-metric", choices=("horizontal", "3d", "ellipsoid"), default="horizontal",
                         help="separation measure for the run report: horizontal (project gate), 3d (sphere) "
                              "or ellipsoid (needs --vertical-radius; horizontal-equivalent gap)")

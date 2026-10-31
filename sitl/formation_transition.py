@@ -38,8 +38,8 @@ def _minimum_pair_path_distance(start_a, end_a, start_b, end_b) -> float:
 def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=None,
                               minimum_separation_m: float = TRACKING_CLEARANCE_M,
                               obstacles=(), max_transition_s: float = 45.0,
-                              peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S
-                              ) -> FormationTransitionPlan:
+                              peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S,
+                              time_scale: float = 1.0) -> FormationTransitionPlan:
     """Assign slots by shortest travel and reject paths that violate separation.
 
     Positions are current shared-frame North/East metres. The resulting offsets
@@ -105,7 +105,11 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
         )
     # Quintic smoothstep peaks at 1.875 times average path speed. Keep a
     # conservative controller-speed bound and reject implausibly long transitions.
-    duration = max(12.0, 1.875 * max_travel / peak_speed_limit_m_s)
+    # time_scale < 1: the simulator runs slower than the wall clock (Gazebo), so speeds shrink and durations grow.
+    if not 0.02 <= time_scale <= 1.0:
+        raise ValueError("time scale must be between 0.02 and 1")
+    duration = max(12.0 / time_scale, 1.875 * max_travel / (peak_speed_limit_m_s * time_scale))
+    max_transition_s = max_transition_s / time_scale
     if duration > max_transition_s:
         raise ValueError(
             f"transition needs {duration:.1f} s at the speed limit; maximum is "
