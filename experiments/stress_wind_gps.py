@@ -31,7 +31,8 @@ LEVELS = {  # name: (gps sigma m, mean wind m/s, gust m/s)  -- wind speeds are c
 }
 
 
-def run_trial(mode: str, level: str, seed: int, n: int = 10, duration_s: float = 24.0) -> dict:
+def run_trial(mode: str, level: str, seed: int, n: int = 10, duration_s: float = 24.0, overrides=None) -> dict:
+    """``overrides`` maps (controller attribute, parameter) to a value, e.g. ('decentral_ctrl', 'k_sep'): 6.0."""
     sigma, mean_wind, gust = LEVELS[level]
     rng = np.random.default_rng(seed)
     positions = []
@@ -47,6 +48,8 @@ def run_trial(mode: str, level: str, seed: int, n: int = 10, duration_s: float =
         wind = WindModel.from_speed((mean_wind, 0.0), gust, drag, seed=seed + 1)
     sim = SwarmSimulation(drones, control_mode=mode, seed=seed, gps_noise_std=sigma, separation_minimum_m=GATE_M,
                           wind=wind)
+    for (controller, name), value in (overrides or {}).items():
+        setattr(getattr(sim, controller), name, float(value))
     sim.set_formation(FormationType.V_SHAPE, centroid=np.zeros(2))
     velocity = np.array([0.5, 0.2])
     centroid = np.zeros(2)
