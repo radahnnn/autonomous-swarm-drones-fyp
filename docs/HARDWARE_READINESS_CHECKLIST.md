@@ -38,7 +38,7 @@ unmet one. Anything marked *propellers off* must be done with the propellers phy
 |---|---|---|
 | 3.1 | Manual hover and RC-triggered failsafes proven (RTL/Land) before any software command | Flight log |
 | 3.2 | One aircraft GUIDED hover under the agent, geofence and ceiling set small, pilot ready to switch to manual | Flight log + video |
-| 3.3 | GPS accuracy measured at the site (plain GNSS is metres, not centimetres). The 2.5 m separation gate and the 2.8 m barrier distance were chosen in simulation and must be re-derived from measured position error and vehicle size (stress results: `docs/reports/STRESS_SWEEP_2026-10-31.md`) | Measurement + decision note |
+| 3.3 | GPS accuracy measured at the site (plain GNSS is metres, not centimetres). The 2.5 m separation gate and the 2.8 m barrier distance were chosen in simulation and must be re-derived from measured position error and vehicle size (stress results: `docs/reports/STRESS_AND_SENSITIVITY_2026-10-31.md`) | Measurement + decision note |
 
 ## Gate 4 - Two aircraft
 | # | Requirement | Evidence |

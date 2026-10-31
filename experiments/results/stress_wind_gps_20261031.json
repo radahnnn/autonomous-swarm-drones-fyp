@@ -1,0 +1,142 @@
+{
+  "drones": 10,
+  "gate_m": 2.5,
+  "results": {
+    "centralized/calm": {
+      "min_gap_p05": 2.3625466711855245,
+      "min_gap_median": 2.4109838336370455,
+      "min_gap_worst": 2.3502320396555993,
+      "gate_pass_rate": 0.0,
+      "collisions": 0,
+      "steady_error_median": 0.7960537298214565,
+      "trials": 30
+    },
+    "centralized/gps_1.5m": {
+      "min_gap_p05": 0.032550008859467454,
+      "min_gap_median": 0.40894798940071075,
+      "min_gap_worst": 0.009496385969449307,
+      "gate_pass_rate": 0.0,
+      "collisions": 21,
+      "steady_error_median": 2.6695220362026166,
+      "trials": 30
+    },
+    "centralized/wind_3": {
+      "min_gap_p05": 2.363901133402752,
+      "min_gap_median": 2.4123328042622836,
+      "min_gap_worst": 2.327081100307157,
+      "gate_pass_rate": 0.0,
+      "collisions": 0,
+      "steady_error_median": 1.0816463814652122,
+      "trials": 30
+    },
+    "centralized/gps_1.5m+wind_3": {
+      "min_gap_p05": 0.06574300280557474,
+      "min_gap_median": 0.4225965938251597,
+      "min_gap_worst": 0.01733670170226964,
+      "gate_pass_rate": 0.0,
+      "collisions": 23,
+      "steady_error_median": 2.8061505580550277,
+      "trials": 30
+    },
+    "centralized/gps_2.5m+wind_5": {
+      "min_gap_p05": 0.02263193627967962,
+      "min_gap_median": 0.23604248607001868,
+      "min_gap_worst": 0.0075214611847937585,
+      "gate_pass_rate": 0.0,
+      "collisions": 29,
+      "steady_error_median": 4.496924578715454,
+      "trials": 30
+    },
+    "decentralized/calm": {
+      "min_gap_p05": 2.553207090953172,
+      "min_gap_median": 2.6021509947761583,
+      "min_gap_worst": 2.531167882226466,
+      "gate_pass_rate": 1.0,
+      "collisions": 0,
+      "steady_error_median": 1.2086044348067126,
+      "trials": 30
+    },
+    "decentralized/gps_1.5m": {
+      "min_gap_p05": 0.05935810430405184,
+      "min_gap_median": 0.7354085585808283,
+      "min_gap_worst": 0.03593553037355904,
+      "gate_pass_rate": 0.0,
+      "collisions": 16,
+      "steady_error_median": 2.674141427985311,
+      "trials": 30
+    },
+    "decentralized/wind_3": {
+      "min_gap_p05": 2.4973550717838693,
+      "min_gap_median": 2.591577875878283,
+      "min_gap_worst": 2.485694223811432,
+      "gate_pass_rate": 0.9333333333333333,
+      "collisions": 0,
+      "steady_error_median": 1.4137632363329344,
+      "trials": 30
+    },
+    "decentralized/gps_1.5m+wind_3": {
+      "min_gap_p05": 0.06603088534477053,
+      "min_gap_median": 0.7737161465857565,
+      "min_gap_worst": 0.017547170981098186,
+      "gate_pass_rate": 0.0,
+      "collisions": 15,
+      "steady_error_median": 2.864275232515549,
+      "trials": 30
+    },
+    "decentralized/gps_2.5m+wind_5": {
+      "min_gap_p05": 0.048420519136665466,
+      "min_gap_median": 0.35821431786917507,
+      "min_gap_worst": 0.026039215999711464,
+      "gate_pass_rate": 0.0,
+      "collisions": 26,
+      "steady_error_median": 5.342943486618755,
+      "trials": 30
+    },
+    "hybrid/calm": {
+      "min_gap_p05": 2.3708727420179025,
+      "min_gap_median": 2.4196502738119285,
+      "min_gap_worst": 2.359583373968433,
+      "gate_pass_rate": 0.0,
+      "collisions": 0,
+      "steady_error_median": 0.8275283011874617,
+      "trials": 30
+    },
+    "hybrid/gps_1.5m": {
+      "min_gap_p05": 0.05225127005248608,
+      "min_gap_median": 0.40416761120632877,
+      "min_gap_worst": 0.041498542325637225,
+      "gate_pass_rate": 0.0,
+      "collisions": 22,
+      "steady_error_median": 2.6527564836833406,
+      "trials": 30
+    },
+    "hybrid/wind_3": {
+      "min_gap_p05": 2.3637959038035627,
+      "min_gap_median": 2.4210628156900214,
+      "min_gap_worst": 2.328819113566302,
+      "gate_pass_rate": 0.0,
+      "collisions": 0,
+      "steady_error_median": 1.0791572613217877,
+      "trials": 30
+    },
+    "hybrid/gps_1.5m+wind_3": {
+      "min_gap_p05": 0.06631460344341963,
+      "min_gap_median": 0.4205148289077455,
+      "min_gap_worst": 0.042901726951819076,
+      "gate_pass_rate": 0.0,
+      "collisions": 21,
+      "steady_error_median": 2.7575109339210773,
+      "trials": 30
+    },
+    "hybrid/gps_2.5m+wind_5": {
+      "min_gap_p05": 0.07474641998785425,
+      "min_gap_median": 0.2713544808740512,
+      "min_gap_worst": 0.07046134048005902,
+      "gate_pass_rate": 0.0,
+      "collisions": 27,
+      "steady_error_median": 4.441275949588571,
+      "trials": 30
+    }
+  },
+  "elapsed_s": 1341.9118654727936
+}
