@@ -65,5 +65,5 @@ Reading it correctly:
   fallback is in `experiments/sweep_hybrid_fallback.py`.
 - Range is narrow (4x) and one-at-a-time: interactions are not covered, and extreme values (x10) can matter
   (`k_form` x10 raised steady error from 1.88 to 2.44 m in one spot check).
-- The median minimum gap here (1.8-2.1 m) is below the calm stress table because this sweep includes the
-  start-up convergence from a random layout (no settling window).
+- The median minimum gap here (1.8-2.1 m) is below the calm rows of section 1 because this sweep adds 0.5 m GPS
+  error (same settled window t >= 6 s); even that modest error costs roughly 0.3-0.6 m of gap.
