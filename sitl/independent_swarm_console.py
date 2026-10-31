@@ -136,7 +136,8 @@ class IndependentSwarmConsole:
                 getattr(args, "geofence_max_alt", None), getattr(args, "geofence_margin", 2.0))
         except ValueError as exc:
             raise SystemExit(f"invalid geofence: {exc}")
-        self.metrics = RunMetrics(self.count, gate_metric=getattr(args, "gate_metric", "horizontal"))
+        self.metrics = RunMetrics(self.count, gate_metric=getattr(args, "gate_metric", "horizontal"),
+                                   vertical_radius_m=getattr(args, "vertical_radius", None))
         self._fence_seen = {}
         self._acting_seen = {}
         self._safety_seen = {}

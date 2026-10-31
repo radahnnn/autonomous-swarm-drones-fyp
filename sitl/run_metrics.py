@@ -15,15 +15,21 @@ from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from sitl.separation_geometry import horizontal_equivalent_gap
+
 GATE_M = 2.5
 
 
 class RunMetrics:
     def __init__(self, count: int, gate_m: float = GATE_M, warn_margin_m: float = 0.25,
                  history_s: float = 300.0, sample_period_s: float = 0.5,
-                 gate_metric: str = "horizontal", max_status_age_s: float = 3.0):
-        if gate_metric not in ("horizontal", "3d"):
-            raise ValueError("gate_metric must be 'horizontal' or '3d'")
+                 gate_metric: str = "horizontal", max_status_age_s: float = 3.0,
+                 vertical_radius_m: Optional[float] = None):
+        if gate_metric not in ("horizontal", "3d", "ellipsoid"):
+            raise ValueError("gate_metric must be 'horizontal', '3d' or 'ellipsoid'")
+        if gate_metric == "ellipsoid" and not (vertical_radius_m and math.isfinite(vertical_radius_m) and vertical_radius_m > 0):
+            raise ValueError("the ellipsoid gate needs a positive vertical radius")
+        self.vertical_radius_m = vertical_radius_m
         self.count, self.gate_m, self.warn_margin_m = count, float(gate_m), float(warn_margin_m)
         self.gate_metric, self.max_status_age_s = gate_metric, max_status_age_s
         self.sample_period_s = sample_period_s
@@ -95,7 +101,7 @@ class RunMetrics:
                             pass
             drones.append(info)
         self.drones = drones
-        gap = gap3d = None
+        gap = gap3d = gap_shape = None
         pair = None
         ids = sorted(points)
         for a in range(len(ids)):
@@ -106,11 +112,19 @@ class RunMetrics:
                 if gap is None or horizontal < gap:
                     gap, pair = horizontal, (ids[a] + 1, ids[b] + 1)
                 gap3d = spatial if gap3d is None else min(gap3d, spatial)
+                if self.gate_metric == "ellipsoid":
+                    shaped = horizontal_equivalent_gap(horizontal, abs(float(delta[2])), self.gate_m, self.vertical_radius_m)
+                    gap_shape = shaped if gap_shape is None else min(gap_shape, shaped)
         self.current = {"gap_m": gap, "gap_3d_m": gap3d, "pair": pair}
         if gap is None:
             self._state, self._last_t = "n/a", now
             return
-        measured = gap if self.gate_metric == "horizontal" else (gap3d if gap3d is not None else gap)
+        if self.gate_metric == "horizontal":
+            measured = gap
+        elif self.gate_metric == "3d":
+            measured = gap3d if gap3d is not None else gap
+        else:
+            measured = gap_shape if gap_shape is not None else gap
         self.samples += 1
         self.gaps.append(measured)
         self.history.append((now - self.started_at, measured))
@@ -158,7 +172,7 @@ class RunMetrics:
         tracking = np.asarray(self.tracking_errors, dtype=float)
         return {
             "result": "PASS" if passed else ("NO DATA" if not has_data else "FAIL"),
-            "gate_m": self.gate_m, "gate_metric": self.gate_metric,
+            "gate_m": self.gate_m, "gate_metric": self.gate_metric, "vertical_radius_m": self.vertical_radius_m,
             "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
             "duration_s": duration, "drones": self.count, "airborne_pair_samples": self.samples,
             "min_gap_m": None if not has_data else round(float(gaps.min()), 3),
