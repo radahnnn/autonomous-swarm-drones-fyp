@@ -68,7 +68,7 @@ def generate_gazebo_world(count: int, output_dir: Path) -> Path:
         ET.SubElement(include, "name").text = f"cinewhoop_{index + 1}"
         ET.SubElement(include, "uri").text = f"model://cinewhoop_{index + 1}"
         ET.SubElement(include, "pose", {"degrees": "true"}).text = (
-            f"{north:.3f} {east:.3f} 0.2 0 0 90"
+            f"{east:.3f} {north:.3f} 0.2 0 0 90"   # Gazebo world: x = East, y = North
         )
 
     world_path = worlds_dir / f"cinewhoop_{count}drones.sdf"
