@@ -1,0 +1,56 @@
+# Gazebo survey patrol, 6 drones with cameras (run with --gazebo --time-scale 0.3 and the layout from
+# `python3 -m sitl.patrol_layout console-args`; world from sitl/launch_gazebo_patrol.sh).
+#   1. centralized: the V flies a square patrol; the leader meets a pole on the first edge
+#   2. decentralized: three pairs spread over the survey points, then move to the other three (two survey phases)
+#   3. hybrid: pairs again, the coordinator is cut, the swarm carries on
+#   4. regroup: back to the origin in the original V, land
+# Waits are wall-clock seconds at ~0.3x real time. `capture` saves a frame from every drone's camera.
+wait swarm ready 1800
+send launch
+poll 6 1500 airborne armed=yes
+sleep 20
+send capture start_V
+send mode centralized
+expect Control mode is now CENTRALIZED 300
+send patrol square 10 0.4
+sleep 70
+send capture corner_NE
+sleep 40
+send capture pole_pass
+sleep 40
+send capture corner_NW
+send route stop
+sleep 15
+status
+send mode decentralized
+expect Control mode is now DECENTRALIZED 300
+send formation pairs
+expect Formation transition to PAIRS complete 600
+sleep 10
+send capture pairs_A
+send formation pairs_b
+expect Formation transition to PAIRS_B complete 600
+sleep 10
+send capture pairs_B
+send mode hybrid
+expect Control mode is now HYBRID 300
+send formation pairs
+expect Formation transition to PAIRS complete 600
+send capture hybrid_pairs_A
+send coord off
+sleep 25
+send capture hybrid_coordinator_lost
+send coord on
+sleep 10
+status
+send goto 0 0
+sleep 70
+send formation v
+expect Formation transition to V complete 600
+sleep 15
+send capture regrouped_V
+status
+health
+send land
+sleep 120
+status
