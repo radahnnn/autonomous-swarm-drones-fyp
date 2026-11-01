@@ -296,3 +296,11 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Pitfalls hit: relative `--evidence-dir` broke start (fixed); `pgrep/pkill -f <pattern>` in the same shell command kills the shell (use PID-only filters via `ps | awk`); `timeout` on the console leaves SITL and agents running (stop by PID).
 - Recommended Codex review: `sitl/cbf_filter.py` constraint derivation, `AdaptiveMembership.slot_map` (baseline = full-count template; behaviour when the count of survivors is 1), `sitl/clock_budget.py` assumptions, `Runner.agents()` process-ancestry matching.
 - Next step: Gazebo 6-drone run. Needs a measured real-time factor with 6 SITL first, then a time-scale for slew speed, route speed, transition/ramp durations and telemetry-age limits; then push (34 commits local only).
+
+### 2026-11-01 — Claude — Gazebo 6-drone bring-up (partial)
+
+- Commits: `--time-scale` (slew speed, transition duration, arrival timeouts), `sitl/launch_gazebo_world.sh`, `scenarios/gazebo_6.txt`, `c04cfe9` (plan bound 60 -> 600 s, found live).
+- Evidence (GAZEBO, headless, RTF ~0.16): `docs/reports/GAZEBO_6DRONE_INDEPENDENT_2026-11-01.md`. Independent runtime runs in Gazebo; mode switching works; **no formation transition completed**; run 2 report FAIL (1.598 m) with a transition cancelled by a separation check. Cause of the dip not isolated.
+- Not verified: landing completion, anything with routes, kills, GUI.
+- Recommended Codex review: whether time-scaling is complete (mode-switch ramp, route speeds, `LOCAL_PAUSE_S`, peer/telemetry staleness all remain in wall time), and the pre-start separation check against the V spacing.
+- Next step: isolate the dip (position log around the abort, wider Gazebo V), repeat the transition, then 10-drone/route tests. Push is the user's ordered last step.

@@ -1,0 +1,1531 @@
+{
+  "result": "PASS",
+  "gate_m": 2.5,
+  "gate_metric": "horizontal",
+  "vertical_radius_m": null,
+  "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
+  "duration_s": 1511.8,
+  "drones": 6,
+  "airborne_pair_samples": 2850,
+  "min_gap_m": 2.562,
+  "min_gap_at_s": 64.4,
+  "min_gap_3d_m": 2.562,
+  "p05_gap_m": 2.796,
+  "violation_episodes": 0,
+  "violation_time_s": 0.0,
+  "warning_episodes": 1,
+  "warn_margin_m": 0.25,
+  "mean_tracking_error_m": 0.048,
+  "p95_tracking_error_m": 0.114,
+  "max_status_age_s": 2.56,
+  "counters": {
+    "safety_filter_activation": 297,
+    "mode_switch_complete": 2,
+    "coordinator_takeover": 1
+  },
+  "events": [
+    {
+      "t": 41.79,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 42.09,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 44.09,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 49.1,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 51.91,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 52.21,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 55.22,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 57.92,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 63.25,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 64.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 76.18,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 79.19,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 79.49,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 86.3,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 86.61,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 89.31,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 89.61,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 96.73,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 100.44,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 106.85,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 110.56,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 114.67,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 117.68,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 120.69,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 120.99,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 124.02,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 124.72,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 127.02,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 128.13,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 131.13,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 135.24,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 137.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 137.95,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 138.25,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 139.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 140.96,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 142.26,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 143.36,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 145.37,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 146.37,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 151.38,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 153.09,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 153.39,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 157.5,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 159.5,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 161.51,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 162.21,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 163.61,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 167.32,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 167.62,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 169.63,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 172.64,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 173.44,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 178.75,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 181.46,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 184.88,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 187.89,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 190.59,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 193.7,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 199.01,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 201.72,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 206.83,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 209.13,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 215.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 217.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 219.26,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 221.26,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 225.37,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 227.38,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 231.39,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 236.2,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 236.5,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 242.22,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 245.36,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 247.56,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 251.37,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 257.48,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 257.78,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 260.79,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 263.5,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 263.8,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 267.61,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 270.61,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 273.92,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 281.04,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 284.05,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 287.15,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 290.86,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 291.16,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 294.17,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 297.28,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 299.99,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 300.29,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 304.0,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 304.3,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 307.33,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 309.33,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 309.33,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 314.14,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 316.45,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 317.15,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 320.56,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 324.26,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 328.68,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 330.38,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 333.39,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 336.69,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 337.5,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 337.8,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 340.51,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 340.81,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 343.51,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 343.81,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 349.93,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 350.63,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 352.93,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 353.64,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 358.05,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 360.05,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 362.76,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 363.06,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 364.06,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 366.07,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 369.8,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 370.1,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 371.1,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 373.91,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 374.21,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 376.21,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 379.92,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 380.22,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 383.03,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 383.33,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 386.34,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 390.15,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 393.16,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 393.46,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 397.26,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 403.28,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 404.58,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 407.39,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 410.7,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 410.7,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 412.7,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 413.4,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 414.71,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 416.71,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 418.82,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 423.53,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 426.53,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 429.86,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 431.87,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 433.68,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 434.98,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 437.99,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 437.99,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 444.1,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 445.1,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 448.11,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 448.11,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 450.92,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 453.93,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 458.24,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 460.34,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 464.05,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 464.35,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 470.16,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 470.46,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 471.47,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 473.47,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 475.48,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 477.18,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 477.48,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 478.48,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 481.59,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 483.6,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 487.31,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 488.61,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 490.38,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 493.39,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 493.69,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 496.7,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 497.7,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 500.41,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 503.51,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 509.63,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 509.93,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 513.94,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 513.94,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 518.05,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 519.75,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 521.06,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 522.76,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 523.06,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 528.88,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 531.88,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 532.18,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 534.89,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 535.19,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 538.3,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 539.3,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 541.0,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 541.3,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 542.31,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 544.01,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 544.31,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 546.32,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 546.32,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 553.36,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 556.46,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 560.17,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 560.47,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 562.18,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 562.48,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 566.29,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 567.59,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 569.4,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 569.7,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 572.4,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 572.7,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 575.41,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 575.71,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 579.52,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 579.82,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 582.53,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 583.83,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 583.83,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 585.53,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 586.84,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 586.84,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 588.64,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 589.94,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 589.94,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 591.65,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 591.95,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 594.66,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 594.96,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 595.96,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 597.66,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 598.97,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 599.07,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 604.78,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 605.08,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 610.9,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 611.2,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 613.87,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 614.17,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 616.98,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 618.28,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 619.98,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 621.29,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 622.29,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 626.4,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 629.11,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 629.41,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 632.11,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 632.41,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 635.52,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 640.53,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 643.54,
+      "kind": "safety_filter_activation",
+      "drone": 2
+    },
+    {
+      "t": 645.25,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 662.48,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 666.9,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 668.6,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 669.9,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 676.0,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 679.01,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 680.71,
+      "kind": "safety_filter_activation",
+      "drone": 1
+    },
+    {
+      "t": 689.13,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 689.13,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 693.24,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 696.25,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 699.25,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 699.25,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 706.37,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 708.08,
+      "kind": "mode_switch_complete",
+      "switch_id": 1,
+      "mode": "decentralized"
+    },
+    {
+      "t": 709.38,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 709.38,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 719.51,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 719.51,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 722.62,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 729.63,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 729.63,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 732.74,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 739.77,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 739.77,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 742.88,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 746.89,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 746.89,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 750.9,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 754.0,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 754.0,
+      "kind": "safety_filter_activation",
+      "drone": 5
+    },
+    {
+      "t": 758.01,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 761.02,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 764.13,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 767.13,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 774.25,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 776.26,
+      "kind": "mode_switch_complete",
+      "switch_id": 2,
+      "mode": "centralized"
+    },
+    {
+      "t": 777.26,
+      "kind": "safety_filter_activation",
+      "drone": 3
+    },
+    {
+      "t": 1470.69,
+      "kind": "coordinator_takeover",
+      "drone": 1,
+      "term": 1
+    }
+  ]
+}
