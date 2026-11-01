@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 671 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 700+ unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 671 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 700+ tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
@@ -127,6 +127,7 @@ Not verified / open:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-11-01 — Claude — Gazebo survey-patrol built (UNIT-tested, NOT yet flown end to end): drone cameras + PNG capture (`sitl/gz_camera.py`, console `capture`), ground/markers/poles/trees in generated worlds, simulated range sensing of obstacles shared over the peer link (`sitl/obstacle_sensing.py`), world-anchored `pairs`/`pairs_b` formations, `goto`, `--time-scale`, 2.5 ms physics step (RTF 0.14 -> 0.3-0.4), `sitl/patrol_layout.py`, `scenarios/gazebo_patrol.txt`. **Open blocker:** in the patrol world the drones would not arm: "Arm: Gyro 0 rate 403Hz < loop rate*1.8 720Hz" (run 4 at the same 2.5 ms step armed fine; cause unknown). Trees are scenery only; wind not in Gazebo yet.
 - 2026-11-01 — Claude — Barrier filter + minimum-motion slot reassignment validated live (defect 9: min gap 0.10 -> 3.62 m, PASS); added wind model + 30-seed stress sweep, parameter-sensitivity sweep, min-jerk smoothing consolidation, clock-sync error budget (leads that cannot cover it are refused), ellipsoid separation gate, single assignment function, scenario runner `sitl/fleet_ctl.py`, hardware-readiness checklist; fixed relative `--evidence-dir` start failure. Test count 671. Gazebo 6-drone: world generator N/E swap fixed + 2.5 ms physics step (RTF 0.14 -> 0.3-0.4); run 4 PASS (3.22 m). Remaining: repeat Gazebo runs, routes/kill in Gazebo, 10 drones.
 - 2026-10-31 — Claude — Acting-coordinator failover (`sitl/coordinator_election.py`) validated live with 10 drones (centralized survives operator loss; leader death hands over with a higher term); live run exposed near-collisions after a membership change (min gap 0.10 m among survivors) -> new defect 9; cached-intent expiry bug fixed; roadmap features 2, 3, 4, 5, 7 of 7 done (remaining: control-barrier filter, wind/GPS stress tests). Test count 618.
 - 2026-10-31 — Claude — Mission routes (`sitl/route.py`, `patrol`/`route` commands): decentralized and hybrid swarms keep patrolling without a coordinator, centralized holds; live run exposed and fixed a route-speed vs setpoint-slew flaw (cap 0.4 m/s); roadmap features 2, 4, 5, 7 of 7 done (remaining: coordinator election, control-barrier filter, wind/GPS stress tests). Test count 595.
