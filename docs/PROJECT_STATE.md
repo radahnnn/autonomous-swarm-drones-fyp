@@ -108,7 +108,7 @@ Not verified / open:
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; the checkpoint `d1e7444` is tagged `wip-checkpoint-20261029`. Commits since then are docs plus the stale-intent fix (`git log --oneline wip-checkpoint-20261029..HEAD`). Root disk ~35 GB free. Pushed: docs commits up to `70b120d`; the fix commit is local until the user says to push.
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; the checkpoint `d1e7444` is tagged `wip-checkpoint-20261029`. Commits since then are docs plus the stale-intent fix (`git log --oneline wip-checkpoint-20261029..HEAD`). Root disk ~35 GB free. Pushed to origin on 2026-11-01 up to `067df2e` (git auth now via `gh auth login` over HTTPS; the `gh` CLI is installed on this machine).
 
 - Claude is primary writer for the week of 2026-10-29; Codex reviews. One writer at a time. Log every session in the collaboration log.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
