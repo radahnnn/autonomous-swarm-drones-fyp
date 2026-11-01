@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 MAX_WAYPOINTS = 16
-MIN_SPEED_M_S = 0.1
+MIN_SPEED_M_S = 0.02    # slow simulators (Gazebo ~0.3x) need wall-clock speeds of a few cm/s
 # The agents slew their position setpoint at LocalDroneAgent.POSITION_TARGET_SPEED_M_S (0.45 m/s). A route
 # faster than that leaves the setpoint behind the goal by (route speed - 0.45) m for every second flown, without
 # bound (a live 10-drone run at 0.6 m/s showed 2-3 m tracking errors and separation violations at the corners).

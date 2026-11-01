@@ -69,6 +69,7 @@ class IndependentSwarmConsole:
     geofence = None
     _fence_seen = None
     _acting_seen = None
+    _obstacles_seen = None
     _safety_seen = None
     route: Route | None = None
 
@@ -804,6 +805,8 @@ class IndependentSwarmConsole:
             self._acting_seen = {}
         if self._safety_seen is None:
             self._safety_seen = {}
+        if self._obstacles_seen is None:
+            self._obstacles_seen = {}
         with self.lock:
             states = {index: state.copy() for index, state in self.latest.items()}
         self.metrics.update(time.time(), states)
@@ -827,6 +830,12 @@ class IndependentSwarmConsole:
             if filt and not self._safety_seen.get(index):
                 self._note_metric("safety_filter_activation", drone=index + 1)
             self._safety_seen[index] = filt
+            sensing = state.get("obstacle_sensing") or {}
+            known = int(sensing.get("known", 0) or 0)
+            if known > self._obstacles_seen.get(index, 0):
+                self._note_metric("obstacle_known", drone=index + 1, known=known,
+                                  own_detections=sensing.get("detected"), from_peers=sensing.get("learned"))
+                self._obstacles_seen[index] = known
 
     def _any_airborne(self) -> bool:
         with self.lock:
@@ -1583,6 +1592,10 @@ class IndependentSwarmConsole:
                     self.event("agent_rescue_unconfirmed", drone_id=index,
                                final_position=final_position)
                     print(f"!! D{index + 1} landing was not confirmed; keep SITL running for recovery.")
+        elif action == "goto" and len(parts) == 3:
+            self.goto(parts[1], parts[2])
+        elif action == "capture":
+            self.capture(parts[1] if len(parts) > 1 else "capture")
         elif action == "coord" and len(parts) > 1:
             self.intent_enabled = parts[1] in ("on", "up", "restore")
             self.event("mission_stream", enabled=self.intent_enabled)
@@ -1614,7 +1627,7 @@ class IndependentSwarmConsole:
             self.target_alt_m = max(lowest, self.target_alt_m - step)
             self._publish_intent()
         else:
-            print("Commands: preflight | launch | w/s/a/d [m] | u/j [m] | status | mode <name> | link-block/restore <sender> <recipient> | "
+            print("Commands: preflight | launch | goto <n> <e> | capture [label] | w/s/a/d [m] | u/j [m] | status | mode <name> | link-block/restore <sender> <recipient> | "
                   "fail <id> | rescue <id> | coord off/on | q")
         return True
 
@@ -1635,7 +1648,7 @@ class IndependentSwarmConsole:
             return result(False, "Finish or abort the formation transition first.", code="transition_active")
         try:
             side = float(args[1])
-            speed = float(args[2]) if len(args) > 2 else 0.3
+            speed = (float(args[2]) if len(args) > 2 else 0.3) * self.time_scale   # given in simulated m/s
             route = square_patrol(self.goal_ne, side, time.time() + 2.0, speed)
         except ValueError as exc:
             return result(False, str(exc))
@@ -1651,6 +1664,65 @@ class IndependentSwarmConsole:
         return result(True, f"Patrol square {side:g} m at {speed:g} m/s starts in 2 s. Every drone carries the "
                       "route, so decentralized and hybrid swarms keep patrolling even if the coordinator is lost.",
                       side_m=side, speed_m_s=speed)
+
+    def goto(self, north: str, east: str) -> None:
+        """goto <north_m> <east_m>: move the swarm's goal (the formation centre) to a place on the shared map."""
+        try:
+            target = np.array([float(north), float(east)])
+            if not np.isfinite(target).all():
+                raise ValueError
+        except ValueError:
+            print(">> usage: goto <north_m> <east_m>")
+            return
+        if self.route is not None:
+            print(">> Move blocked: a route is active; use 'route stop' first.")
+            return
+        if (self.mode_switch is not None and self.mode_switch.busy) or \
+                (self.transition_protocol and (self.transition.busy or self.formation_hold)):
+            print(">> Move blocked: a mode switch or formation transition is in progress.")
+            return
+        problem = self._fence_problem(self._slot_points(target), self.target_alt_m)
+        if problem:
+            print(f">> Move blocked by the geofence: {problem}")
+            return
+        self.goal_ne = target
+        self._publish_intent()
+        self.event("goto", north=float(target[0]), east=float(target[1]))
+        print(f">> Swarm goal moved to N {target[0]:.1f} E {target[1]:.1f}; the drones follow at the slew speed.", flush=True)
+
+    def capture(self, label: str = "capture") -> dict:
+        """capture [label]: every drone saves one camera frame (needs a Gazebo world generated with --camera).
+
+        Operator-triggered, not onboard: the console process reads the cameras through gz-transport. An index with each
+        drone's reported position at capture time is written next to the images.
+        """
+        from sitl.gz_camera import capture_all
+        from sitl.generate_gazebo_world import camera_topic
+        safe_label = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)[:40] or "capture"
+        directory = self.run_dir / "captures"
+        stamp = f"{int(time.time())}_{safe_label}"
+        try:
+            saved = capture_all({n: camera_topic(n) for n in range(1, self.count + 1)}, directory, stamp, timeout_s=15.0)
+        except Exception as exc:                                  # no bindings, no Gazebo, no cameras
+            print(f">> Capture failed: {exc}", flush=True)
+            self.event("capture_failed", error=str(exc))
+            return {"accepted": False, "message": str(exc)}
+        with self.lock:
+            states = {index: state.copy() for index, state in self.latest.items()}
+        frames = []
+        for number, path in saved.items():
+            position = (states.get(number - 1) or {}).get("position")
+            frames.append({"drone": number, "file": None if path is None else path.name, "position": position})
+        index_path = directory / "index.jsonl"
+        directory.mkdir(parents=True, exist_ok=True)
+        with open(index_path, "a") as handle:
+            handle.write(json.dumps({"utc": datetime.now(timezone.utc).isoformat(), "label": safe_label,
+                                     "frames": frames}) + "\n")
+        got = sum(1 for frame in frames if frame["file"])
+        self._note_metric("capture", label=safe_label, frames=got, expected=self.count)
+        self.event("capture", label=safe_label, frames=got, expected=self.count)
+        print(f">> Captured {got}/{self.count} camera frames ({safe_label}) -> {directory}", flush=True)
+        return {"accepted": got == self.count, "message": f"{got}/{self.count} frames", "frames": frames}
 
     def route_command(self, args) -> None:
         if not args or args[0] not in ("stop", "status"):
