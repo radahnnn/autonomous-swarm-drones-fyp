@@ -16,7 +16,12 @@ from swarm_core.assignment import assign, squared_cost
 
 MIN_SPACING = 2.5  # metres, smallest allowed distance between two slots
 RING_SPACING_M = 4.0  # adjacent-slot spacing of the ring template
-STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle")
+STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle", "pairs", "pairs_b")
+# World-anchored styles: the compass orientation is part of the layout (sectors tied to places on the map), so the
+# transition planner must not rotate them to improve clearance.
+WORLD_ANCHORED = frozenset({"pairs", "pairs_b"})
+PAIR_PARTNER_SPACING_M = 4.0
+PAIR_SECTOR_RADIUS_M = 9.0
 
 _V_TABLE: Dict[int, List[List[float]]] = {
     1: [[0.0, 0.0]],
@@ -105,7 +110,41 @@ def _triangle(n: int) -> np.ndarray:
     return _to_3d(arr)
 
 
+def pair_sector_centres(pairs: int) -> np.ndarray:
+    """North/East centres of the ``2 * pairs`` survey sectors, evenly spaced around the origin (sector 0 due North)."""
+    sectors = 2 * pairs
+    radius = max(PAIR_SECTOR_RADIUS_M, 13.0 / (2.0 * math.sin(math.pi / pairs))) if pairs >= 3 else PAIR_SECTOR_RADIUS_M
+    phi = 2.0 * math.pi * np.arange(sectors) / sectors
+    return np.column_stack((radius * np.cos(phi), radius * np.sin(phi)))
+
+
+def _pairs(n: int, phase: int) -> np.ndarray:
+    """Drones in pairs on alternate survey sectors: phase 0 uses sectors 0, 2, 4 ..., phase 1 uses 1, 3, 5 ...
+
+    Slots 2k and 2k+1 form pair k, ``PAIR_PARTNER_SPACING_M`` apart across the sector's direction. The two phases
+    are different position sets, so moving from one to the other really moves every pair, and together they cover
+    every sector.
+    """
+    if n == 1:
+        return _to_3d([[0.0, 0.0]])
+    pair_count = (n + 1) // 2
+    centres = pair_sector_centres(pair_count)
+    pts: List[List[float]] = []
+    for k in range(pair_count):
+        sector = (2 * k + phase) % (2 * pair_count)
+        north, east = centres[sector]
+        phi = 2.0 * math.pi * sector / (2 * pair_count)
+        tangent = (-math.sin(phi), math.cos(phi))
+        for sign in (-1.0, 1.0):
+            if len(pts) < n:
+                half = 0.5 * PAIR_PARTNER_SPACING_M
+                pts.append([north + sign * half * tangent[0], east + sign * half * tangent[1]])
+    return _to_3d(pts)
+
+
 _GENERATORS = {
+    "pairs": lambda n: _pairs(n, 0),
+    "pairs_b": lambda n: _pairs(n, 1),
     "v": _v,
     "line": lambda n: _abreast(n, axis=1),
     "column": lambda n: _abreast(n, axis=0),
