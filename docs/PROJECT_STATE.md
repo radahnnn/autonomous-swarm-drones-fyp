@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 700+ unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 0 unit/integration tests passing (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -53,7 +53,7 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 - `simulator/` — fast numerical engine and plots.
 - `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
 - `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 700+ tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
+- `tests/` — 0 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
 - `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
 - `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
 
