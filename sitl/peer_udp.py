@@ -160,6 +160,9 @@ class UdpPeerStateTransport:
         self.coordinator_sequence = 0
         self.last_coordinator_sequence: Dict[int, int] = {}
         self.coordinator_inbox: list = []
+        self.obstacle_sequence = 0
+        self.last_obstacle_sequence: Dict[int, int] = {}
+        self.obstacle_inbox: list = []
         self.session_id = uuid.uuid4().hex
         self.peer_session_ids: Dict[int, str] = {}
         self.retired_peer_sessions: Dict[int, list[str]] = {}
@@ -266,6 +269,32 @@ class UdpPeerStateTransport:
                 continue
             self._enqueue(peer_id, encoded, now)
         self._flush(float(now))
+
+    def publish_obstacles(self, peer_ids: Iterable[int], now: float, items: list) -> None:
+        """Share the obstacles this drone knows (north, east, radius triples) with its peers."""
+        self.obstacle_sequence += 1
+        packet = {
+            "version": VERSION, "frame": FRAME, "kind": "obstacles",
+            "drone_id": self.drone_id, "session_id": self.session_id,
+            "sequence": self.obstacle_sequence, "sample_time": float(now), "items": items,
+        }
+        encoded = self._encode(packet)
+        for peer_id in set(int(value) for value in peer_ids):
+            if peer_id < 0 or peer_id >= self.peer_count or peer_id == self.drone_id:
+                continue
+            if (self.drone_id, peer_id) in self.blocked_links:
+                self.dropped_blocked += 1
+                continue
+            if self._drop_packet():
+                self.dropped_loss += 1
+                continue
+            self._enqueue(peer_id, encoded, now)
+        self._flush(float(now))
+
+    def take_obstacle_messages(self) -> list:
+        """Authenticated, fresh, in-order obstacle reports received since the last call."""
+        messages, self.obstacle_inbox = self.obstacle_inbox, []
+        return messages
 
     def take_coordinator_messages(self) -> list:
         """Authenticated, fresh, in-order acting-coordinator messages received since the last call."""
@@ -442,6 +471,21 @@ class UdpPeerStateTransport:
                     self.last_coordinator_sequence[peer_id] = sequence
                     self.coordinator_inbox.append({"sender": peer_id, "term": term, "intent": intent,
                                                    "sequence": sequence})
+                    continue
+                if kind == "obstacles":
+                    items = packet.get("items")
+                    if (age < -MAX_FUTURE_SKEW_S or age > MAX_HEARTBEAT_AGE_S or not isinstance(items, list)
+                            or len(items) > 16):
+                        self.rejected_invalid += 1
+                        continue
+                    if not self._accept_peer_session(peer_id, session_id):
+                        self.rejected_replay += 1
+                        continue
+                    if sequence <= self.last_obstacle_sequence.get(peer_id, 0):
+                        self.rejected_replay += 1
+                        continue
+                    self.last_obstacle_sequence[peer_id] = sequence
+                    self.obstacle_inbox.append({"sender": peer_id, "items": items, "sequence": sequence})
                     continue
                 if kind != "state":
                     self.rejected_invalid += 1

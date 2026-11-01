@@ -1190,6 +1190,11 @@ def main():
     parser.add_argument("--time-scale", type=float, default=1.0, metavar="R",
                         help="independent runtime: simulator speed relative to the wall clock (Gazebo about 0.15); "
                              "slows setpoint/transition speeds and stretches vehicle-response timeouts")
+    parser.add_argument("--sensed-obstacle", action="append", default=[], metavar="N,E,R",
+                        help="independent runtime: a true obstacle of the simulated world that each drone finds with "
+                             "its range sensor (use --sensed-obstacle=N,E,R); repeatable")
+    parser.add_argument("--sense-range", type=float, default=8.0, metavar="M",
+                        help="independent runtime: simulated obstacle sensor range (m)")
     parser.add_argument("--gate-metric", choices=("horizontal", "3d", "ellipsoid"), default="horizontal",
                         help="separation measure for the run report: horizontal (project gate), 3d (sphere) "
                              "or ellipsoid (needs --vertical-radius; horizontal-equivalent gap)")

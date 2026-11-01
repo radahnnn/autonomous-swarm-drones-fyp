@@ -241,7 +241,10 @@ class IndependentSwarmConsole:
         if getattr(self.args, "adaptive_swarm", False):
             command.append("--adaptive-swarm")
         for obstacle in getattr(self.args, "obstacle", ()):
-            command += ["--obstacle", str(obstacle)]
+            command.append(f"--obstacle={obstacle}")
+        for sensed in getattr(self.args, "sensed_obstacle", ()):
+            command.append(f"--sensed-obstacle={sensed}")
+        command += ["--sense-range", str(getattr(self.args, "sense_range", 8.0))]
         for flag, attr in (("--geofence-radius", "geofence_radius"), ("--geofence-box", "geofence_box"),
                            ("--geofence-max-alt", "geofence_max_alt")):
             if getattr(self.args, attr, None) is not None:

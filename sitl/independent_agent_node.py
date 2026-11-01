@@ -23,6 +23,7 @@ from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
 from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
+from sitl.obstacle_sensing import ObstacleSensor, validate as validate_obstacle
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.smoothing import min_jerk
 from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation, scaled_params
@@ -65,7 +66,8 @@ class IndependentAgentNode:
                  adaptive_swarm: bool = False, obstacles=(),
                  geofence: Geofence | None = None, altitude_layers: int = 1,
                  layer_spacing_m: float = 1.5, safety_filter: bool = True,
-                 safety_distance_m: float = 2.8, time_scale: float = 1.0):
+                 safety_distance_m: float = 2.8, time_scale: float = 1.0,
+                 sensed_obstacles=(), sense_range_m: float = 8.0):
         self.drone_id = int(drone_id)
         self.count = int(count)
         self.endpoint = endpoint
@@ -125,6 +127,10 @@ class IndependentAgentNode:
         if any(len(obstacle) != 3 or not all(math.isfinite(v) for v in obstacle)
                or obstacle[2] <= 0 for obstacle in self.obstacles):
             raise ValueError("obstacles must be finite north,east,radius triples")
+        # Simulated range sensor: the world's true obstacles, found only when within range (see sitl/obstacle_sensing.py)
+        self.sensor = ObstacleSensor(sensed_obstacles, sense_range_m)
+        self._obstacles_published_count = -1
+        self._obstacles_published_at = 0.0
         self.peer_roster = load_peer_roster(peer_roster_path, count, peer_port_base)
         if peer_roster_path is None:
             # Honour every caller-selected range. The generated roster otherwise
@@ -1011,6 +1017,29 @@ class IndependentAgentNode:
         target_global[:2] = self._avoid_obstacles(target_global[:2])
         self._send_position_target(target_global, intent.target_alt_m + self.slot[2])
 
+    def _all_obstacles(self) -> list:
+        """Obstacles given in advance plus those this drone or a peer has sensed."""
+        sensor = getattr(self, "sensor", None)
+        return list(getattr(self, "obstacles", ())) + (list(sensor.known) if sensor is not None else [])
+
+    def _tick_obstacles(self, wall_now: float) -> None:
+        """Sense obstacles from the current position, learn peers' detections, and share what is known."""
+        sensor = getattr(self, "sensor", None)
+        if sensor is None:
+            return
+        found = sensor.update(self.position[:2]) if self.position is not None else []
+        for message in self.peers.take_obstacle_messages():
+            for obstacle in sensor.learn(message["items"]):
+                print(f"[NODE {self.drone_id + 1}] obstacle learned from D{message['sender'] + 1} "
+                      f"{{'north': {obstacle[0]:.1f}, 'east': {obstacle[1]:.1f}}}", flush=True)
+        for obstacle in found:
+            print(f"[NODE {self.drone_id + 1}] obstacle detected "
+                  f"{{'north': {obstacle[0]:.1f}, 'east': {obstacle[1]:.1f}, 'radius': {obstacle[2]:.1f}}}", flush=True)
+        known = len(sensor.known)
+        if known and (known != self._obstacles_published_count or wall_now - self._obstacles_published_at >= 2.0):
+            self.peers.publish_obstacles(self.discovery_ids, wall_now, sensor.shareable())
+            self._obstacles_published_count, self._obstacles_published_at = known, wall_now
+
     def _avoid_obstacles(self, target_ne: np.ndarray) -> np.ndarray:
         """Apply a bounded local repulsion from configured circular keep-out zones."""
         target = np.asarray(target_ne, dtype=float).copy()
@@ -1018,7 +1047,7 @@ class IndependentAgentNode:
             return target
         position = np.asarray(self.position[:2], dtype=float)
         correction = np.zeros(2, dtype=float)
-        for north, east, radius in getattr(self, "obstacles", ()):
+        for north, east, radius in self._all_obstacles():
             delta = position - np.array([north, east], dtype=float)
             distance = float(np.linalg.norm(delta))
             influence = radius + 3.0
@@ -1085,7 +1114,8 @@ class IndependentAgentNode:
                                   if self.membership is not None else list(range(self.count))),
             "elected_leader_id": self.elected_leader_id,
             "membership_revision": self.membership_revision,
-            "obstacle_count": len(self.obstacles),
+            "obstacle_count": len(self._all_obstacles()),
+            "obstacle_sensing": self.sensor.status(),
             "recovery_state": self.recovery_state,
             "mission_sequence": self.last_mission_sequence,
             "mission_active": self.mission_lease.active(time.monotonic()) is not None,
@@ -1213,6 +1243,7 @@ class IndependentAgentNode:
                 self._tick_mode_switch(now)
                 self._tick_geofence()
                 self._tick_election(now)
+                self._tick_obstacles(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)
@@ -1253,6 +1284,10 @@ def main(argv=None):
                         help="discover membership, repair a one-hop ring, elect a leader and redistribute slots")
     parser.add_argument("--obstacle", action="append", default=[], metavar="N,E,R",
                         help="circular local keep-out zone in shared north/east metres; repeatable")
+    parser.add_argument("--sensed-obstacle", action="append", default=[], metavar="N,E,R",
+                        help="a true obstacle of the simulated world, found by the range sensor when within "
+                             "--sense-range (use --sensed-obstacle=N,E,R when N is negative); repeatable")
+    parser.add_argument("--sense-range", type=float, default=8.0, help="simulated obstacle sensor range, metres")
     parser.add_argument("--geofence-radius", type=float, default=None,
                         help="circular software fence around the local origin, metres")
     parser.add_argument("--geofence-box", default=None, metavar="N0,E0,N1,E1",
@@ -1336,6 +1371,13 @@ def main(argv=None):
                 or sender == recipient):
             parser.error("--peer-block IDs must be different valid zero-based drone IDs")
         blocked_links.append((sender, recipient))
+    sensed = []
+    for raw_obstacle in args.sensed_obstacle:
+        try:
+            sensed.append(tuple(float(value) for value in raw_obstacle.split(",")))
+            validate_obstacle(sensed[-1])
+        except ValueError:
+            parser.error("--sensed-obstacle must be north,east,radius with a positive radius")
     obstacles = []
     for raw_obstacle in args.obstacle:
         try:
@@ -1375,6 +1417,7 @@ def main(argv=None):
         mavlink_system_id=args.mavlink_system_id,
         adaptive_swarm=args.adaptive_swarm,
         obstacles=obstacles,
+        sensed_obstacles=sensed, sense_range_m=args.sense_range,
     )
     node.run(args.duration)
 
