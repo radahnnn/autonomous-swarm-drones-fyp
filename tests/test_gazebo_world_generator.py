@@ -70,3 +70,58 @@ def test_physics_step_is_configurable_and_bounded(tmp_path):
     for bad in (0.0, 0.1, 5.0, float("nan")):
         with pytest.raises(ValueError):
             generate_gazebo_world(6, tmp_path / "c", step_ms=bad)
+
+
+def test_camera_models_and_obstacles(tmp_path):
+    import xml.etree.ElementTree as ET
+    from sitl.generate_gazebo_world import camera_topic, generate_gazebo_world
+    world = generate_gazebo_world(6, tmp_path, camera=True, obstacles=[(12.0, -4.0, 0.6), (0.0, 9.0, 0.4)])
+    for number in range(1, 7):
+        sdf = (tmp_path / "models" / f"cinewhoop_{number}" / "model.sdf").read_text()
+        assert sdf.count('type="camera"') == 1 and camera_topic(number) in sdf
+        assert f"<fdm_port_in>{9002 + 10 * (number - 1)}</fdm_port_in>" in sdf        # ports stay per-drone
+        ET.fromstring(sdf)                                                          # still well-formed XML
+    root = ET.parse(world).getroot().find("world")
+    poles = {m.get("name"): m for m in root.findall("model") if m.get("name", "").startswith("obstacle_")}
+    assert set(poles) == {"obstacle_1", "obstacle_2"}
+    x, y, z = (float(v) for v in poles["obstacle_1"].findtext("pose").split()[:3])
+    assert (x, y) == pytest.approx((-4.0, 12.0)) and z > 1.0                          # x = East, y = North
+    assert float(poles["obstacle_1"].find("link/visual/geometry/cylinder/radius").text) == pytest.approx(0.6)
+
+
+def test_no_camera_by_default_and_bad_obstacle_rejected(tmp_path):
+    from sitl.generate_gazebo_world import generate_gazebo_world
+    generate_gazebo_world(6, tmp_path / "a")
+    assert not (tmp_path / "a" / "models" / "cinewhoop_1").exists()                    # checked-in models are used
+    for bad in ((1.0, 2.0, 0.0), (float("nan"), 0.0, 1.0)):
+        with pytest.raises(ValueError):
+            generate_gazebo_world(6, tmp_path / "b", obstacles=[bad])
+
+
+def test_visible_ground_and_markers_have_no_collision(tmp_path):
+    import xml.etree.ElementTree as ET
+    from sitl.generate_gazebo_world import generate_gazebo_world
+    world = ET.parse(generate_gazebo_world(6, tmp_path, camera=True, markers=[(10.0, 0.0), (-5.0, 8.0)])).getroot().find("world")
+    scenery = {m.get("name"): m for m in world.findall("model") if m.get("name") in ("ground_visual", "marker_1", "marker_2")}
+    assert set(scenery) == {"ground_visual", "marker_1", "marker_2"}
+    for model in scenery.values():
+        assert model.find("link/collision") is None and model.findtext("static") == "true"
+    x, y = (float(v) for v in scenery["marker_1"].findtext("pose").split()[:2])
+    assert (x, y) == pytest.approx((0.0, 10.0))
+    with pytest.raises(ValueError):
+        generate_gazebo_world(6, tmp_path / "bad", camera=True, markers=[(float("inf"), 0.0)])
+
+
+def test_trees_are_scenery_only(tmp_path):
+    import xml.etree.ElementTree as ET
+    from sitl.generate_gazebo_world import generate_gazebo_world
+    world = ET.parse(generate_gazebo_world(6, tmp_path, camera=True, trees=[(8.0, 14.0), (-12.0, -9.0)])).getroot().find("world")
+    trees = [m for m in world.findall("model") if m.get("name", "").startswith("tree_")]
+    assert len(trees) == 2
+    for tree in trees:
+        assert tree.find("link/collision") is None and tree.findtext("static") == "true"
+        assert {v.get("name") for v in tree.findall("link/visual")} == {"trunk", "canopy"}
+    x, y = (float(v) for v in trees[0].findtext("pose").split()[:2])
+    assert (x, y) == pytest.approx((14.0, 8.0))
+    with pytest.raises(ValueError):
+        generate_gazebo_world(6, tmp_path / "bad", camera=True, trees=[(float("nan"), 0.0)])
