@@ -11,7 +11,7 @@ the Gazebo server is a single thread waiting on SITL replies). A 2.5 ms step (Ar
 **Run 4** (`STEP_MS=2.5`, GUI open, `--time-scale 0.3`, commit after `generate_gazebo_world --step-ms`): run report **PASS**,
 min horizontal gap **3.223 m**, 5th percentile 3.485 m, 0 violation episodes, 0 warning episodes, tracking error mean 0.146 m /
 p95 0.329 m, **no barrier-filter activations**. Scenario `scenarios/gazebo_6.txt`: take-off of all 6, **V -> LINE
-transition complete (61 s wall), V -> LINE -> V round trip complete (98 s)**, mode switches hybrid -> decentralized ->
+transition complete (61 s wall), LINE -> V transition complete (98 s wall)**, mode switches hybrid -> decentralized ->
 centralized, `health` all agents alive, `land`: the last status of all 6 drones is disarmed, on the ground, LAND mode
 (verified from `events.jsonl`). Whole run 440 s wall (runs 1-2 took about 1500 s). Report json:
 `docs/evidence/2026-10-30/gazebo_6drone_run4_step25_run_report.json`. **One run**; run-to-run variance in Gazebo was large
