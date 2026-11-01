@@ -29,6 +29,9 @@ def scaled_params(time_scale: float) -> TransitionParams:
                             hold_timeout_s=base.hold_timeout_s, arrived_close_s=base.arrived_close_s / time_scale)
 
 
+MAX_PLAN_DURATION_S = 600.0   # sanity bound; a slow simulator (time scale 0.1) needs transitions of several minutes
+
+
 Action = Tuple[Any, ...]  # ("send", message) or ("event", name, data)
 
 
@@ -114,8 +117,8 @@ class TransitionPlan:
             raise ValueError("target_slots must be 1-10 North/East/Down triples")
         target = _finite_array(target, target.shape, "target_slots")
         start = _finite_array(start_slots, target.shape, "start_slots")
-        if not math.isfinite(duration_s) or not 0.1 <= duration_s <= 60.0:
-            raise ValueError("duration_s must be between 0.1 and 60")
+        if not math.isfinite(duration_s) or not 0.1 <= duration_s <= MAX_PLAN_DURATION_S:
+            raise ValueError(f"duration_s must be between 0.1 and {MAX_PLAN_DURATION_S:g}")
         if not math.isfinite(start_at):
             raise ValueError("start_at must be finite")
         for name, slots in (("start_slots", start), ("target_slots", target)):

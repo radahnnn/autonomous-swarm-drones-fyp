@@ -51,7 +51,7 @@ def test_plan_round_trips_and_hash_detects_tampering():
 
 
 @pytest.mark.parametrize("bad", [
-    dict(duration=0.0), dict(duration=float("nan")), dict(duration=61.0),
+    dict(duration=0.0), dict(duration=float("nan")), dict(duration=601.0),
     dict(target=[(0, 0, 0), (1, 0, 0), (6, 0, 0), (9, 0, 0)]),  # spacing violation
     dict(target=[(0, 0, 0)] * 4),
 ])
