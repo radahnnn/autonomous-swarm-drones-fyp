@@ -59,3 +59,14 @@ def test_generated_spawn_poses_match_the_checked_in_five_drone_world(tmp_path):
     reference, generated = poses(TEMPLATE_WORLD), poses(generate_gazebo_world(6, tmp_path))
     for name, xy in reference.items():
         assert generated[name] == pytest.approx(xy), name
+
+
+def test_physics_step_is_configurable_and_bounded(tmp_path):
+    import xml.etree.ElementTree as ET
+    from sitl.generate_gazebo_world import generate_gazebo_world
+    default = ET.parse(generate_gazebo_world(6, tmp_path / "a")).getroot().find("world/physics/max_step_size").text
+    fast = ET.parse(generate_gazebo_world(6, tmp_path / "b", step_ms=2.5)).getroot().find("world/physics/max_step_size").text
+    assert float(default) == pytest.approx(0.001) and float(fast) == pytest.approx(0.0025)
+    for bad in (0.0, 0.1, 5.0, float("nan")):
+        with pytest.raises(ValueError):
+            generate_gazebo_world(6, tmp_path / "c", step_ms=bad)

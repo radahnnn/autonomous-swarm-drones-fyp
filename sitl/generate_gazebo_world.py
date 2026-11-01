@@ -20,7 +20,7 @@ def _replace_one(pattern: str, replacement: str, content: str, description: str)
     return updated
 
 
-def generate_gazebo_world(count: int, output_dir: Path) -> Path:
+def generate_gazebo_world(count: int, output_dir: Path, step_ms: float = 1.0) -> Path:
     """Create a matching world and per-instance ArduPilot FDM model configs."""
     if not 6 <= count <= 10:
         raise ValueError("generated Gazebo worlds support 6–10 drones; use checked-in worlds for 3 or 5")
@@ -56,6 +56,12 @@ def generate_gazebo_world(count: int, output_dir: Path) -> Path:
     if world is None:
         raise ValueError("the Gazebo template does not contain a world element")
     world.set("name", f"cinewhoop_{count}drones")
+    if not 0.5 <= step_ms <= 4.0:
+        raise ValueError("physics step must be between 0.5 and 4 ms (ArduCopter's main loop runs at 400 Hz = 2.5 ms)")
+    step = world.find("physics/max_step_size")
+    if step is None:
+        raise ValueError("the Gazebo template does not set a physics step")
+    step.text = f"{step_ms / 1000.0:g}"
     for include in list(world.findall("include")):
         model_name = include.findtext("name", "")
         uri = include.findtext("uri", "")
@@ -79,9 +85,11 @@ def generate_gazebo_world(count: int, output_dir: Path) -> Path:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--drones", type=int, choices=range(6, 11), default=10)
+    parser.add_argument("--step-ms", type=float, default=1.0,
+                        help="physics step in ms; every step is a lockstep exchange with every SITL, so larger is faster")
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    print(generate_gazebo_world(args.drones, args.output_dir))
+    print(generate_gazebo_world(args.drones, args.output_dir, args.step_ms))
 
 
 if __name__ == "__main__":

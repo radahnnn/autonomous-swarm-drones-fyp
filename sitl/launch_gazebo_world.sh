@@ -2,6 +2,7 @@
 # Generate an N-vehicle (6-10) Gazebo world and run it with the checked-in airframe model.
 #   bash sitl/launch_gazebo_world.sh 6              # with the GUI (needs DISPLAY)
 #   HEADLESS=1 bash sitl/launch_gazebo_world.sh 6   # server only (use for timing measurements)
+#   STEP_MS=2.5 bash sitl/launch_gazebo_world.sh 6  # larger physics step: fewer lockstep exchanges, faster
 set -euo pipefail
 
 COUNT="${1:-6}"
@@ -24,7 +25,7 @@ export GZ_SIM_RESOURCE_PATH="${TEMP_ROOT}/models:${REPO_ROOT}/simulator/gazebo/m
 export SDF_PATH="${TEMP_ROOT}/models:${REPO_ROOT}/simulator/gazebo/models:${ARDUPILOT_GAZEBO_DIR}/models:${SDF_PATH:-}"
 
 cd "${REPO_ROOT}"
-python3 -m sitl.generate_gazebo_world --drones "${COUNT}" --output-dir "${TEMP_ROOT}"
+python3 -m sitl.generate_gazebo_world --drones "${COUNT}" --output-dir "${TEMP_ROOT}" --step-ms "${STEP_MS:-1}"
 WORLD_FILE="${TEMP_ROOT}/worlds/cinewhoop_${COUNT}drones.sdf"
 
 for ((index = 0; index < COUNT; index++)); do
