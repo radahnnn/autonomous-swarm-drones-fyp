@@ -304,3 +304,11 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Not verified: landing completion, anything with routes, kills, GUI.
 - Recommended Codex review: whether time-scaling is complete (mode-switch ramp, route speeds, `LOCAL_PAUSE_S`, peer/telemetry staleness all remain in wall time), and the pre-start separation check against the V spacing.
 - Next step: isolate the dip (position log around the abort, wider Gazebo V), repeat the transition, then 10-drone/route tests. Push is the user's ordered last step.
+
+### 2026-11-01 (later) — Claude — Gazebo fixed: mirrored world and slow physics step
+
+- Root causes found from run-2 data: generator wrote north,east into Gazebo x,y (V mirrored; `generate_gazebo_world.py`, test now compares to the checked-in 5-drone world); lockstep at 1 ms limits RTF to 0.137 -> `--step-ms` / `STEP_MS=2.5` gives 0.29-0.39.
+- Run 4 (GAZEBO, GUI, 6 drones): PASS 3.223 m, both transitions complete, 2 mode switches, landing verified from events; 440 s wall. One run. Raw: `runs/independent/gazebo-6drone-20261101-run4-step25/` (not in Git).
+- `fleet_ctl`: console exit after `land`/`q` is no longer reported as a failure.
+- Open: repeat for variance; routes (speeds are not time-scaled), kill/coordinator-loss, 10 drones in Gazebo; the 2.5 ms step is validated only by run 4.
+- Not pushed yet (commits after `b10bf34` are local).

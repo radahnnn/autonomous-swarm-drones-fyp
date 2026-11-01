@@ -118,6 +118,7 @@ class Runner:
         self.buffer: List[str] = []
         self.killed: set[int] = set()
         self.failed = False
+        self.exit_expected = False      # the console quits by itself after 'land' or 'q'
         self.threads = [threading.Thread(target=self._read, daemon=True), threading.Thread(target=self._monitor, daemon=True)]
         for thread in self.threads:
             thread.start()
@@ -195,6 +196,8 @@ class Runner:
         return False
 
     def send(self, line: str):
+        if line.strip().lower() in ("land", "q", "quit"):
+            self.exit_expected = True
         self.log(f"SEND {line!r}")
         self.proc.stdin.write(line + "\n")
         self.proc.stdin.flush()
@@ -203,8 +206,8 @@ class Runner:
         try:
             for step in self.steps:
                 if self.proc.poll() is not None:
-                    self.log("console exited early")
-                    self.failed = True
+                    self.log("console exited" + (" after land/quit (expected)" if self.exit_expected else " early"))
+                    self.failed |= not self.exit_expected
                     break
                 mark = len(self.buffer)
                 if step.kind == "send":

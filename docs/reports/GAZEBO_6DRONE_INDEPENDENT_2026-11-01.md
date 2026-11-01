@@ -1,4 +1,26 @@
-# Independent runtime in Gazebo, 6 drones — first runs (2026-11-01)
+# Independent runtime in Gazebo, 6 drones (2026-11-01)
+
+## Update: run 4 passes (read this first; the rest of this page describes runs 1-2 and why they failed)
+Two causes were found and fixed after runs 1-2: (1) **the generated world swapped North and East** (Gazebo x = East, y = North),
+so the V spawned mirrored and D3/D5 had to cross the swarm after take-off; the barrier filter pinned pairs at exactly
+2.8 m (555 activations) and the first transition was cancelled by a separation check; (2) physics stepped at 1 ms with
+lockstep SITL, i.e. one exchange per vehicle per step, which limited the real-time factor to 0.137 (GPU 15 %, CPU low;
+the Gazebo server is a single thread waiting on SITL replies). A 2.5 ms step (ArduCopter's main loop is 400 Hz) gives
+**RTF 0.29-0.39** (about 2.5x).
+
+**Run 4** (`STEP_MS=2.5`, GUI open, `--time-scale 0.3`, commit after `generate_gazebo_world --step-ms`): run report **PASS**,
+min horizontal gap **3.223 m**, 5th percentile 3.485 m, 0 violation episodes, 0 warning episodes, tracking error mean 0.146 m /
+p95 0.329 m, **no barrier-filter activations**. Scenario `scenarios/gazebo_6.txt`: take-off of all 6, **V -> LINE
+transition complete (61 s wall), V -> LINE -> V round trip complete (98 s)**, mode switches hybrid -> decentralized ->
+centralized, `health` all agents alive, `land`: the last status of all 6 drones is disarmed, on the ground, LAND mode
+(verified from `events.jsonl`). Whole run 440 s wall (runs 1-2 took about 1500 s). Report json:
+`docs/evidence/2026-10-30/gazebo_6drone_run4_step25_run_report.json`. **One run**; run-to-run variance in Gazebo was large
+before the fix (2.56 m vs 1.60 m), so repeat before quoting the margin. Not yet exercised in Gazebo: routes, agent kill /
+coordinator loss, 10 drones; the flight-quality effect of the 2.5 ms step is judged only by this run.
+
+---
+
+# First runs (runs 1-2, before the fixes)
 
 **Evidence level: GAZEBO** (Gazebo Sim headless server, 6 ArduPilot SITL instances in JSON mode, ArduPilot plugin,
 one host, `--control-mode hybrid --agent-runtime independent --adaptive-swarm --transition-protocol --time-scale 0.16`).

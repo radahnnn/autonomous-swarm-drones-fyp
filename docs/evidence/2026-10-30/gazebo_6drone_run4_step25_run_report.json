@@ -1,0 +1,56 @@
+{
+  "result": "PASS",
+  "gate_m": 2.5,
+  "gate_metric": "horizontal",
+  "vertical_radius_m": null,
+  "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
+  "duration_s": 440.2,
+  "drones": 6,
+  "airborne_pair_samples": 810,
+  "min_gap_m": 3.223,
+  "min_gap_at_s": 318.4,
+  "min_gap_3d_m": 3.232,
+  "p05_gap_m": 3.485,
+  "violation_episodes": 0,
+  "violation_time_s": 0.0,
+  "warning_episodes": 0,
+  "warn_margin_m": 0.25,
+  "mean_tracking_error_m": 0.146,
+  "p95_tracking_error_m": 0.329,
+  "max_status_age_s": 2.56,
+  "counters": {
+    "transition_complete": 2,
+    "mode_switch_complete": 2,
+    "coordinator_takeover": 1
+  },
+  "events": [
+    {
+      "t": 119.11,
+      "kind": "transition_complete",
+      "transition_id": 1
+    },
+    {
+      "t": 157.01,
+      "kind": "mode_switch_complete",
+      "switch_id": 1,
+      "mode": "decentralized"
+    },
+    {
+      "t": 225.31,
+      "kind": "mode_switch_complete",
+      "switch_id": 2,
+      "mode": "centralized"
+    },
+    {
+      "t": 384.15,
+      "kind": "transition_complete",
+      "transition_id": 2
+    },
+    {
+      "t": 416.93,
+      "kind": "coordinator_takeover",
+      "drone": 1,
+      "term": 1
+    }
+  ]
+}
