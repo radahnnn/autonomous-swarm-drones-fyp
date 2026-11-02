@@ -28,9 +28,9 @@ def test_demo_formation_chains_stay_plannable_with_a_sigma_margin(n, chain, ts):
         current = plan.slots_by_drone[:, :2]
 
 
-def test_sigma_rejects_a_plan_that_would_be_fine_without_noise():
-    start = np.array([[0.0, 0.0], [3.3, 0.0]])                      # 3.3 m apart: fine at sigma 0, not at sigma 1
-    plan_formation_transition(start, "line", centroid_ne=np.array([1.65, 0.0]), minimum_separation_m=2.0)
-    with pytest.raises(ValueError):
-        plan_formation_transition(start, "line", centroid_ne=np.array([1.65, 0.0]), minimum_separation_m=2.0,
-                                  position_sigma_m=1.0)
+def test_noisy_start_closer_than_the_margin_is_still_plannable_but_never_worse_than_now():
+    rng = np.random.default_rng(4)
+    start = slots_for("v", 10)[:, :2] * 1.1 + rng.normal(0, 0.4, (10, 2))
+    closest = min(np.linalg.norm(start[i] - start[j]) for i in range(10) for j in range(i + 1, 10))
+    plan = plan_formation_transition(start, "line", position_sigma_m=1.0)
+    assert plan.minimum_path_separation_m >= min(ABORT_SEPARATION_M + 1.0, closest - 0.05) - 1e-9

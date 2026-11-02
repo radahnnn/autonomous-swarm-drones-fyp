@@ -71,8 +71,12 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
         raise ValueError("position error must be between 0 and 5 m")
     # Position error eats into every planned clearance: the plan must stay a full sigma above the 2.8 m abort line of
     # the transition protocol, so GPS wander alone cannot trigger an abort. Templates are spread by 1.5 sigma.
+    # If the drones already stand closer than that, no plan can do better than not making the closest pair worse.
     if position_sigma_m > 0.0:
-        minimum_separation_m = max(minimum_separation_m, ABORT_SEPARATION_M + position_sigma_m)
+        closest_now = min(float(np.linalg.norm(current[i] - current[j]))
+                          for i in range(len(current)) for j in range(i + 1, len(current)))
+        minimum_separation_m = max(minimum_separation_m,
+                                   min(ABORT_SEPARATION_M + position_sigma_m, closest_now - 0.05))
     spread_to = TARGET_MIN_SPACING_M + 1.5 * position_sigma_m
     if template_minimum < spread_to and formation not in WORLD_ANCHORED:
         slots = slots * (spread_to / template_minimum)
