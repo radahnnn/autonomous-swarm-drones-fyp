@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import itertools
+import math
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -14,6 +17,7 @@ from sitl.formation_library import MIN_SPACING, WORLD_ANCHORED, assign_slots, sl
 TARGET_MIN_SPACING_M = MIN_SPACING + 1.5
 TRACKING_CLEARANCE_M = MIN_SPACING + 0.35
 TRANSITION_PEAK_SPEED_M_S = 0.65
+ABORT_SEPARATION_M = 2.8      # sitl/transition_protocol.TransitionParams.abort_separation_m
 
 
 @dataclass(frozen=True)
@@ -39,7 +43,8 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
                               minimum_separation_m: float = TRACKING_CLEARANCE_M,
                               obstacles=(), max_transition_s: float = 90.0,
                               peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S,
-                              time_scale: float = 1.0) -> FormationTransitionPlan:
+                              time_scale: float = 1.0,
+                              position_sigma_m: float = 0.0) -> FormationTransitionPlan:
     """Assign slots by shortest travel and reject paths that violate separation.
 
     Positions are current shared-frame North/East metres. The resulting offsets
@@ -62,22 +67,33 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
         float(np.linalg.norm(slots[i] - slots[j]))
         for i in range(len(slots)) for j in range(i + 1, len(slots))
     )
-    if template_minimum < TARGET_MIN_SPACING_M:
-        slots = slots * (TARGET_MIN_SPACING_M / template_minimum)
+    if not math.isfinite(position_sigma_m) or not 0.0 <= position_sigma_m <= 5.0:
+        raise ValueError("position error must be between 0 and 5 m")
+    # Position error eats into every planned clearance: the plan must stay a full sigma above the 2.8 m abort line of
+    # the transition protocol, so GPS wander alone cannot trigger an abort. Templates are spread by 1.5 sigma.
+    if position_sigma_m > 0.0:
+        minimum_separation_m = max(minimum_separation_m, ABORT_SEPARATION_M + position_sigma_m)
+    spread_to = TARGET_MIN_SPACING_M + 1.5 * position_sigma_m
+    if template_minimum < spread_to and formation not in WORLD_ANCHORED:
+        slots = slots * (spread_to / template_minimum)
     relative_current = current - centroid
     current_3d = np.column_stack((relative_current, np.zeros(len(current))))
     best = None
     # A formation has no fixed compass orientation. Search rotations and choose
     # the assignment with the widest simultaneous straight-path clearance.
     angles = [0.0] if formation in WORLD_ANCHORED else np.linspace(0.0, 2.0 * np.pi, 72, endpoint=False)
+    candidates = []
     for angle in angles:
         rotation = np.asarray([[np.cos(angle), -np.sin(angle)],
                               [np.sin(angle), np.cos(angle)]])
         rotated = slots @ rotation.T
-        assignment = assign_slots(
+        candidates.append(rotated[np.asarray(assign_slots(
             current_3d, np.column_stack((rotated, np.zeros(len(rotated)))),
-        )
-        assigned_candidate = rotated[np.asarray(assignment, dtype=int)]
+        ), dtype=int)])
+    if formation in WORLD_ANCHORED and len(current) <= 7:
+        # No rotation freedom here, so search the assignment itself (7! = 5040 at most) for the widest clearance.
+        candidates += [slots[list(order)] for order in itertools.permutations(range(len(current)))]
+    for assigned_candidate in candidates:
         destinations_candidate = centroid + assigned_candidate
         closest_candidate = float("inf")
         max_travel_candidate = 0.0

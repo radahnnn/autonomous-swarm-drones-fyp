@@ -20,7 +20,7 @@ STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle", "pair
 # World-anchored styles: the compass orientation is part of the layout (sectors tied to places on the map), so the
 # transition planner must not rotate them to improve clearance.
 WORLD_ANCHORED = frozenset({"pairs", "pairs_b"})
-PAIR_PARTNER_SPACING_M = 4.0
+PAIR_PARTNER_SPACING_M = 6.0    # wide enough for ~1 m GPS error plus the planner's clearance
 PAIR_SECTOR_RADIUS_M = 9.0
 
 _V_TABLE: Dict[int, List[List[float]]] = {

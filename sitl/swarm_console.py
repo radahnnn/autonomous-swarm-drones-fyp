@@ -53,6 +53,8 @@ def apply_realistic(args) -> None:
     if args.sitl_sensor_profile not in (None, "realistic"):
         raise ValueError("--realistic sets its own SITL profile; drop --sitl-sensor-profile")
     args.sitl_sensor_profile = "realistic"
+    if not getattr(args, "position_sigma", 0.0):
+        args.position_sigma = 1.0
     defaults = {"peer_loss": 0.0, "peer_latency_ms": 30.0, "peer_jitter_ms": None, "peer_burst_loss": False}
     for name, value in REALISTIC_PEER_LINK.items():
         if getattr(args, name) == defaults[name]:
@@ -1209,6 +1211,9 @@ def main():
                              "its range sensor (use --sensed-obstacle=N,E,R); repeatable")
     parser.add_argument("--sense-range", type=float, default=8.0, metavar="M",
                         help="independent runtime: simulated obstacle sensor range (m)")
+    parser.add_argument("--position-sigma", type=float, default=0.0, metavar="M",
+                        help="independent runtime: expected position error (m); planner clearance and transition "
+                             "tolerances grow with it (--realistic sets 1.0)")
     parser.add_argument("--realistic", action="store_true",
                         help="independent runtime: realistic disturbances (GPS error and lag, wind and gusts, battery sag, "
                              "vibration, sensor noise) plus a lossy, delayed, bursty radio link; values are assumptions")

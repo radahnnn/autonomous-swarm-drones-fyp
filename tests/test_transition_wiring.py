@@ -538,3 +538,10 @@ def test_time_scale_slows_plans_and_stretches_timeouts():
         plan_formation_transition(positions, "v", time_scale=0.0)
     with pytest.raises(ValueError):
         scaled_params(1.5)
+
+
+def test_mode_switch_is_allowed_while_holding_after_an_abort(monkeypatch):
+    swarm = Swarm(monkeypatch)
+    swarm.console.formation_hold = True                    # stationary HOLD after an aborted transition
+    assert not swarm.console.transition.busy
+    assert swarm.console.set_control_mode("decentralized")["accepted"]

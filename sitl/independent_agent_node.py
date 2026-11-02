@@ -66,7 +66,7 @@ class IndependentAgentNode:
                  adaptive_swarm: bool = False, obstacles=(),
                  geofence: Geofence | None = None, altitude_layers: int = 1,
                  layer_spacing_m: float = 1.5, safety_filter: bool = True,
-                 safety_distance_m: float = 2.8, time_scale: float = 1.0,
+                 safety_distance_m: float = 2.8, time_scale: float = 1.0, position_sigma_m: float = 0.0,
                  sensed_obstacles=(), sense_range_m: float = 8.0):
         self.drone_id = int(drone_id)
         self.count = int(count)
@@ -88,7 +88,7 @@ class IndependentAgentNode:
         self.formation_transition_progress = 1.0
         # Synchronized transition protocol (docs/TRANSITION_PROTOCOL_SPEC.md); idle unless the
         # coordinator runs with --transition-protocol.
-        self.transition = AgentTransition(drone_id, count, scaled_params(time_scale))
+        self.transition = AgentTransition(drone_id, count, scaled_params(time_scale, position_sigma_m))
         self._discovered = []
         self._peer_memory = {}   # peer id -> (position, velocity, age at receipt, receipt wall time)
         if control_mode not in CONTROL_MODES:
@@ -1305,6 +1305,8 @@ def main(argv=None):
     parser.add_argument("--control-mode", choices=("centralized", "decentralized", "hybrid"),
                         default="decentralized")
     parser.add_argument("--peer-loss", type=float, default=0.0)
+    parser.add_argument("--position-sigma", type=float, default=0.0,
+                        help="expected position error (m); widens the transition tolerances")
     parser.add_argument("--time-scale", type=float, default=1.0,
                         help="simulator speed relative to the wall clock (Gazebo: ~0.15); scales speeds and timeouts")
     parser.add_argument("--peer-latency-ms", type=float, default=0.0)
@@ -1397,7 +1399,7 @@ def main(argv=None):
     node = IndependentAgentNode(
         args.id, args.count, args.endpoint, args.formation,
         geofence=geofence, altitude_layers=args.altitude_layers, layer_spacing_m=args.layer_spacing,
-        safety_filter=args.safety_filter == "on", safety_distance_m=args.safety_distance, time_scale=args.time_scale,
+        safety_filter=args.safety_filter == "on", safety_distance_m=args.safety_distance, time_scale=args.time_scale, position_sigma_m=args.position_sigma,
         control_mode=args.control_mode,
         peer_loss=args.peer_loss, peer_latency_ms=args.peer_latency_ms,
         peer_latency_jitter_ms=args.peer_jitter_ms,

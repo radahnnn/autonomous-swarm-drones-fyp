@@ -19,14 +19,23 @@ from sitl.formation_library import MIN_SPACING
 from sitl.smoothing import min_jerk
 
 VERSION = 1
-def scaled_params(time_scale: float) -> TransitionParams:
-    """Params for a simulator running at ``time_scale`` x real time: the vehicle-response timeouts stretch, the
-    message-level ones (acks, retries, peer staleness) stay in wall time."""
+def scaled_params(time_scale: float, position_sigma_m: float = 0.0) -> TransitionParams:
+    """Params for a simulator running at ``time_scale`` x real time, with positions known to ``position_sigma_m``.
+
+    Time: vehicle-response timeouts stretch, message-level ones (acks, retries, peer staleness) stay in wall time.
+    Position error: the "where should you be" tolerances (start, arrival, peer on plan) widen with it, so normal GPS
+    wander is not mistaken for a fault. The separation thresholds are NOT relaxed (they protect the true gap); the
+    planner keeps a larger clearance instead (``plan_formation_transition(position_sigma_m=...)``).
+    """
     if not 0.02 <= time_scale <= 1.0:
         raise ValueError("time scale must be between 0.02 and 1")
-    base = TransitionParams()
+    if not 0.0 <= position_sigma_m <= 5.0:
+        raise ValueError("position error must be between 0 and 5 m")
+    base, s = TransitionParams(), position_sigma_m
     return TransitionParams(dwell_s=base.dwell_s / time_scale, overrun_s=base.overrun_s / time_scale,
-                            hold_timeout_s=base.hold_timeout_s, arrived_close_s=base.arrived_close_s / time_scale)
+                            hold_timeout_s=base.hold_timeout_s, arrived_close_s=base.arrived_close_s / time_scale,
+                            start_tol_m=base.start_tol_m + s, arrival_tol_m=base.arrival_tol_m + s,
+                            peer_track_tol_m=base.peer_track_tol_m + 1.5 * s)
 
 
 MAX_PLAN_DURATION_S = 600.0   # sanity bound; a slow simulator (time scale 0.1) needs transitions of several minutes
