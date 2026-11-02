@@ -67,10 +67,14 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
         "SIM_GYR1_RND": "0.02",        # gyro noise
         "SIM_VIB_MOT_MAX": "200",      # motor vibration up to 200 Hz
         "SIM_VIB_MOT_MULT": "0.5",
-        "SIM_BATT_CAP_AH": "1.8",      # assumed capacity: ask the team for the real packs
-        "SIM_BATT_RES_OHM": "0.03",    # internal resistance -> voltage sags under load
+        # SITL's quad draws ~30 A in hover (heavier than the team's 5" quads). With 0.03 ohm the sag saturated the motors
+        # ("Potential Thrust Loss") and every drone sank to the ground ~35 s after take-off (found live, one-drone hover
+        # test). 0.01 ohm gives ~0.3 V of hover sag. Capacity is sized for ~20 min of the simulated quad, i.e. the length
+        # of our test scripts; REAL 5" packs last ~5-8 min, so real missions must be planned shorter than these tests.
+        "SIM_BATT_CAP_AH": "10.0",
+        "SIM_BATT_RES_OHM": "0.01",
         "BATT_MONITOR": "4",
-        "BATT_CAPACITY": "1800",
+        "BATT_CAPACITY": "10000",
         # SITL's quad model always simulates a 3S pack (12.6 V full; SIM_BATT_VOLTAGE is ignored by it, verified live),
         # so the low threshold is the same 3.5 V/cell rule expressed for 3S. The real quads are 6S: 21.0 V there.
         "BATT_LOW_VOLT": "10.5",

@@ -93,3 +93,20 @@ def test_events_are_counted_and_the_report_is_written(tmp_path):
     assert data["counters"] == {"mode_switch_complete": 2} and data["result"] == "PASS"
     text = md_path.read_text()
     assert "Run report — PASS" in text and "sampled" in text and "mode_switch_complete" in text
+
+
+def test_ground_contact_while_armed_fails_the_run_but_landing_does_not():
+    from sitl.run_metrics import RunMetrics
+
+    def st(t, alt, mode=4, north=0.0):
+        return {"armed": True, "airborne": alt > 1.0, "vehicle_mode": mode, "operator_received_at": t,
+                "position": [north, 0.0, -alt]}
+
+    m = RunMetrics(2, sample_period_s=0.001)
+    for t, alt in enumerate([5.0, 5.0, 0.2, 3.0, 0.1]):
+        m.update(float(t), {0: st(float(t), alt), 1: st(float(t), 5.0, north=10.0)})
+    assert m.ground_contacts == 2 and m.report(10.0)["result"] == "FAIL"
+    landed = RunMetrics(1, sample_period_s=0.001)
+    for t, (alt, mode) in enumerate([(5.0, 4), (2.0, 9), (0.1, 9)]):
+        landed.update(float(t), {0: st(float(t), alt, mode)})
+    assert landed.ground_contacts == 0

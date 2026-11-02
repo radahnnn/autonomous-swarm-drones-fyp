@@ -52,6 +52,9 @@ class RunMetrics:
         self.max_link_age_s = 0.0
         self.counters: Dict[str, int] = {}
         self.event_log: List[Dict[str, Any]] = []
+        self.max_alt: Dict[int, float] = {}
+        self.ground_contacts = 0
+        self._low: Dict[int, bool] = {}
 
     # ------------------------------------------------------------------ input
     def note_event(self, kind: str, now: float, **data: Any) -> None:
@@ -88,6 +91,7 @@ class RunMetrics:
                     self.max_link_age_s = max(self.max_link_age_s, age)
                 if (fresh and isinstance(position, (list, tuple)) and len(position) == 3 and
                         all(isinstance(v, (int, float)) and math.isfinite(v) for v in position)):
+                    self._check_ground_contact(index, status, -float(position[2]), now)
                     if info["airborne"]:
                         points[index] = np.asarray(position, dtype=float)
                     target = status.get("position_target_ne")
@@ -143,6 +147,22 @@ class RunMetrics:
             self.warnings += 1
         self._state, self._last_t = state, now
 
+    LAND_MODE = 9
+
+    def _check_ground_contact(self, index: int, status: Dict[str, Any], altitude: float, now: float) -> None:
+        """An armed drone that has flown (> 2 m) and is back near the ground (< 0.5 m) while NOT in LAND mode hit the
+        ground or lost height: the run is not a clean flight even if separation was fine. (Found live: a battery-sag
+        model made every drone sink and bounce while four runs still reported PASS.)"""
+        if not status.get("armed"):
+            self._low[index] = False
+            return
+        self.max_alt[index] = max(self.max_alt.get(index, 0.0), altitude)
+        low = (self.max_alt[index] > 2.0 and altitude < 0.5 and status.get("vehicle_mode") != self.LAND_MODE)
+        if low and not self._low.get(index):
+            self.ground_contacts += 1
+            self.note_event("ground_contact_while_armed", now, drone=index + 1, altitude_m=round(altitude, 2))
+        self._low[index] = low
+
     # ----------------------------------------------------------------- output
     def snapshot(self, max_points: int = 120) -> Dict[str, Any]:
         history = list(self.history)
@@ -168,7 +188,7 @@ class RunMetrics:
         gaps = np.asarray(self.gaps, dtype=float)
         duration = None if self.started_at is None or ended_at is None else round(ended_at - self.started_at, 1)
         has_data = self.samples > 0
-        passed = bool(has_data and self.violations == 0)
+        passed = bool(has_data and self.violations == 0 and self.ground_contacts == 0)
         tracking = np.asarray(self.tracking_errors, dtype=float)
         return {
             "result": "PASS" if passed else ("NO DATA" if not has_data else "FAIL"),
@@ -179,6 +199,7 @@ class RunMetrics:
             "min_gap_at_s": None if self.min_gap_at is None else round(self.min_gap_at, 1),
             "min_gap_3d_m": None if not math.isfinite(self.min_gap_3d_m) else round(self.min_gap_3d_m, 3),
             "p05_gap_m": None if not has_data else round(float(np.percentile(gaps, 5)), 3),
+            "ground_contacts_while_armed": self.ground_contacts,
             "violation_episodes": self.violations, "violation_time_s": round(self.violation_time_s, 1),
             "warning_episodes": self.warnings, "warn_margin_m": self.warn_margin_m,
             "mean_tracking_error_m": None if tracking.size == 0 else round(float(tracking.mean()), 3),
