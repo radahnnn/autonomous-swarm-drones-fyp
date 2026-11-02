@@ -2,7 +2,7 @@
 # Generate an N-vehicle (6-10) Gazebo world and run it with the checked-in airframe model.
 #   bash sitl/launch_gazebo_world.sh 6              # with the GUI (needs DISPLAY)
 #   HEADLESS=1 bash sitl/launch_gazebo_world.sh 6   # server only (use for timing measurements)
-#   STEP_MS=2.5 bash sitl/launch_gazebo_world.sh 6  # larger physics step: fewer lockstep exchanges, faster
+#   STEP_MS=1.25 bash sitl/launch_gazebo_world.sh 6  # 800 Hz physics: ~1.4x faster than 1 ms, still arms (max 1.38 ms)
 #   CAMERA=1 OBSTACLES="12,-4,0.6 0,9,0.4" bash sitl/launch_gazebo_world.sh 6   # cameras + poles (north,east,radius)
 set -euo pipefail
 

@@ -21,6 +21,7 @@ def _replace_one(pattern: str, replacement: str, content: str, description: str)
     return updated
 
 
+MAX_STEP_MS = 1.38
 OBSTACLE_HEIGHT_M = 14.0     # tall enough to reach above every flight altitude used in the demos
 CAMERA_SIZE = (320, 240)
 CAMERA_HZ = 5
@@ -172,8 +173,10 @@ def generate_gazebo_world(count: int, output_dir: Path, step_ms: float = 1.0, ca
     if world is None:
         raise ValueError("the Gazebo template does not contain a world element")
     world.set("name", f"cinewhoop_{count}drones")
-    if not 0.5 <= step_ms <= 4.0:
-        raise ValueError("physics step must be between 0.5 and 4 ms (ArduCopter's main loop runs at 400 Hz = 2.5 ms)")
+    # Gazebo's IMU samples once per physics step. ArduCopter refuses to arm when the gyro rate is below 1.8 x its
+    # 400 Hz loop (720 Hz), i.e. a step above ~1.39 ms. Found live: 2.5 ms (400 Hz) never armed in repeated tries.
+    if not 0.5 <= step_ms <= MAX_STEP_MS:
+        raise ValueError(f"physics step must be between 0.5 and {MAX_STEP_MS} ms (gyro must reach 720 Hz to arm)")
     step = world.find("physics/max_step_size")
     if step is None:
         raise ValueError("the Gazebo template does not set a physics step")

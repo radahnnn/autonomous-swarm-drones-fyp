@@ -1,10 +1,10 @@
-# Gazebo survey patrol, 6 drones with cameras (run with --gazebo --time-scale 0.3 and the layout from
+# Gazebo survey patrol, 6 drones with cameras (run with --gazebo --time-scale 0.2 and the layout from
 # `python3 -m sitl.patrol_layout console-args`; world from sitl/launch_gazebo_patrol.sh).
 #   1. centralized: the V flies a square patrol; the leader meets a pole on the first edge
 #   2. decentralized: three pairs spread over the survey points, then move to the other three (two survey phases)
 #   3. hybrid: pairs again, the coordinator is cut, the swarm carries on
 #   4. regroup: back to the origin in the original V, land
-# Waits are wall-clock seconds at ~0.3x real time. `capture` saves a frame from every drone's camera.
+# Waits are wall-clock seconds at ~0.2x real time. `capture` saves a frame from every drone's camera.
 wait swarm ready 1800
 send launch
 poll 6 1500 airborne armed=yes

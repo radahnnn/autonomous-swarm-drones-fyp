@@ -65,9 +65,9 @@ def test_physics_step_is_configurable_and_bounded(tmp_path):
     import xml.etree.ElementTree as ET
     from sitl.generate_gazebo_world import generate_gazebo_world
     default = ET.parse(generate_gazebo_world(6, tmp_path / "a")).getroot().find("world/physics/max_step_size").text
-    fast = ET.parse(generate_gazebo_world(6, tmp_path / "b", step_ms=2.5)).getroot().find("world/physics/max_step_size").text
-    assert float(default) == pytest.approx(0.001) and float(fast) == pytest.approx(0.0025)
-    for bad in (0.0, 0.1, 5.0, float("nan")):
+    fast = ET.parse(generate_gazebo_world(6, tmp_path / "b", step_ms=1.25)).getroot().find("world/physics/max_step_size").text
+    assert float(default) == pytest.approx(0.001) and float(fast) == pytest.approx(0.00125)
+    for bad in (0.0, 0.1, 1.5, 2.5, float("nan")):
         with pytest.raises(ValueError):
             generate_gazebo_world(6, tmp_path / "c", step_ms=bad)
 
