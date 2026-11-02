@@ -327,3 +327,10 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - `--realistic` (commit `625723a`): SITL profile with GPS wander/lag, wind+gusts, vibration, sensor noise, battery model + land-on-low failsafe, and a lossy bursty peer link. Params verified by readback inside ArduPilot. SITL quad simulates a 3S pack (SIM_BATT_VOLTAGE ignored) - low-voltage threshold set per cell for 3S. 10-drone 2D realistic run: PASS, min gap 3.56 m, mean tracking 0.33 m; formation change refused by the 45 s cap -> cap 90 s. Values are ASSUMPTIONS until the team measures battery, GPS and link.
 - Gazebo survey patrol with --realistic (in progress at time of writing): pole detected by D1 and learned by the other five over the peer link; 6/6 camera captures; both pair transitions aborted by protocol supervision (separation < 2.8 m; peer off plan) -> swarm held. Finding: protocol thresholds tuned on clean positions do not survive ~1 m GPS wander.
 - Plan updated with the user (PROJECT_STATE section 8): noise tuning, the user's tower-gap manoeuvre (V -> column through two towers -> V), patrol end to end, repeats, physical flight within a month.
+
+### 2026-11-03 (overnight) — Claude — realistic simulation, attribution matrix, fixes; push and power-off on the user's instruction
+
+- Report: `docs/reports/REALISTIC_SIMULATION_2026-11-03.md` (matrix table, five fixes, final run, open problem).
+- **Withdrawn results:** the four realistic 10-drone "PASS" runs of 2026-11-02 (drones were sinking/bouncing; battery model).
+- Next step: estimation-health guard (position-estimate glitch caused the remaining near-miss); then the 6-drone Gazebo patrol under `--realistic`; then the tower-gap manoeuvre (user's idea, planned, not started).
+- The user asked that the PC be powered off after the work and push.
