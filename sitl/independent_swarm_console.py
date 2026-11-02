@@ -67,12 +67,14 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
         "SIM_GYR1_RND": "0.02",        # gyro noise
         "SIM_VIB_MOT_MAX": "200",      # motor vibration up to 200 Hz
         "SIM_VIB_MOT_MULT": "0.5",
-        # SITL's quad draws ~30 A in hover (heavier than the team's 5" quads). With 0.03 ohm the sag saturated the motors
-        # ("Potential Thrust Loss") and every drone sank to the ground ~35 s after take-off (found live, one-drone hover
-        # test). 0.01 ohm gives ~0.3 V of hover sag. Capacity is sized for ~20 min of the simulated quad, i.e. the length
-        # of our test scripts; REAL 5" packs last ~5-8 min, so real missions must be planned shorter than these tests.
-        "SIM_BATT_CAP_AH": "10.0",
+        # Battery DRAIN is off (capacity 0 = constant pack voltage). Live finding: SITL's generic quad hovers near its thrust
+        # limit, so once its simulated 3S pack fell below ~11.2 V (~9 min) it could not hold altitude, with or without
+        # MOT_BAT_VOLT compensation; the team's 5" 6S quads hover at far lower throttle. Endurance must be measured on the
+        # hardware (plan real missions under ~5 min until then). Sag under load and the low-voltage failsafe stay.
+        "SIM_BATT_CAP_AH": "0",
         "SIM_BATT_RES_OHM": "0.01",
+        "MOT_BAT_VOLT_MAX": "12.6",
+        "MOT_BAT_VOLT_MIN": "9.9",
         "BATT_MONITOR": "4",
         "BATT_CAPACITY": "10000",
         # SITL's quad model always simulates a 3S pack (12.6 V full; SIM_BATT_VOLTAGE is ignored by it, verified live),
@@ -83,7 +85,7 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
 }
 # Attribution profiles: the realistic profile split by disturbance (battery model and single compass in every one).
 _REALISTIC = SITL_SENSOR_PROFILE_OVERRIDES["realistic"]
-_COMMON = {k: v for k, v in _REALISTIC.items() if k.startswith(("COMPASS", "SIM_BATT", "BATT"))}
+_COMMON = {k: v for k, v in _REALISTIC.items() if k.startswith(("COMPASS", "SIM_BATT", "BATT", "MOT_BAT"))}
 for _name, _prefixes in (("realistic-gps", ("SIM_GPS1",)), ("realistic-wind", ("SIM_WIND",)),
                          ("realistic-vibration", ("SIM_ACC1", "SIM_GYR1", "SIM_VIB")), ("realistic-battery", ())):
     SITL_SENSOR_PROFILE_OVERRIDES[_name] = {**_COMMON, **{k: v for k, v in _REALISTIC.items() if k.startswith(_prefixes)}} \
