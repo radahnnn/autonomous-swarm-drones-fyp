@@ -28,5 +28,5 @@ def test_patrol_layout_still_keeps_poles_out_of_the_pairs_way_when_spread(monkey
     monkeypatch.setenv(FORMATION_SCALE_ENV, "1.4")
     for style in ("pairs", "pairs_b"):
         for slot in slots_for(style, 6)[:, :2]:
-            for north, east, radius in patrol_layout.POLES:
+            for north, east, radius in patrol_layout.poles():
                 assert math.hypot(slot[0] - north, slot[1] - east) > radius + 3.0

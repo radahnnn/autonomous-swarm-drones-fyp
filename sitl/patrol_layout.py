@@ -18,9 +18,21 @@ PATROL_SIDE_M = 10.0
 SENSE_RANGE_M = 4.0
 # On the patrol's first edge (north +5 m, from east +5 to -5): the leading drone has to go round it.
 POLE_ON_ROUTE = (5.0, -1.5, 0.6)
-# Off the route, but inside the sensing range of the pairs that survey sector 3: detected, not in the way.
-POLE_DECOY = (-13.0, -3.0, 0.5)
-POLES = (POLE_ON_ROUTE, POLE_DECOY)
+DECOY_RADIUS_M = 0.5
+
+
+def pole_decoy() -> tuple[float, float, float]:
+    """Off the route, 4 m beyond (further south of) one partner slot of the pair that surveys sector 3:
+    inside the 4 m sensing range of that drone (detected) but outside its 3.5 m avoidance zone (not in the way).
+    Computed from the actual (scaled) slots so it stays right whatever the formation scale."""
+    from sitl.formation_library import slots_for
+    slots = slots_for("pairs_b", 6)[:, :2]                       # pair 1 (slots 2, 3) holds sector 3, due south
+    partner = min(slots[2:4], key=lambda p: p[1])
+    return (float(partner[0] - 4.0), float(partner[1]), DECOY_RADIUS_M)
+
+
+def poles() -> tuple:
+    return (POLE_ON_ROUTE, pole_decoy())
 TREES = ((16.0, -14.0), (18.0, 12.0), (-16.0, 14.0), (-19.0, -6.0), (10.0, 20.0), (-3.0, -20.0), (22.0, 2.0), (-10.0, -18.0))
 
 
@@ -29,14 +41,14 @@ def survey_points() -> list[tuple[float, float]]:
 
 
 def shell_env() -> str:
-    poles = " ".join(f"{n:g},{e:g},{r:g}" for n, e, r in POLES)
+    pole_text = " ".join(f"{n:g},{e:g},{r:g}" for n, e, r in poles())
     markers = " ".join(f"{n:.2f},{e:.2f}" for n, e in survey_points())
     trees = " ".join(f"{n:g},{e:g}" for n, e in TREES)
-    return f'export CAMERA=1 OBSTACLES="{poles}" MARKERS="{markers}" TREES="{trees}"'
+    return f'export CAMERA=1 OBSTACLES="{pole_text}" MARKERS="{markers}" TREES="{trees}"'
 
 
 def console_args() -> str:
-    sensed = " ".join(f"--sensed-obstacle={n:g},{e:g},{r:g}" for n, e, r in POLES)
+    sensed = " ".join(f"--sensed-obstacle={n:g},{e:g},{r:g}" for n, e, r in poles())
     return f"{sensed} --sense-range {SENSE_RANGE_M:g}"
 
 
