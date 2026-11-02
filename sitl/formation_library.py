@@ -9,6 +9,7 @@ least MIN_SPACING apart.
 """
 
 import math
+import os
 from typing import Dict, List
 
 import numpy as np
@@ -118,6 +119,11 @@ def pair_sector_centres(pairs: int) -> np.ndarray:
     return np.column_stack((radius * np.cos(phi), radius * np.sin(phi)))
 
 
+def scaled_pair_sector_centres(pairs: int) -> np.ndarray:
+    """Sector centres as the pair formations actually place them (with formation_scale() applied)."""
+    return pair_sector_centres(pairs) * formation_scale()
+
+
 def _pairs(n: int, phase: int) -> np.ndarray:
     """Drones in pairs on alternate survey sectors: phase 0 uses sectors 0, 2, 4 ..., phase 1 uses 1, 3, 5 ...
 
@@ -155,13 +161,38 @@ _GENERATORS = {
 }
 
 
+FORMATION_SCALE_ENV = "FYP_FORMATION_SCALE"
+
+
+def formation_scale() -> float:
+    """Global spacing multiplier for every formation (1.0 = the templates as designed).
+
+    Read from the environment so one setting reaches the console, every agent process it starts, the standalone start
+    positions and the Gazebo spawn layout alike. Larger spacing is the answer to GPS-level position error: with ~1 m of
+    wander per drone, 4.2 m neighbour spacing made the protocols' safety checks trip on measurement noise alone.
+    """
+    raw = os.environ.get(FORMATION_SCALE_ENV, "1.0")
+    try:
+        scale = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{FORMATION_SCALE_ENV} must be a number") from exc
+    if not math.isfinite(scale) or not 1.0 <= scale <= 3.0:
+        raise ValueError(f"{FORMATION_SCALE_ENV} must be between 1.0 and 3.0")
+    return scale
+
+
 def slots_for(style: str, n: int) -> np.ndarray:
-    """Return the (n, 3) slot offsets [N, E, D] for `n` drones in the given formation style."""
+    """Return the (n, 3) slot offsets [N, E, D] for `n` drones in the given formation style (times formation_scale())."""
     if style not in _GENERATORS:
         raise ValueError(f"Unknown formation style '{style}'. Valid: {list(STYLES)}")
     if n < 1:
         raise ValueError("A formation needs at least one drone")
-    return _GENERATORS[style](n)
+    slots = np.asarray(_GENERATORS[style](n), dtype=float)
+    scale = formation_scale()
+    if scale != 1.0:
+        slots = slots.copy()
+        slots[:, :2] *= scale
+    return slots
 
 
 def assign_slots(current_offsets: np.ndarray, slots: np.ndarray, z_weight: float = 2.0) -> List[int]:

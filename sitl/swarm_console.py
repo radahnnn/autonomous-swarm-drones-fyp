@@ -53,6 +53,8 @@ def apply_realistic(args) -> None:
     if args.sitl_sensor_profile not in (None, "realistic"):
         raise ValueError("--realistic sets its own SITL profile; drop --sitl-sensor-profile")
     args.sitl_sensor_profile = "realistic"
+    if getattr(args, "formation_scale", None) is None:
+        args.formation_scale = 1.4
     if not getattr(args, "position_sigma", 0.0):
         args.position_sigma = 1.0
     defaults = {"peer_loss": 0.0, "peer_latency_ms": 30.0, "peer_jitter_ms": None, "peer_burst_loss": False}
@@ -1214,6 +1216,8 @@ def main():
     parser.add_argument("--position-sigma", type=float, default=0.0, metavar="M",
                         help="independent runtime: expected position error (m); planner clearance and transition "
                              "tolerances grow with it (--realistic sets 1.0)")
+    parser.add_argument("--formation-scale", type=float, default=None, metavar="K",
+                        help="spread every formation by K (1.0-3.0; --realistic uses 1.4); also sets the start layout")
     parser.add_argument("--realistic", action="store_true",
                         help="independent runtime: realistic disturbances (GPS error and lag, wind and gusts, battery sag, "
                              "vibration, sensor noise) plus a lossy, delayed, bursty radio link; values are assumptions")
@@ -1236,6 +1240,10 @@ def main():
     args = parser.parse_args()
     try:
         apply_realistic(args)
+        if args.formation_scale is not None:
+            from sitl.formation_library import FORMATION_SCALE_ENV, formation_scale
+            os.environ[FORMATION_SCALE_ENV] = str(args.formation_scale)     # inherited by every agent process
+            formation_scale()                                                 # validate now
     except ValueError as exc:
         parser.error(str(exc))
     args.sitl_sensor_profile = resolve_sitl_sensor_profile(

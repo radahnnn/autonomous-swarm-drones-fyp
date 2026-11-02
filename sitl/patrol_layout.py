@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 
-from sitl.formation_library import pair_sector_centres
+from sitl.formation_library import scaled_pair_sector_centres
 
 PAIRS = 3
 PATROL_SIDE_M = 10.0
@@ -25,7 +25,7 @@ TREES = ((16.0, -14.0), (18.0, 12.0), (-16.0, 14.0), (-19.0, -6.0), (10.0, 20.0)
 
 
 def survey_points() -> list[tuple[float, float]]:
-    return [(float(n), float(e)) for n, e in pair_sector_centres(PAIRS)]
+    return [(float(n), float(e)) for n, e in scaled_pair_sector_centres(PAIRS)]
 
 
 def shell_env() -> str:
