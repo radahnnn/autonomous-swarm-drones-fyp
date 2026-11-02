@@ -118,12 +118,15 @@ Not verified / open:
 
 ## 8. Plan
 
-1. ~~Stale/out-of-order MissionIntent fix + regression tests~~ — done 2026-10-29 (UNIT).
-2. Transition protocol: spec in `docs/TRANSITION_PROTOCOL_SPEC.md`; state machines + agent/console wiring done behind `--transition-protocol` (unit, lossy-channel and in-memory integration tests). One live 5-drone run done; next: repeat it, then 10 drones, loss/latency, coordinator kill, VM split; structured command results; then decide whether to make it the default.
-3. Fix the runaway retry log (defect 1), then dashboard and mode-supervisor issues (defects 4–5).
-4. CI dependency fix (defect 2) and formation-implementation consolidation (defect 6).
-5. Final days of the week: validate 5- and 10-drone centralized/decentralized/hybrid with checksummed evidence.
-6. Plan a propellers-off hardware milestone; code freeze target 17 Dec, deliverables 31 Dec.
+Agreed with the user on 2026-11-02 (targets: 10 drones in 2D SITL and 6 in Gazebo 3D for every feature; physical flight with the team's drones within about a month, supervisor's requirement):
+
+1. **Realistic-noise tuning (next):** under `--realistic` (GPS ~1 m wander, wind, vibration, battery, lossy radio) the 6-drone Gazebo pair transitions aborted (separation < 2.8 m; peer off plan > 1.5 m). Widen spacing and set protocol thresholds from the GPS error; rerun 10x2D and 6xGazebo.
+2. **Tower-gap manoeuvre (user's idea):** two towers on the route; drones sense and share them; a gap check decides the V does not fit; stop, transition to a column (one behind another), pass through, then back to V and continue. Coordinator-decided first, then elected-leader-decided (works without the ground station). Gap must allow GPS error + safety distance (~7-8 m).
+3. Survey patrol end to end in Gazebo (cameras, pairs, hybrid with coordinator cut, regroup); trees as real obstacles.
+4. Repeats (3-5 runs) of the key 2D and Gazebo scenarios for variance.
+5. Physical track (hardware chat): propellers-off bench link test (PC/ESP32 to Matek, UART MAVLink), RC + failsafes, then one-drone hover with logged GPS error and Wi-Fi latency fed back into `--realistic`, then two drones at wide spacing; add drones as the 5 new ones arrive. `docs/HARDWARE_READINESS_CHECKLIST.md` gates every step.
+6. Later: campus look from the user's photos; wind in Gazebo; benchmark vs a baseline; task allocation; thin ROS 2 bridge (optional).
+7. Code freeze 17 Dec, deliverables 31 Dec.
 
 ## Changelog (newest first; one line per change to this file)
 
