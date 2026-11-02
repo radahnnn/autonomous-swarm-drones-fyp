@@ -51,7 +51,34 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
         "SIM_WIND_DIR": "180.0",       # wind coming from south
         "SIM_WIND_TURB": "0.50",       # random wind variation, metres/second
     },
+    # Closer to a real outdoor flight (ASSUMED values, not measured on the team's quads; replace with bench/hover
+    # measurements: GPS error at the site, battery capacity, vibration levels). Used by --realistic.
+    "realistic": {
+        "COMPASS_USE2": "0",
+        "COMPASS_USE3": "0",
+        "SIM_GPS1_HNSE": "1.0",        # horizontal GPS wander, metres (plain GNSS with a good sky view)
+        "SIM_GPS1_NOISE": "0.5",       # vertical GPS error amplitude, metres
+        "SIM_GPS1_LAG_MS": "120",      # GPS latency, milliseconds
+        "SIM_GPS1_ACC": "1.2",         # reported accuracy, metres
+        "SIM_WIND_SPD": "3.0",         # steady wind, metres/second
+        "SIM_WIND_DIR": "270.0",       # from the west
+        "SIM_WIND_TURB": "1.0",        # gusts, metres/second
+        "SIM_ACC1_RND": "0.3",         # accelerometer noise
+        "SIM_GYR1_RND": "0.02",        # gyro noise
+        "SIM_VIB_MOT_MAX": "200",      # motor vibration up to 200 Hz
+        "SIM_VIB_MOT_MULT": "0.5",
+        "SIM_BATT_CAP_AH": "1.8",      # assumed capacity: ask the team for the real packs
+        "SIM_BATT_RES_OHM": "0.03",    # internal resistance -> voltage sags under load
+        "BATT_MONITOR": "4",
+        "BATT_CAPACITY": "1800",
+        # SITL's quad model always simulates a 3S pack (12.6 V full; SIM_BATT_VOLTAGE is ignored by it, verified live),
+        # so the low threshold is the same 3.5 V/cell rule expressed for 3S. The real quads are 6S: 21.0 V there.
+        "BATT_LOW_VOLT": "10.5",
+        "BATT_FS_LOW_ACT": "1",        # land on low battery (not RTL: RTL into a swarm is unsafe)
+    },
 }
+# Radio link of --realistic: per-packet loss, delay and jitter, with bursty (Gilbert-Elliott) loss.
+REALISTIC_PEER_LINK = {"peer_loss": 0.05, "peer_latency_ms": 40.0, "peer_jitter_ms": 15.0, "peer_burst_loss": True}
 _CLOCK_RESYNC_INTERVAL_S = 60.0
 
 

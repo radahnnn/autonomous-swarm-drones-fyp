@@ -1,0 +1,23 @@
+# 10 drones, 2D SITL, run with --realistic: GPS error, wind/gusts, battery sag, vibration, lossy radio.
+wait swarm ready 900
+send launch
+poll 10 300 airborne armed=yes
+sleep 30
+send patrol square 12 0.3
+sleep 90
+send mode decentralized
+expect Control mode is now DECENTRALIZED 120
+sleep 40
+send mode centralized
+expect Control mode is now CENTRALIZED 120
+sleep 40
+send route stop
+sleep 10
+send formation line
+expect Formation transition to LINE complete 180
+sleep 20
+status
+health
+send land
+sleep 60
+status

@@ -45,6 +45,20 @@ from sitl.formation_transition import plan_formation_transition
 from sitl.run_evidence import RunEvidence, SettledMotionDetector
 
 
+def apply_realistic(args) -> None:
+    """--realistic: the realistic SITL profile plus a degraded radio link (explicit peer settings are kept)."""
+    if not getattr(args, "realistic", False):
+        return
+    from sitl.independent_swarm_console import REALISTIC_PEER_LINK
+    if args.sitl_sensor_profile not in (None, "realistic"):
+        raise ValueError("--realistic sets its own SITL profile; drop --sitl-sensor-profile")
+    args.sitl_sensor_profile = "realistic"
+    defaults = {"peer_loss": 0.0, "peer_latency_ms": 30.0, "peer_jitter_ms": None, "peer_burst_loss": False}
+    for name, value in REALISTIC_PEER_LINK.items():
+        if getattr(args, name) == defaults[name]:
+            setattr(args, name, value)
+
+
 def resolve_sitl_sensor_profile(requested: str | None, agent_runtime: str,
                                 external_agents: bool = False) -> str:
     """Use the project-matched compass setup for independent SITL by default."""
@@ -1169,7 +1183,7 @@ def main():
                         help="decentralized SITL only: directed link(s) to drop, e.g. 2:4 or 1:2,2:1")
     parser.add_argument("--sitl-gcs-failsafe", action="store_true",
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
-    parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass"), default=None,
+    parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass", "realistic"), default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
     parser.add_argument("--safety-filter", choices=("on", "off"), default="on",
                         help="independent runtime: control-barrier filter on the commanded setpoint (default on)")
@@ -1195,6 +1209,9 @@ def main():
                              "its range sensor (use --sensed-obstacle=N,E,R); repeatable")
     parser.add_argument("--sense-range", type=float, default=8.0, metavar="M",
                         help="independent runtime: simulated obstacle sensor range (m)")
+    parser.add_argument("--realistic", action="store_true",
+                        help="independent runtime: realistic disturbances (GPS error and lag, wind and gusts, battery sag, "
+                             "vibration, sensor noise) plus a lossy, delayed, bursty radio link; values are assumptions")
     parser.add_argument("--gate-metric", choices=("horizontal", "3d", "ellipsoid"), default="horizontal",
                         help="separation measure for the run report: horizontal (project gate), 3d (sphere) "
                              "or ellipsoid (needs --vertical-radius; horizontal-equivalent gap)")
@@ -1212,6 +1229,10 @@ def main():
                         help="independent runtime: serve the simple browser controller on this localhost port")
     parser.add_argument("--evidence-dir", type=Path, default=None, help="parent folder for per-run JSONL and summary (default runs/console)")
     args = parser.parse_args()
+    try:
+        apply_realistic(args)
+    except ValueError as exc:
+        parser.error(str(exc))
     args.sitl_sensor_profile = resolve_sitl_sensor_profile(
         args.sitl_sensor_profile, args.agent_runtime, args.external_agents,
     )
