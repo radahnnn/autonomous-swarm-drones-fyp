@@ -81,6 +81,13 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
         "BATT_FS_LOW_ACT": "1",        # land on low battery (not RTL: RTL into a swarm is unsafe)
     },
 }
+# Attribution profiles: the realistic profile split by disturbance (battery model and single compass in every one).
+_REALISTIC = SITL_SENSOR_PROFILE_OVERRIDES["realistic"]
+_COMMON = {k: v for k, v in _REALISTIC.items() if k.startswith(("COMPASS", "SIM_BATT", "BATT"))}
+for _name, _prefixes in (("realistic-gps", ("SIM_GPS1",)), ("realistic-wind", ("SIM_WIND",)),
+                         ("realistic-vibration", ("SIM_ACC1", "SIM_GYR1", "SIM_VIB")), ("realistic-battery", ())):
+    SITL_SENSOR_PROFILE_OVERRIDES[_name] = {**_COMMON, **{k: v for k, v in _REALISTIC.items() if k.startswith(_prefixes)}} \
+        if _prefixes else dict(_COMMON)
 # Radio link of --realistic: per-packet loss, delay and jitter, with bursty (Gilbert-Elliott) loss.
 REALISTIC_PEER_LINK = {"peer_loss": 0.05, "peer_latency_ms": 40.0, "peer_jitter_ms": 15.0, "peer_burst_loss": True}
 _CLOCK_RESYNC_INTERVAL_S = 60.0
