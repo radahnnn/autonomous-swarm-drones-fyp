@@ -1454,6 +1454,12 @@ class IndependentSwarmConsole:
                state.get("safety_state") != "nominal" for state in states):
             return result(False, "Every airborne drone needs fresh position telemetry and nominal safety status.")
 
+        settled, worst, error = self._wait_settled()
+        if not settled:
+            return result(False, f"The swarm is still settling (D{worst + 1} is {error:.1f} m from its target); "
+                          "try again in a few seconds.", code="settling")
+        with self.lock:
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
         positions = np.asarray([state["position"][:2] for state in states], dtype=float)
         if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
             return result(False, "Position reports are incomplete or invalid.")
@@ -1709,6 +1715,41 @@ class IndependentSwarmConsole:
         return result(True, f"Patrol square {side:g} m at {speed:g} m/s starts in 2 s. Every drone carries the "
                       "route, so decentralized and hybrid swarms keep patrolling even if the coordinator is lost.",
                       side_m=side, speed_m_s=speed)
+
+    SETTLE_TIMEOUT_S = 30.0
+
+    def _settle_errors(self):
+        """Distance of every drone from its current position target (missing data counts as settled)."""
+        with self.lock:
+            states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+        errors = []
+        for state in states:
+            position, target = state.get("position"), state.get("position_target_ne")
+            try:
+                error = float(np.linalg.norm(np.asarray(position[:2], float) - np.asarray(target, float)))
+            except (TypeError, ValueError, IndexError):
+                error = 0.0
+            errors.append(error if math.isfinite(error) else 0.0)
+        return errors
+
+    def _wait_settled(self, timeout_s: float | None = None, poll_s: float = 0.5):
+        """Wait until every drone is near its target before planning from measured positions.
+
+        Live finding: 10 s after a 50 m wide LINE completed, the tail drone was still drifting into its slot, so a plan
+        built from its position was 'off plan' by the time the start check ran and every drone refused to start.
+        Returns (settled, worst drone index, its error in metres).
+        """
+        tolerance = 0.75 + self.position_sigma_m
+        # Counted in polling steps, not clock readings: tests replace the clock with one that does not advance.
+        steps = max(1, int((self.SETTLE_TIMEOUT_S / self.time_scale if timeout_s is None else timeout_s) / poll_s))
+        for step in range(steps + 1):
+            errors = self._settle_errors()
+            worst = int(np.argmax(errors)) if errors else 0
+            if not errors or errors[worst] <= tolerance:
+                return True, worst, errors[worst] if errors else 0.0
+            if step < steps:
+                time.sleep(poll_s)
+        return False, worst, errors[worst]
 
     def goto(self, north: str, east: str) -> None:
         """goto <north_m> <east_m>: move the swarm's goal (the formation centre) to a place on the shared map."""

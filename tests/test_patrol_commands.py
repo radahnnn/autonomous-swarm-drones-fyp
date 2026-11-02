@@ -91,3 +91,17 @@ def test_route_accepts_wall_clock_speeds_of_slow_simulators():
     assert route.speed_m_s == pytest.approx(0.036)
     with pytest.raises(ValueError):
         square_patrol((0.0, 0.0), 12.0, 0.0, 0.01)
+
+
+def test_wait_settled_waits_for_drifting_drones_and_reports_the_worst(tmp_path):
+    c = _console(tmp_path)
+    c.position_sigma_m, c.time_scale = 0.0, 1.0
+    c.latest = {0: {"position": [0.0, 0.0, -5], "position_target_ne": [0.2, 0.0]},
+                1: {"position": [0.0, 0.0, -5], "position_target_ne": [4.0, 0.0]}}
+    ok, worst, err = c._wait_settled(timeout_s=0.2, poll_s=0.05)
+    assert not ok and worst == 1 and err == pytest.approx(4.0)
+    c.latest[1]["position_target_ne"] = [0.5, 0.0]
+    assert c._wait_settled(timeout_s=0.2, poll_s=0.05)[0]
+    c.position_sigma_m = 3.5                                    # noise widens the tolerance
+    c.latest[1]["position_target_ne"] = [4.0, 0.0]
+    assert c._wait_settled(timeout_s=0.1, poll_s=0.05)[0]
