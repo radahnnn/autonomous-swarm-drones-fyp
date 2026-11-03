@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-11-01, branch `wip/decentralized-sitl-handoff-20261029`, 766 unit/integration tests passing (`python3 -m pytest -q tests`).
+**Last verified:** 2026-11-04, branch `wip/decentralized-sitl-handoff-20261029`,  unit/integration tests collected, all passing with no simulator running (`python3 -m pytest -q tests`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -58,13 +58,13 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
   - tools: `swarm_console.py` (entry point), `fleet_ctl.py` (scripted scenarios), `operator_dashboard.py`, `replay.py`, `generate_gazebo_world.py`, `gz_camera.py`, `patrol_layout.py`, launch scripts.
   - Older runtimes still present (`--agent-runtime local|process`: `decentralized_guidance.DecentralizedGuidance`, `agent_process.py`, `peer_state_bus.py`, `mode_supervisor.py`, `mavlink_swarm_adapter.py`); retiring them is pending the user's decision.
 - `experiments/` — sweeps and validation scripts. `scenarios/` — scripted live missions for `sitl.fleet_ctl`.
-- `tools/parameter_table.py` → `docs/PARAMETERS.md` (every tunable constant; a test keeps it current).
+- `tools/parameter_table.py` → `docs/PARAMETERS.md` (constants, `*Params` fields and selected constructor defaults; not CLI defaults or profile dictionaries; a test keeps it current).
 - `docs/history/legacy-scripts/` — 13 archived early scripts (not maintained).
-- `tests/` — about 820 tests, UNIT/INTEGRATION; CI also runs `pyflakes` (0 warnings).
+- `tests/` —  tests (UNIT/INTEGRATION; they do not prove live behaviour); CI also runs `pyflakes` (0 warnings).
 
 ## 4. Progress against the proposal (evidence-labelled)
 
-Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collaboration log). Approx. 70–75% of the software objectives are done; the rest is hard and mostly safety/protocol work.
+Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collaboration log). No completion percentage is given (Codex review 2026-11-03: it had no stated basis); see the rows and the open items in section 8.
 
 | Objective | Status | Highest evidence | Gap |
 |---|---|---|---|
@@ -72,8 +72,8 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 | Centralized control | Working | SITL, GAZEBO (5 drones, 20 Oct), QGC (15 Oct) | Repeated matched live runs. |
 | Decentralized control | Working in SITL | SITL (same host), VM-NETWORK (5 and 10 agents, one clean mission each) | Repeated split-host fault runs; radio. |
 | Hybrid switching + in-flight mode switching | Working in SITL | SITL (same host; 10 drones, 5 live switches, 2026-10-30) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
-| Formations + reconfiguration | Partial | UNIT; SITL (earlier formations; one synchronized-transition run, 2026-10-30) | V→line morph fails the 2.5 m gate (Phase 2). Transition protocol not built. |
-| Gazebo 6-drone, independent runtime | Working in one run | GAZEBO (run 4: PASS min gap 3.22 m, transitions + mode switches + landing; RTF 0.3-0.4 with a 2.5 ms step) | One run; no routes / kill / coordinator-loss / 10 drones in Gazebo yet; see `docs/reports/GAZEBO_6DRONE_INDEPENDENT_2026-11-01.md`. |
+| Formations + reconfiguration | Working in SITL/Gazebo | SITL (10 drones; synchronized transition protocol, pairs, tower-gap column), GAZEBO (6 drones) — single runs | Repeats; under `--realistic` some transitions are cancelled/retried; Codex review findings 1-2, 4, 6, 8 open. |
+| Gazebo 6-drone, independent runtime | Working (single runs) | GAZEBO: survey patrol under `--realistic` PASS 4.81 m (2026-11-03); tower gap with real towers PASS 3.42 m (2026-11-03); RTF ~0.19 at the 1.25 ms step | One run each; no 10 drones / wind in Gazebo; see `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`. |
 | Scaling 5→10 | Partial | 30-seed point-mass pass (2 mm worst margin); one 10-agent VM mission | Thin margin; repeated live/fault runs. |
 | Physical prototype | Bench-checked only | PHYSICAL (USB bench: FC, sensors, GPS fix; props off) | Never flown. ESP32/CAN link is a proposal; CAN enabled in params but no command path confirmed. |
 
@@ -111,7 +111,7 @@ Not verified / open:
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`; the checkpoint `d1e7444` is tagged `wip-checkpoint-20261029`. Commits since then are docs plus the stale-intent fix (`git log --oneline wip-checkpoint-20261029..HEAD`). Root disk ~35 GB free. Pushed to origin on 2026-11-01 up to `067df2e` (git auth now via `gh auth login` over HTTPS; the `gh` CLI is installed on this machine).
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`, pushed to origin (check `git log -1` against GitHub; auth via the `gh` CLI login on this PC). Older checkpoint tag: `wip-checkpoint-20261029`.
 
 - Claude is primary writer for the week of 2026-10-29; Codex reviews. One writer at a time. Log every session in the collaboration log.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
@@ -134,8 +134,15 @@ Requested by the user, not finished:
 - Hardware (on hold): propellers-off bench test of the PC/ESP32 -> Matek link; RC + failsafes; first hover; then
   two drones; then the 5 new ones. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
 
+Codex review findings accepted by the user for fixing (2026-11-04; details in the collaboration log entry "2026-11-03 22:20 PKT — Codex"):
+- #1 mode-switch partial commit can split modes; #8 transition self-close can strand a lagging drone (terminal-decision agreement).
+- #2 console mission state has several writers (duplicate sequences, stale retries after LAND, retries lose gap heading/spacing); #4 formation start time taken before waits; #11 dashboard reports rejected commands as accepted.
+- #3 safety filter is not the last step on the transmitted target; #7 barrier solver misses circle-boundary solutions; #6 gap check uses tower spacing, not the swept path; #9 LAND cannot interrupt arming/takeoff; #10 acting-coordinator limit renews itself.
+- #5 run-report PASS does not require fleet coverage, mission completion or fresh positions; true simulator positions not logged.
+- Done 2026-11-04: #12 CI extra, #13 vacuous test, #14 parameter table coverage/label, #15 this file, #16 report wording.
+
 Found by testing, not yet resolved:
-- Realistic 10-drone 2D mission: last run FAIL by 2 cm (min 2.48 m), not re-run since the retry + guard fixes.
+- Realistic 10-drone 2D mission: recurring near-miss in the decentralized patrol (~190 s): 0.92 m, 2.48 m, then 0.995 m after the refactor (2026-11-03). Separation is from estimated positions, so not yet distinguishable from estimate error (Codex #16).
 - Battery endurance cannot be simulated with SITL's generic quad (drain disabled); must be measured on hardware.
 - Disturbance values in `--realistic` are assumptions until measured on the team's drones.
 - Most results are single runs.

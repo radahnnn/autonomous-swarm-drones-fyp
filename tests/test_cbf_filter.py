@@ -34,7 +34,10 @@ def test_a_neighbour_straight_ahead_removes_exactly_the_unsafe_part_of_the_veloc
 def test_inside_the_barrier_the_filter_pushes_the_drone_out_even_if_the_nominal_asks_to_stay():
     r = filter_velocity((0, 0), (0.0, 0.0), [nb(2.0, 0.0)], distance=2.8, alpha=3.0)
     assert r.active and r.velocity[0] < 0                                 # backs away from the neighbour at +x
-    assert r.velocity[0] <= -0.5 * 3.0 * (2.8 ** 2 - 2.0 ** 2) / 2.0 + 1e-6 or True
+    # The barrier needs u_x <= -(alpha/2)(D^2 - d^2)/d = -2.88 m/s, beyond the 1.5 m/s limit: infeasible, so the
+    # filter backs away at full speed (this assertion used to end in `or True` and could not fail).
+    assert not r.feasible
+    assert r.velocity == pytest.approx([-1.5, 0.0])
 
 
 def test_result_always_satisfies_every_constraint_when_feasible_and_respects_the_speed_limit():

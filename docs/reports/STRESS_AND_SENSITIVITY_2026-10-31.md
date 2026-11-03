@@ -56,7 +56,8 @@ steady error moves by more than 0.25 m over that range.
 | hybrid degrade_timeout / ramp_duration | 1.78 - 1.78 | 1.31 - 1.31 | no (identical) |
 
 Reading it correctly:
-- **No tested gain matters within 0.5x-2x** for these metrics. The defaults sit on a plateau, so the specific
+- **Among the gains that were active in this scenario, none mattered within 0.5x-2x** for these metrics (this
+  scenario, this sweep only; `k_sep` and the hybrid parameters were inactive, see below). The defaults sit on a plateau, so the specific
   numbers are not fragile. This is the useful result for the thesis ("the chosen values are not tuned knife-edges").
 - **Identical rows are not a bug and not a finding about robustness.** `k_sep` only acts inside the controller's
   1.2 m safe radius, and the 2.5 m separation guard acts first, so no drone gets there in these runs (verified:

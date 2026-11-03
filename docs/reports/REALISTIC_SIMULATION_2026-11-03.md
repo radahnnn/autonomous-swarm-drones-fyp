@@ -21,8 +21,9 @@ back from inside ArduPilot. Split profiles `realistic-gps / -wind / -vibration /
 | lossy radio | PASS | 5.19 m | 0.17 m |
 | all together | FAIL (ground contacts after ~9 min; see 3) | 2.52 m | 0.30 m |
 
-**GPS error is the disturbance that matters** (min gap -1.5 m, tracking error x2); wind, vibration and the radio alone
-changed almost nothing in this model. One run per cell.
+**In these tested cells, GPS error had the largest effect** (min gap -1.5 m, tracking error x2); wind, vibration and
+the radio alone changed little in this model. One run per cell: interactions between disturbances are not resolved,
+and what matters on hardware is not established by this matrix.
 
 ## Problems found and fixed (each with tests)
 1. Gazebo would not arm at a 2.5 ms physics step (400 Hz gyro < ArduCopter's 720 Hz requirement) -> step capped at
@@ -35,7 +36,7 @@ changed almost nothing in this model. One run per cell.
 4. Battery model: with 0.03 ohm sag the simulated motors saturated and every drone sank after ~35 s; later, as the
    simulated 3S pack drained below ~11.2 V (~9 min) SITL's generic quad could not hover even with MOT_BAT_VOLT
    compensation. The team's 5" 6S quads hover at far lower throttle, so drain is now off in simulation (constant pack
-   voltage, sag + failsafe kept). **Endurance must be measured on the hardware; plan real missions under ~5 min.**
+   voltage, sag + failsafe kept). **Endurance must be measured on the hardware.** (The ~5 min figure is a rough assumption for 5" quads, not a measured result.)
    Four earlier "PASS" realistic runs were measured on drones bouncing off the ground and are withdrawn; the run
    report now FAILs on any ground contact while armed outside LAND.
 5. LINE -> V aborted in every matrix run (even calm): the plan was built while the 50 m line's tail drone was still
@@ -90,3 +91,8 @@ Evidence: `docs/evidence/2026-10-30/gap_2d10_pass_20261103_run_report.json`,
 `docs/evidence/2026-10-30/gap_gazebo6_pass_20261103_run_report.json`, `docs/evidence/2026-11-01/gazebo_gap_column_cameras.png`.
 One run each. Decisions are made by the console (coordinator); the elected-leader version (works without the ground
 station) is the next step for this feature.
+
+## Note on measurement (added 2026-11-04 after the Codex review)
+All separation numbers in this report come from the drones' *estimated* positions sampled at ~1-2 Hz, not from the
+simulator's true positions. A near-miss under `--realistic` may partly be estimate error, and a PASS does not rule out
+a brief dip between samples. Claims about physical safety margins need true-position logging (open item).

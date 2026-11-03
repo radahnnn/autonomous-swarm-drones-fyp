@@ -27,9 +27,10 @@ dev = [
 sitl = [
     "pymavlink>=2.4.40",
 ]
-all = [
+all = [   # keep = dev + sitl (CI installs this)
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "pyflakes>=3.0",
     "pymavlink>=2.4.40",
 ]
 
