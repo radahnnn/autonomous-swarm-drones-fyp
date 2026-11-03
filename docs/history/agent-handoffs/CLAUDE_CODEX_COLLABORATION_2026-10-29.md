@@ -334,3 +334,8 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - **Withdrawn results:** the four realistic 10-drone "PASS" runs of 2026-11-02 (drones were sinking/bouncing; battery model).
 - Next step: estimation-health guard (position-estimate glitch caused the remaining near-miss); then the 6-drone Gazebo patrol under `--realistic`; then the tower-gap manoeuvre (user's idea, planned, not started).
 - The user asked that the PC be powered off after the work and push.
+
+### 2026-11-03 (day) — Claude — guard, retries, dashboard, Gazebo patrol PASS, tower gap partial
+
+- See the update section of `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`. Next: widen the gap column, rerun the gap (2D, then Gazebo with towers); repeats for variance.
+- Recommended Codex review: `sitl/estimate_health.py` thresholds, `IndependentSwarmConsole._tick_gap` state machine (threads started from the console loop), the retry timer interplay with operator commands, `operator_dashboard` capture serving (filename regex).

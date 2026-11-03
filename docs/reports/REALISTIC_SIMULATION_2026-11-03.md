@@ -53,3 +53,27 @@ vibration (the drone may also have drifted while chasing the bad estimate; the l
 **estimation-health guard** - an agent that sees implausible jumps in its own estimate marks itself degraded and
 holds/lands, peers widen the safety distance to it, and the run report separates estimate glitches from true gaps.
 Not yet run with all fixes: the 6-drone Gazebo survey patrol under `--realistic`; the tower-gap manoeuvre (not built).
+
+## Update (2026-11-03, day): estimate guard, retries, Gazebo patrol, tower gap
+
+- **Estimation-health guard** (`sitl/estimate_health.py`): a drone whose own position estimate implies > 4 m/s
+  (judged over >= 0.5 s) freezes its target, flags itself in peer messages (peers keep 2 m extra in the barrier filter)
+  and lands if glitches persist 15 s. First version judged over 0.05 s and raised 20 false alarms per run (jitter);
+  real jumps in the estimate were 0-2 per run (counted in the attribution runs).
+- **Retry of pre-start cancellations** for transient reasons (radio burst, drone still settling), max 2; safety
+  reasons never retried.
+- Realistic 10-drone 2D run with both: min gap **2.48 m** (was 0.92 m), both mode switches completed, 2 of 4
+  transitions completed (the other two were pre-start cancellations, before the retry existed). Still FAIL by one
+  0.5 s sample 2 cm under the gate.
+- **Gazebo, 6 drones, full survey patrol under `--realistic`: PASS** (min gap 4.81 m, 0 violations): centralized V
+  patrol with pole detection (D1 sensed, 5 learned), decentralized pairs A and B, hybrid with coordinator cut and
+  takeover, regroup to V, landing; 9 capture rounds x 6/6 real camera images
+  (`docs/evidence/2026-11-01/gazebo_patrol_realistic_pairs_b_cameras.png`); 2 transient cancellations rescued by the
+  retry. One run. Report json: `docs/evidence/2026-10-30/gazebo_patrol_realistic_20261103_run_report.json`.
+- **Tower gap (user's idea), 10 drones 2D under `--realistic`, towers 11.2 m apart across the path:** the swarm sensed
+  the towers, judged the V (needs > 10 m free) would not fit, stopped short, formed a heading-aligned column, flew
+  through, confirmed every drone past - all live. Re-forming the V failed (radio-burst cancellation, then a safety
+  refusal), and the run FAILs: consecutive column members came within 2.36 m (in the gap) and 0.85 m (12 m past it,
+  outside the towers' push zone). Diagnosis: in a moving single file under ~1 m GPS error the drones' along-track
+  lags differ and the ~5.5 m spacing breathes below the gate. **Next:** wider column spacing for the gap (~8 m) and a
+  slower pass, then rerun; Gazebo version with two real towers after that.

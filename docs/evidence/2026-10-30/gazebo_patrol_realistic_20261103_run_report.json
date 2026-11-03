@@ -1,0 +1,219 @@
+{
+  "result": "PASS",
+  "gate_m": 2.5,
+  "gate_metric": "horizontal",
+  "vertical_radius_m": null,
+  "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
+  "duration_s": 1021.1,
+  "drones": 6,
+  "airborne_pair_samples": 1941,
+  "min_gap_m": 4.814,
+  "min_gap_at_s": 214.6,
+  "min_gap_3d_m": 4.818,
+  "p05_gap_m": 5.301,
+  "ground_contacts_while_armed": 0,
+  "violation_episodes": 0,
+  "violation_time_s": 0.0,
+  "warning_episodes": 0,
+  "warn_margin_m": 0.25,
+  "mean_tracking_error_m": 0.207,
+  "p95_tracking_error_m": 0.305,
+  "max_status_age_s": 2.61,
+  "counters": {
+    "capture": 9,
+    "mode_switch_complete": 3,
+    "route_start": 1,
+    "obstacle_known": 6,
+    "route_stop": 1,
+    "transition_complete": 4,
+    "transition_aborted": 2,
+    "coordinator_takeover": 2
+  },
+  "events": [
+    {
+      "t": 50.47,
+      "kind": "capture",
+      "label": "start_v",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 58.33,
+      "kind": "mode_switch_complete",
+      "switch_id": 1,
+      "mode": "centralized"
+    },
+    {
+      "t": 58.36,
+      "kind": "route_start",
+      "side_m": 10.0,
+      "speed_m_s": 0.08000000000000002
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 5,
+      "known": 1,
+      "own_detections": 0,
+      "from_peers": 1
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 1,
+      "known": 1,
+      "own_detections": 1,
+      "from_peers": 0
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 2,
+      "known": 1,
+      "own_detections": 0,
+      "from_peers": 1
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 3,
+      "known": 1,
+      "own_detections": 0,
+      "from_peers": 1
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 4,
+      "known": 1,
+      "own_detections": 0,
+      "from_peers": 1
+    },
+    {
+      "t": 82.6,
+      "kind": "obstacle_known",
+      "drone": 6,
+      "known": 1,
+      "own_detections": 0,
+      "from_peers": 1
+    },
+    {
+      "t": 128.43,
+      "kind": "capture",
+      "label": "corner_ne",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 168.43,
+      "kind": "capture",
+      "label": "pole_pass",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 208.43,
+      "kind": "capture",
+      "label": "corner_nw",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 208.43,
+      "kind": "route_stop"
+    },
+    {
+      "t": 230.59,
+      "kind": "mode_switch_complete",
+      "switch_id": 2,
+      "mode": "decentralized"
+    },
+    {
+      "t": 398.76,
+      "kind": "transition_complete",
+      "transition_id": 1
+    },
+    {
+      "t": 408.98,
+      "kind": "capture",
+      "label": "pairs_a",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 411.28,
+      "kind": "transition_aborted",
+      "transition_id": 2,
+      "reason": "agent_abort:2:peer_off_plan:4",
+      "moved": false
+    },
+    {
+      "t": 518.31,
+      "kind": "transition_complete",
+      "transition_id": 3
+    },
+    {
+      "t": 528.52,
+      "kind": "capture",
+      "label": "pairs_b",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 536.56,
+      "kind": "mode_switch_complete",
+      "switch_id": 3,
+      "mode": "hybrid"
+    },
+    {
+      "t": 628.75,
+      "kind": "transition_complete",
+      "transition_id": 4
+    },
+    {
+      "t": 629.05,
+      "kind": "capture",
+      "label": "hybrid_pairs_a",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 631.96,
+      "kind": "coordinator_takeover",
+      "drone": 1,
+      "term": 1
+    },
+    {
+      "t": 654.04,
+      "kind": "capture",
+      "label": "hybrid_coordinator_lost",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 734.06,
+      "kind": "transition_aborted",
+      "transition_id": 5,
+      "reason": "nack:3:stale_peer_links",
+      "moved": false
+    },
+    {
+      "t": 977.47,
+      "kind": "transition_complete",
+      "transition_id": 6
+    },
+    {
+      "t": 992.62,
+      "kind": "capture",
+      "label": "regrouped_v",
+      "frames": 6,
+      "expected": 6
+    },
+    {
+      "t": 995.82,
+      "kind": "coordinator_takeover",
+      "drone": 1,
+      "term": 2
+    }
+  ]
+}
