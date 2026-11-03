@@ -176,3 +176,69 @@ def test_filtered_setpoint_becomes_the_start_of_the_next_slew():
     near = [{"position": np.array([2.0, 0.0]), "velocity": np.zeros(2)}]
     safe = command(agent, near)
     assert np.allclose(agent.position_setpoint_ne, safe)
+
+
+def _oracle(position, nominal, neighbors, distance, alpha, max_speed, n=601):
+    """Brute force on a fine polar grid of the speed disc: closest feasible velocity to the nominal."""
+    from sitl.cbf_filter import _constraints
+    rows, _ = _constraints(np.asarray(position, float), [(np.asarray(p, float), np.asarray(v, float), 0.0) for p, v in neighbors],
+                           distance, alpha, 8.0)
+    best = None
+    for r in np.linspace(0, max_speed, 121):
+        for th in np.linspace(0, 2 * np.pi, n, endpoint=False):
+            u = np.array([r * np.cos(th), r * np.sin(th)])
+            if all(a @ u >= b - 1e-9 for a, b in rows):
+                c = np.linalg.norm(u - np.asarray(nominal, float))
+                if best is None or c < best[0]:
+                    best = (c, u)
+    return best
+
+
+def test_codex_case_line_meets_speed_circle_is_feasible():
+    """Codex review #7: constraint u_north >= 0.5 with |u| <= 1.5 is feasible (e.g. (0.5, 1.0)); was reported infeasible."""
+    r = filter_velocity((0, 0), (0.0, 1.5), [((-2.8, 0.0), (0.5, 0.0))], distance=2.8, alpha=3.0, max_speed=1.5)
+    assert r.feasible
+    assert r.velocity[0] >= 0.5 - 1e-9 and np.linalg.norm(r.velocity) <= 1.5 + 1e-9
+    assert r.velocity == pytest.approx([0.5, np.sqrt(1.5 ** 2 - 0.25)], abs=1e-9)    # closest point on the circle
+
+
+def test_matches_a_brute_force_oracle_on_random_problems():
+    rng = np.random.default_rng(7)
+    checked = 0
+    for _ in range(60):
+        neighbors = [(rng.uniform(-4, 4, 2), rng.uniform(-0.8, 0.8, 2)) for _ in range(rng.integers(1, 4))]
+        nominal = rng.uniform(-2.5, 2.5, 2)
+        r = filter_velocity((0, 0), nominal, neighbors, distance=2.8, alpha=3.0, max_speed=1.5)
+        oracle = _oracle((0, 0), nominal, neighbors, 2.8, 3.0, 1.5)
+        assert r.feasible == (oracle is not None)
+        if oracle is not None:
+            assert np.linalg.norm(r.velocity - nominal) <= oracle[0] + 1e-6         # never worse than the grid optimum
+            checked += 1
+    assert checked > 20
+
+
+def _node_for_final_barrier(position, peers):
+    from sitl.independent_agent_node import IndependentAgentNode
+    from sitl.decentralized_guidance import LocalDroneAgent
+    node = object.__new__(IndependentAgentNode)
+    node.agent = LocalDroneAgent(0)
+    node.agent.safety_filter_enabled = True
+    node.position = np.array([position[0], position[1], -5.0])
+    node._peer_memory = {i + 1: (np.asarray(p, float), np.zeros(2), 0.0, 1e12) for i, p in enumerate(peers)}
+    node._peer_degraded = {}
+    return node
+
+
+def test_codex_case_obstacle_push_after_the_filter_is_caught_by_the_final_barrier():
+    """Codex review #3: filter gives north 0.58, an obstacle then pushes the target to 2.58 towards a neighbour at 3 m."""
+    node = _node_for_final_barrier((0.0, 0.0), [(3.0, 0.0)])
+    final = node._final_barrier(np.array([2.58, 0.0]))
+    assert final[0] <= 0.58 + 1e-6                                     # the transmitted target respects the barrier
+
+
+def test_final_barrier_holds_when_the_fence_and_the_barrier_conflict():
+    from sitl.geofence import Geofence
+    node = _node_for_final_barrier((0.0, 0.0), [(-2.6, 0.0)])          # neighbour 2.6 m south: inside the 2.8 m barrier
+    fence = Geofence("box", box=(-10.0, -10.0, 2.0, 10.0), margin_m=2.0)  # commanded targets may not go north of 0.0
+    final = node._final_barrier(np.array([0.0, 0.0]), fence)          # the barrier wants north, the fence forbids it
+    assert np.allclose(final, [0.0, 0.0]) and node.final_barrier_holds == 1

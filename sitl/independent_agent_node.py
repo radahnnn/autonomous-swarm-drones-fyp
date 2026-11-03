@@ -10,6 +10,7 @@ import uuid
 import numpy as np
 from pymavlink import mavutil
 
+from sitl.cbf_filter import filter_velocity, filtered_setpoint
 from sitl.common_frame import CommonCoordinateFrame
 from sitl.decentralized_guidance import DecentralizedGuidance, LocalDroneAgent
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON
@@ -622,6 +623,33 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         return None
 
 
+    def _final_barrier(self, target_ne: np.ndarray, fence=None) -> np.ndarray:
+        """Re-apply the pairwise barrier to the target that will actually be transmitted.
+
+        Codex review #3: obstacle repulsion, the estimate-glitch freeze and the fence clamp all run after the guidance's
+        barrier filter and could move the target back towards a neighbour. This is the last step before MAVLink. If the
+        barrier and the fence cannot both be met, the drone holds its current position (the safe default).
+        """
+        agent = getattr(self, "agent", None)
+        if agent is None or not getattr(agent, "safety_filter_enabled", False) or self.position is None:
+            return np.asarray(target_ne, dtype=float)
+        position = np.asarray(self.position[:2], dtype=float)
+        neighbors = [(p["position"], p["velocity"], p.get("extra_m", 0.0)) for p in self._safety_neighbors(time.time())]
+        safe, result = filtered_setpoint(position, target_ne, neighbors,
+                                         distance=agent.SAFETY_DISTANCE_M, alpha=agent.SAFETY_ALPHA)
+        if result.active:
+            self.final_barrier_corrections = getattr(self, "final_barrier_corrections", 0) + 1
+        if fence is not None:
+            clamped = fence.clamp(safe)
+            if float(np.linalg.norm(clamped - safe)) > 1e-6:
+                check = filter_velocity(position, clamped - position, neighbors,
+                                        distance=agent.SAFETY_DISTANCE_M, alpha=agent.SAFETY_ALPHA, max_speed=1e3)
+                if check.active:                        # the fence pushed it back into a barrier: hold instead
+                    self.final_barrier_holds = getattr(self, "final_barrier_holds", 0) + 1
+                    return position.copy()
+                return clamped
+        return safe
+
     def _send_position_target(self, target_global: np.ndarray, altitude_m: float,
                               apply_layer: bool = True) -> None:
         if self.global_origin is None:
@@ -638,6 +666,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             # Prevention: nothing outside the (margin-shrunk) fence is ever commanded.
             target[:2] = fence.clamp(target[:2])
             altitude_m = fence.clamp_altitude(altitude_m)
+        target[:2] = self._final_barrier(target[:2], fence)
         target[2] = -altitude_m
         local = target - self.global_origin
         self.last_position_target_ne = target[:2].copy()

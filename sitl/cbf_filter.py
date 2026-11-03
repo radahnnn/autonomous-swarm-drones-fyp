@@ -8,9 +8,9 @@ For every nearby drone j the barrier is ``h_ij = |p_i - p_j|^2 - D^2`` (D = safe
     (p_i - p_j) . (u - v_j)  >=  -alpha * h_ij / 2
 
 The filter returns the velocity closest to the nominal one (the velocity that would reach the anchored
-setpoint) that satisfies every constraint: a 2-D quadratic program solved exactly by enumerating the
-single-constraint projections and pairwise intersections (at most ~10 neighbours). The caller converts
-the filtered velocity back into a setpoint.
+setpoint) that satisfies every constraint and the speed limit: a 2-D quadratic program on a disc, solved exactly by
+enumerating line projections, line-line and line-circle intersections and the circle point nearest the nominal
+(at most ~10 neighbours). The caller converts the filtered velocity back into a setpoint.
 
 What this is and is not: a *sampled, single-integrator* safety filter. The vehicle's real dynamics
 (autopilot lag, wind, position noise) are not modelled, neighbours' future motion is assumed constant,
@@ -92,11 +92,21 @@ def filter_velocity(position, nominal_velocity, neighbors, *, distance: float = 
     if not rows or _feasible(start, rows):
         return FilterResult(start, False, True, len(rows), closest)
 
-    candidates: List[np.ndarray] = []
-    for a, b in rows:                                  # projection onto one boundary
+    # Exact QP on the disc |u| <= max_speed: the optimum is the nominal's projection onto the feasible set, so it lies
+    # (a) on one constraint line, (b) at two lines' intersection, (c) where a line meets the speed circle, or (d) on
+    # the circle closest to the nominal. Enumerate all of them (Codex review #7: (c) was missing, so some feasible
+    # problems were reported infeasible) and keep the feasible one closest to the ORIGINAL nominal velocity.
+    candidates: List[np.ndarray] = [start]
+    for a, b in rows:
         norm2 = float(a @ a)
-        candidates.append(start + max(0.0, b - float(a @ start)) / norm2 * a)
-    for i in range(len(rows)):                         # intersection of two boundaries
+        candidates.append(nominal + (b - float(a @ nominal)) / norm2 * a)          # (a) projection onto the line
+        foot = b / norm2 * a                                                         # (c) line-circle intersections
+        reach = max_speed ** 2 - float(foot @ foot)
+        if reach >= 0.0:
+            along = np.array([-a[1], a[0]]) / math.sqrt(norm2)
+            for sign in (-1.0, 1.0):
+                candidates.append(foot + sign * math.sqrt(reach) * along)
+    for i in range(len(rows)):                                                       # (b) line-line intersections
         for j in range(i + 1, len(rows)):
             (a1, b1), (a2, b2) = rows[i], rows[j]
             det = float(a1[0] * a2[1] - a1[1] * a2[0])
@@ -107,13 +117,15 @@ def filter_velocity(position, nominal_velocity, neighbors, *, distance: float = 
     for u in candidates:
         if float(np.linalg.norm(u)) > max_speed + 1e-9 or not _feasible(u, rows):
             continue
-        cost = float(np.linalg.norm(u - start))
+        cost = float(np.linalg.norm(u - nominal))
         if best is None or cost < best[0]:
             best = (cost, u)
     if best is not None:
         return FilterResult(best[1], True, True, len(rows), closest)
 
-    # Infeasible within the speed limit (surrounded, or already deep inside): back away from everyone.
+    # Truly infeasible within the speed limit (surrounded, or already deep inside a barrier): no velocity satisfies
+    # every constraint, so this is a heuristic, not an optimum - move away from all neighbours at full speed, each
+    # weighted by closeness. Reported with feasible=False.
     escape = sum((a / float(a @ a) ** 0.5) / max(float(a @ a) ** 0.5, 0.1) for a, _ in rows)
     norm = float(np.linalg.norm(escape))
     u = escape * (max_speed / norm) if norm > _EPS else np.zeros(2)
