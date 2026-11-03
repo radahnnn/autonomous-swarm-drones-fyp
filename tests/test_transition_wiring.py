@@ -567,3 +567,21 @@ def test_transient_pre_start_cancellation_is_retried_but_not_forever(monkeypatch
     console.transition_pending = ("column", None, None)
     console._dispatch_transition([("event", "transition_aborted", {"reason": "separation:1,2", "moved": False})])
     assert started == [("line",), ("line",)]                     # a safety reason is never retried automatically
+
+
+def test_start_time_is_taken_after_the_settle_wait_codex_4(monkeypatch):
+    """Codex review #4: a 5 s settle used to move the clock from 5000 to 5005 while the plan still started at 5004."""
+    swarm = Swarm(monkeypatch)
+    swarm.run(3.0)
+
+    def slow_settle(*a, **k):
+        swarm.clock.t += 5.0                     # waiting costs 5 s of (fake) time
+        swarm.publish_status(swarm.clock.t)      # statuses stay fresh after the wait
+        return True, 0, 0.0
+
+    swarm.console._wait_settled = slow_settle
+    after = swarm.clock.t + 5.0
+    result = swarm.console._set_formation("line")
+    assert result is None or swarm.console.last_formation_result["accepted"]
+    plan = swarm.console.transition.plan
+    assert plan is not None and plan.start_at >= after + swarm.console.transition.params.lead_s - 1e-6

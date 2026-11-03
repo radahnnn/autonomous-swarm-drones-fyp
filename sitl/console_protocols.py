@@ -406,9 +406,6 @@ class ProtocolMixin:
                           "try again in a few seconds.", code="settling")
         with self.lock:
             states = [self.latest.get(index, {}).copy() for index in range(self.count)]
-        positions = np.asarray([state["position"][:2] for state in states], dtype=float)
-        if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
-            return result(False, "Position reports are incomplete or invalid.")
         stale = self._stale_link_drone(states)
         # A lossy radio drops links for a moment (live: one stale link refused a whole V re-form); wait a few seconds.
         for _ in range(int(self.LINK_RECOVERY_WAIT_S / 0.5)):
@@ -420,6 +417,14 @@ class ProtocolMixin:
             stale = self._stale_link_drone(states)
         if stale is not None:
             return result(False, f"D{stale + 1} has stale peer links.")
+        # Positions and the clock are read only now, after every wait (Codex review #4: they used to be taken before up
+        # to 30 s of settling and 5 s of link recovery, so plans started "in the past" or from stale positions).
+        try:
+            positions = np.asarray([state["position"][:2] for state in states], dtype=float)
+        except (KeyError, TypeError, IndexError):
+            positions = np.asarray([], dtype=float)
+        if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
+            return result(False, "Position reports are incomplete or invalid.")
         obstacles = [tuple(float(value) for value in str(item).split(","))
                      for item in getattr(self.args, "obstacle", ())]
         centroid = positions.mean(axis=0)
@@ -433,6 +438,12 @@ class ProtocolMixin:
         problem = self._fence_problem(self._slot_points(centroid, slots=plan.slots_by_drone))
         if problem:
             return result(False, f"Geofence: {problem}", code="geofence")
+        now = time.time()
+        # Something else may have started while this request waited/planned: re-check before announcing the plan.
+        if self.transition_protocol and self.transition.busy:
+            return result(False, "Another formation transition started meanwhile.", code="transition_active")
+        if self.mode_switch is not None and self.mode_switch.busy:
+            return result(False, "A control-mode switch started meanwhile.", code="mode_switch_active")
         if self.transition_protocol:
             return self._begin_protocol_transition(style, plan, positions, centroid, now, result)
         self.formation_resume_goal = self.goal_ne.copy()
