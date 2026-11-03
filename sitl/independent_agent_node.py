@@ -282,6 +282,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         )
         request_message_interval(self.conn, 193, 2.0)
         request_message_interval(self.conn, 24, 2.0)
+        request_message_interval(self.conn, 164, 5.0)     # SIMSTATE: simulator truth, for evaluation only
         self._send_gcs_heartbeat()
         if not wait_ekf_ready(self.conn, f"Node {self.drone_id + 1}", wall_timeout=300.0,
                               heartbeat_callback=self._send_gcs_heartbeat):
@@ -332,6 +333,15 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                     self.airborne = False
             elif kind == "LOCAL_POSITION_NED":
                 self.local_position = np.array([msg.x, msg.y, msg.z], dtype=float)
+            elif kind == "SIMSTATE":
+                # Simulator ground truth (SITL/Gazebo only; a real autopilot never sends it). Used for evaluation
+                # only, never for control: Codex review #5/#16, separation must be judged on true positions too.
+                try:
+                    truth = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lng / 1e7, 0.0)
+                    self.true_position_ne = [float(truth[0]), float(truth[1])]
+                    self.true_position_at = time.time()
+                except (AttributeError, TypeError, ValueError):
+                    pass
             elif kind == "GLOBAL_POSITION_INT":
                 self.position = self.frame.gps_to_global_ned(
                     msg.lat / 1e7, msg.lon / 1e7, msg.relative_alt / 1000.0,
@@ -756,6 +766,8 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             "operator_clock_offset_s": self.operator_clock_offset_s,
             "position": None if self.position is None else self.position.tolist(),
             "position_age_s": None if not self.position_at else max(0.0, now - self.position_at),
+            "true_position_ne": (getattr(self, "true_position_ne", None)
+                                 if now - getattr(self, "true_position_at", 0.0) <= 1.0 else None),
             "airborne": bool(self.position is not None and self.position[2] < -0.5),
             "armed": self.armed,
             "peer_ids": self.peer_ids,

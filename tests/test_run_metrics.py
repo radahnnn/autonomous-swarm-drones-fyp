@@ -110,3 +110,43 @@ def test_ground_contact_while_armed_fails_the_run_but_landing_does_not():
     for t, (alt, mode) in enumerate([(5.0, 4), (2.0, 9), (0.1, 9)]):
         landed.update(float(t), {0: st(float(t), alt, mode)})
     assert landed.ground_contacts == 0
+
+
+def _st(t, n, e, airborne=True, armed=True, truth=None, age=0.1):
+    s = {"armed": armed, "airborne": airborne, "vehicle_mode": 4, "operator_received_at": t,
+         "position": [n, e, -5.0], "position_age_s": age}
+    if truth is not None:
+        s["true_position_ne"] = list(truth)
+    return s
+
+
+def test_codex_case_two_fresh_drones_once_then_silence_is_not_a_pass():
+    """Codex review #5: ten drones, only two fresh airborne drones once, then no telemetry: used to say PASS."""
+    from sitl.run_metrics import RunMetrics
+    m = RunMetrics(10, sample_period_s=0.001)
+    m.update(1.0, {0: _st(1.0, 0, 0), 1: _st(1.0, 10, 0)})
+    m.update(5.0, {})                                           # everyone vanishes, nobody landed
+    report = m.report(10.0)
+    assert report["result"] == "INCOMPLETE" and report["missing_airborne_episodes"] == 2
+
+
+def test_stale_vehicle_position_is_excluded_and_counted():
+    from sitl.run_metrics import RunMetrics
+    m = RunMetrics(2, sample_period_s=0.001)
+    m.update(1.0, {0: _st(1.0, 0, 0), 1: _st(1.0, 1.0, 0, age=5.0)})   # 1 m apart, but D2's position is 5 s old
+    assert m.violations == 0 and m.stale_position_samples == 1
+
+
+def test_true_positions_can_fail_a_run_the_estimates_pass_and_landing_is_complete():
+    from sitl.run_metrics import RunMetrics
+    m = RunMetrics(2, sample_period_s=0.001)
+    for t in range(5):
+        m.update(float(t), {0: _st(t, 0, 0, truth=(0, 0)), 1: _st(t, 10, 0, truth=(1.0, 0))})   # truth 1 m apart
+    m.update(6.0, {0: _st(6, 0, 0, airborne=False, armed=False), 1: _st(6, 10, 0, airborne=False, armed=False)})
+    r = m.report(7.0)
+    assert r["true_min_gap_m"] == 1.0 and r["true_violation_episodes"] == 1 and r["result"] == "FAIL"
+    clean = RunMetrics(2, sample_period_s=0.001)
+    for t in range(5):
+        clean.update(float(t), {0: _st(t, 0, 0, truth=(0, 0)), 1: _st(t, 10, 0, truth=(10, 0))})
+    clean.update(6.0, {0: _st(6, 0, 0, airborne=False, armed=False), 1: _st(6, 10, 0, airborne=False, armed=False)})
+    assert clean.report(7.0)["result"] == "PASS"

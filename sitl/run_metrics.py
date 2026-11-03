@@ -53,6 +53,16 @@ class RunMetrics:
         self.counters: Dict[str, int] = {}
         self.event_log: List[Dict[str, Any]] = []
         self.max_alt: Dict[int, float] = {}
+        # Evidence completeness (Codex review #5) and simulator ground truth (#16).
+        self.ever_airborne: set = set()
+        self.complete_samples = 0
+        self.missing_airborne_episodes = 0
+        self._missing: Dict[int, bool] = {}
+        self.stale_position_samples = 0
+        self.true_min_gap_m = math.inf
+        self.true_samples = 0
+        self.true_violations = 0
+        self._true_violating = False
         self.ground_contacts = 0
         self._low: Dict[int, bool] = {}
 
@@ -69,6 +79,7 @@ class RunMetrics:
             return
         self.last_sample_at = now
         points: Dict[int, np.ndarray] = {}
+        truths: Dict[int, np.ndarray] = {}
         drones: List[Dict[str, Any]] = []
         for index in range(self.count):
             status = statuses.get(index)
@@ -89,11 +100,20 @@ class RunMetrics:
                 fresh = age is not None and 0.0 <= age <= self.max_status_age_s
                 if fresh:
                     self.max_link_age_s = max(self.max_link_age_s, age)
-                if (fresh and isinstance(position, (list, tuple)) and len(position) == 3 and
+                position_age = status.get("position_age_s")
+                position_fresh = (position_age is None or
+                                  (isinstance(position_age, (int, float)) and 0.0 <= position_age <= self.MAX_POSITION_AGE_S))
+                if fresh and not position_fresh and info["airborne"]:
+                    self.stale_position_samples += 1        # a fresh status carrying an old vehicle position
+                if (fresh and position_fresh and isinstance(position, (list, tuple)) and len(position) == 3 and
                         all(isinstance(v, (int, float)) and math.isfinite(v) for v in position)):
                     self._check_ground_contact(index, status, -float(position[2]), now)
                     if info["airborne"]:
                         points[index] = np.asarray(position, dtype=float)
+                        truth = status.get("true_position_ne")
+                        if (isinstance(truth, (list, tuple)) and len(truth) == 2 and
+                                all(isinstance(v, (int, float)) and math.isfinite(v) for v in truth)):
+                            truths[index] = np.asarray(truth, dtype=float)
                     target = status.get("position_target_ne")
                     if (info["airborne"] and isinstance(target, (list, tuple)) and len(target) == 2):
                         try:
@@ -105,6 +125,8 @@ class RunMetrics:
                             pass
             drones.append(info)
         self.drones = drones
+        self._track_completeness(points, statuses)
+        self._track_truth(truths, now)
         gap = gap3d = gap_shape = None
         pair = None
         ids = sorted(points)
@@ -147,7 +169,39 @@ class RunMetrics:
             self.warnings += 1
         self._state, self._last_t = state, now
 
+    MAX_POSITION_AGE_S = 1.0
     LAND_MODE = 9
+
+    def _track_completeness(self, points: Dict[int, np.ndarray], statuses: Dict[int, Dict[str, Any]]) -> None:
+        """A drone that has flown and is now absent from the airborne set without having landed (status says
+        airborne-but-stale, or nothing at all) is a hole in the evidence: its separation is unknown, not fine."""
+        self.ever_airborne |= set(points)
+        if not self.ever_airborne:
+            return
+        all_present = True
+        for index in self.ever_airborne:
+            status = statuses.get(index) or {}
+            landed = status.get("airborne") is False and status.get("armed") is False
+            missing = index not in points and not landed
+            if missing and not self._missing.get(index):
+                self.missing_airborne_episodes += 1
+            self._missing[index] = missing
+            all_present = all_present and not missing
+        if all_present:
+            self.complete_samples += 1
+
+    def _track_truth(self, truths: Dict[int, np.ndarray], now: float) -> None:
+        ids = sorted(truths)
+        if len(ids) < 2:
+            return
+        gap = min(float(np.linalg.norm(truths[a] - truths[b])) for i, a in enumerate(ids) for b in ids[i + 1:])
+        self.true_samples += 1
+        self.true_min_gap_m = min(self.true_min_gap_m, gap)
+        violating = gap < self.gate_m
+        if violating and not self._true_violating:
+            self.true_violations += 1
+        self._true_violating = violating
+
 
     def _check_ground_contact(self, index: int, status: Dict[str, Any], altitude: float, now: float) -> None:
         """An armed drone that has flown (> 2 m) and is back near the ground (< 0.5 m) while NOT in LAND mode hit the
@@ -188,10 +242,20 @@ class RunMetrics:
         gaps = np.asarray(self.gaps, dtype=float)
         duration = None if self.started_at is None or ended_at is None else round(ended_at - self.started_at, 1)
         has_data = self.samples > 0
-        passed = bool(has_data and self.violations == 0 and self.ground_contacts == 0)
+        failed = self.violations > 0 or self.ground_contacts > 0 or self.true_violations > 0
+        coverage = (self.complete_samples / self.samples) if self.samples else 0.0
+        complete = has_data and coverage >= 0.95 and self.missing_airborne_episodes == 0
+        passed = bool(has_data and not failed and complete)
         tracking = np.asarray(self.tracking_errors, dtype=float)
         return {
-            "result": "PASS" if passed else ("NO DATA" if not has_data else "FAIL"),
+            # FAIL beats INCOMPLETE beats PASS: missing safety evidence is not a pass (Codex review #5).
+            "result": ("NO DATA" if not has_data else "FAIL" if failed else "PASS" if passed else "INCOMPLETE"),
+            "evidence_coverage": round(coverage, 3),
+            "drones_observed_airborne": len(self.ever_airborne),
+            "missing_airborne_episodes": self.missing_airborne_episodes,
+            "stale_position_samples": self.stale_position_samples,
+            "true_min_gap_m": None if not math.isfinite(self.true_min_gap_m) else round(self.true_min_gap_m, 3),
+            "true_violation_episodes": self.true_violations, "true_samples": self.true_samples,
             "gate_m": self.gate_m, "gate_metric": self.gate_metric, "vertical_radius_m": self.vertical_radius_m,
             "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
             "duration_s": duration, "drones": self.count, "airborne_pair_samples": self.samples,
@@ -214,6 +278,8 @@ class RunMetrics:
                  f"- Gate: {r['gate_m']} m ({r['gate_metric']} separation, **sampled**)",
                  f"- Duration: {r['duration_s']} s, drones: {r['drones']}",
                  f"- Minimum gap: {r['min_gap_m']} m at t={r['min_gap_at_s']} s (3-D minimum {r['min_gap_3d_m']} m, 5th percentile {r['p05_gap_m']} m)",
+                 f"- True (simulator) minimum gap: {r['true_min_gap_m']} m over {r['true_samples']} samples; true violation episodes: {r['true_violation_episodes']}",
+                 f"- Evidence: coverage {r['evidence_coverage']}, airborne drones observed {r['drones_observed_airborne']}/{r['drones']}, drones missing while airborne: {r['missing_airborne_episodes']}, stale-position samples: {r['stale_position_samples']}",
                  f"- Violation episodes: {r['violation_episodes']} ({r['violation_time_s']} s); warning episodes (< gate + {r['warn_margin_m']} m): {r['warning_episodes']}",
                  f"- Tracking error: mean {r['mean_tracking_error_m']} m, p95 {r['p95_tracking_error_m']} m",
                  f"- Oldest status seen: {r['max_status_age_s']} s",
