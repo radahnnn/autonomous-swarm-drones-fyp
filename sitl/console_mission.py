@@ -60,6 +60,7 @@ class MissionMixin:
             problem = self._fence_problem(self._slot_points(waypoint), self.target_alt_m)
             if problem:
                 return result(False, f"waypoint {index + 1} does not fit the geofence: {problem}", code="geofence")
+        self._new_mission_generation("patrol")
         self.route = route
         self._note_metric("route_start", side_m=side, speed_m_s=speed)
         self.event("route_start", waypoints=[list(p) for p in route.waypoints], speed_m_s=speed,
@@ -89,6 +90,7 @@ class MissionMixin:
         if problem:
             print(f">> Move blocked by the geofence: {problem}")
             return
+        self._new_mission_generation("goto")
         self.goal_ne = target
         self._publish_intent()
         self.event("goto", north=float(target[0]), east=float(target[1]))
@@ -145,6 +147,7 @@ class MissionMixin:
         if self.route is not None:
             print(">> Transit refused: a route is active; use 'route stop' first.")
             return
+        self._new_mission_generation("transit")
         self.route = route
         self._gap = {"state": "cruise", "target": target, "heading": heading, "speed": speed_sim, "passed": []}
         self._note_metric("transit_start", north=float(target[0]), east=float(target[1]))
@@ -179,13 +182,14 @@ class MissionMixin:
         then give up the manoeuvre and hold, so the swarm never waits forever (live finding: a refused column left the
         state machine stuck)."""
         for attempt in range(2):
-            self.last_formation_result = None
-            self._set_formation(style, heading, spacing)
-            result = getattr(self, "last_formation_result", None) or {}
+            result = self._set_formation(style, heading, spacing, _retry=attempt > 0) or {}
             if result.get("accepted", True):
                 return
             if attempt == 0:
+                generation = getattr(self, "mission_generation", 0)     # the generation this request started
                 time.sleep(3.0 / self.time_scale)
+                if getattr(self, "mission_generation", 0) != generation or self._gap is None:
+                    return                                    # superseded (new command or LAND) while waiting
         g = self._gap
         if g is not None:
             g["state"] = "done"
@@ -286,6 +290,7 @@ class MissionMixin:
             print(f">> Route: {len(self.route.waypoints)} waypoints, {self.route.speed_m_s:g} m/s, "
                   f"goal now N {position[0]:.1f} E {position[1]:.1f}")
             return
+        self._new_mission_generation("route stop")
         self.goal_ne = np.asarray(position, dtype=float)    # hold where the route is: no jump
         self.route = None
         self._note_metric("route_stop")

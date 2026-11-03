@@ -42,17 +42,17 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `GAP_COLUMN_SPACING_M` | `8.0` | MissionMixin, line 155 |  |
-| `GAP_PASS_SPEED_FACTOR` | `0.6` | MissionMixin, line 157 |  |
+| `GAP_COLUMN_SPACING_M` | `8.0` | MissionMixin, line 158 |  |
+| `GAP_PASS_SPEED_FACTOR` | `0.6` | MissionMixin, line 160 |  |
 
 ## `sitl/console_protocols.py`
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 459 |  |
-| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 462 |  |
-| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 464 |  |
-| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 466 |  |
+| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 492 |  |
+| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 495 |  |
+| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 497 |  |
+| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 499 |  |
 
 ## `sitl/coordinator_election.py`
 

@@ -563,10 +563,10 @@ def test_transient_pre_start_cancellation_is_retried_but_not_forever(monkeypatch
     for _ in range(3):
         console.transition_pending = ("line", None, None)
         console._dispatch_transition([abort])
-    assert started == [("line",), ("line",)]                     # two retries, then it gives up
+    assert [a[1] for a in started] == ["line", "line"]           # two retries, then it gives up
     console.transition_pending = ("column", None, None)
     console._dispatch_transition([("event", "transition_aborted", {"reason": "separation:1,2", "moved": False})])
-    assert started == [("line",), ("line",)]                     # a safety reason is never retried automatically
+    assert [a[1] for a in started] == ["line", "line"]           # a safety reason is never retried automatically
 
 
 def test_start_time_is_taken_after_the_settle_wait_codex_4(monkeypatch):
@@ -585,3 +585,43 @@ def test_start_time_is_taken_after_the_settle_wait_codex_4(monkeypatch):
     assert result is None or swarm.console.last_formation_result["accepted"]
     plan = swarm.console.transition.plan
     assert plan is not None and plan.start_at >= after + swarm.console.transition.params.lead_s - 1e-6
+
+
+
+def test_retry_keeps_heading_and_spacing_and_is_dropped_after_a_newer_command_codex_2(monkeypatch, capsys):
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    timers = []
+
+    class FakeTimer:
+        def __init__(self, delay, fn, args=()):
+            self.fn, self.args, self.daemon = fn, args, False
+        def start(self):
+            timers.append(self)
+
+    monkeypatch.setattr("sitl.independent_swarm_console.threading.Timer", FakeTimer)
+    console._last_formation_request = ("column", 0.5, 8.0)
+    console.transition_pending = ("column", None, None)
+    console._dispatch_transition([("event", "transition_aborted", {"reason": "nack:3:stale_peer_links", "moved": False})])
+    generation, style, heading, spacing = timers[0].args
+    assert (style, heading, spacing) == ("column", 0.5, 8.0)                 # full request kept
+    calls = []
+    console._set_formation = lambda *a, **k: calls.append(a)
+    console._new_mission_generation("land")                                  # a newer command (e.g. LAND)
+    timers[0].fn(*timers[0].args)
+    assert calls == [] and "dropped" in capsys.readouterr().out
+
+
+def test_concurrent_publishes_never_reuse_a_sequence_number_codex_2(monkeypatch):
+    import threading as th
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    sent = []
+    console._send_to_agents = lambda message: sent.append(message["intent"]["sequence"])
+    console.event = lambda *a, **k: None
+    workers = [th.Thread(target=console._publish_intent) for _ in range(20)]
+    for w in workers:
+        w.start()
+    for w in workers:
+        w.join()
+    assert len(sent) == 20 and len(set(sent)) == 20

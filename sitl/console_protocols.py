@@ -120,6 +120,7 @@ class ProtocolMixin:
             return result(False, problem)
         with self.mode_lock:
             self.mode_switch.mode = self.control_mode if self.control_mode in CONTROL_MODES else self.mode_switch.mode
+            self._new_mission_generation(f"mode {mode}")
             actions = self.mode_switch.begin(mode, now)
         self._dispatch_mode(actions)
         plan = self.mode_switch.plan
@@ -178,7 +179,11 @@ class ProtocolMixin:
                           f"Transient on a lossy link: retrying in {delay:.0f} s "
                           f"({used + 1}/{self.TRANSITION_RETRIES}).", flush=True)
                     self.event("formation_transition_retry", formation=style, reason=reason, attempt=used + 1)
-                    timer = threading.Timer(delay, self._set_formation, args=(style,))
+                    request = getattr(self, "_last_formation_request", (style, None, None))
+                    _, heading, spacing = request if request[0] == style else (style, None, None)
+                    # Keeps the full request (gap heading/spacing) and the generation it belongs to (Codex review #2).
+                    timer = threading.Timer(delay, self._retry_formation,
+                                            args=(getattr(self, "mission_generation", 0), style, heading, spacing))
                     timer.daemon = True
                     timer.start()
                 else:
@@ -321,8 +326,25 @@ class ProtocolMixin:
                 return False
         return True
 
+    mission_generation = 0
+
+    def _new_mission_generation(self, reason: str = "") -> int:
+        """Every operator mission command starts a new generation; delayed work from an older one is dropped."""
+        self.mission_generation = getattr(self, "mission_generation", 0) + 1
+        return self.mission_generation
+
+    def _retry_formation(self, generation: int, style: str, heading_rad, min_spacing_m) -> None:
+        if generation != getattr(self, "mission_generation", 0):
+            self.event("formation_transition_retry_dropped", formation=style, reason="superseded")
+            print(f">> Retry of {style.upper()} dropped: a newer command superseded it.", flush=True)
+            return
+        self._set_formation(style, heading_rad, min_spacing_m, _retry=True)
+
     def _set_formation(self, style: str, heading_rad: float | None = None,
-                       min_spacing_m: float | None = None) -> None:
+                       min_spacing_m: float | None = None, _retry: bool = False) -> None:
+        if not _retry:
+            self._new_mission_generation(f"formation {style}")
+        self._last_formation_request = (style, heading_rad, min_spacing_m)
         def result(accepted: bool, message: str, **details):
             self.last_formation_result = {
                 "accepted": accepted, "message": message, **details,

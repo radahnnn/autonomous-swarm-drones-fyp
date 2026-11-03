@@ -567,6 +567,15 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
 
 
     def _publish_intent(self) -> None:
+        # One lock around sequence allocation, snapshot and send (Codex review #2: two concurrent callers emitted the
+        # same sequence number, and fields could come from different mission revisions).
+        lock = getattr(self, "_publish_lock", None)
+        if lock is None:
+            lock = self._publish_lock = threading.RLock()
+        with lock:
+            self._publish_intent_locked()
+
+    def _publish_intent_locked(self) -> None:
         self.mission_sequence += 1
         now = time.time()
         issued_at = self.formation_transition_started_at or now
@@ -932,6 +941,8 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
                 return True
             self.last_command_result = self._operator_command("launch")
         elif action in ("q", "quit", "land"):
+            self._new_mission_generation("land")     # cancels pending formation retries and the gap manoeuvre
+            self._gap = None
             self.intent_enabled = False
             self.last_command_result = self._operator_command("land")
             return False

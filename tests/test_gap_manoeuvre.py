@@ -126,9 +126,10 @@ def test_a_refused_formation_ends_the_manoeuvre_instead_of_waiting_forever(monke
     c.transit("40", "0", "0.3")
     c._gap["state"] = "squeeze"
     monkeypatch.setattr("sitl.independent_swarm_console.time.sleep", lambda s: None)
-    def refuse(style, heading=None, spacing=None):
-        c.last_formation_result = {"accepted": False, "message": "transition needs 200 s"}
+    def refuse(style, heading=None, spacing=None, _retry=False):
+        return {"accepted": False, "message": "transition needs 200 s"}
     c._set_formation = refuse
+    c.mission_generation = 0
     c._gap_formation("column", 0.0, 8.0)
     assert c._gap["state"] == "done" and "gap_manoeuvre_abandoned" in c.events
 
