@@ -1,7 +1,6 @@
 """One independently connected ArduPilot SITL agent with direct peer and mission UDP."""
 
 import argparse
-import json
 import math
 import os
 import socket
@@ -13,7 +12,7 @@ from pymavlink import mavutil
 
 from sitl.common_frame import CommonCoordinateFrame
 from sitl.decentralized_guidance import DecentralizedGuidance, LocalDroneAgent
-from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON, build_fleet
+from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON
 from sitl.flight_prep import arm_with_retry, request_message_interval, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, slots_for
 from sitl.mission_intent import MissionIntent, MissionLease
@@ -25,9 +24,12 @@ from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
 from sitl.estimate_health import EstimateHealth
 from sitl.obstacle_sensing import ObstacleSensor, validate as validate_obstacle
-from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
+from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch
 from sitl.smoothing import min_jerk
-from sitl.transition_protocol import AgentContext, AgentTransition, PeerObservation, scaled_params
+from sitl.transition_protocol import AgentTransition, scaled_params
+from sitl.agent_safety import AgentSafetyMixin
+from sitl.agent_protocols import AgentProtocolMixin
+from sitl.agent_mission import AgentMissionMixin
 
 
 OPERATOR_VERSION = 1
@@ -41,7 +43,7 @@ _TRANSITION_KINDS = ("transition_prepare", "transition_go", "transition_abort", 
 _MODE_KINDS = ("mode_prepare", "mode_go", "mode_abort", "mode_done")
 
 
-class IndependentAgentNode:
+class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMixin):
     """Owns one MAVLink connection, local guidance loop, and direct peer datagrams."""
 
     LINK_DEAD_EXIT_S = 30.0
@@ -581,320 +583,6 @@ class IndependentAgentNode:
         self.status_socket.sendto(encode_message(message, self.operator_auth_key),
                                   self.status_endpoint)
 
-    def _remember_peers(self, discovered, wall_now: float) -> None:
-        """Keep each peer's latest state; ``discovered`` only holds packets received this tick."""
-        for peer in discovered:
-            try:
-                position = np.asarray(peer["position"], dtype=float)[:2]
-                velocity = np.asarray(peer.get("velocity", (0.0, 0.0)), dtype=float)[:2]
-                if position.shape != (2,) or velocity.shape != (2,):
-                    continue
-                self._peer_memory[int(peer["id"])] = (
-                    position, velocity, float(peer.get("age", 0.0)), float(wall_now))
-                if not hasattr(self, "_peer_degraded"):
-                    self._peer_degraded = {}
-                self._peer_degraded[int(peer["id"])] = bool(peer.get("degraded", False))
-            except (KeyError, TypeError, ValueError, IndexError):
-                continue
-
-    def _transition_context(self, wall_now: float) -> AgentContext:
-        """Snapshot of what this agent knows, for the transition state machine."""
-        fresh = set(self.peers.fresh_link_ids(wall_now))
-        peers = {}
-        for peer_id, (position, velocity, age_at_receipt, received_wall) in self._peer_memory.items():
-            age = age_at_receipt + max(0.0, wall_now - received_wall)
-            extrapolated = position + velocity * age
-            peers[peer_id] = PeerObservation((float(extrapolated[0]), float(extrapolated[1])), age)
-        own_fresh = (self.position is not None and bool(self.position_at) and
-                     0.0 <= wall_now - self.position_at <= 1.0)
-        coordinator_age = (time.monotonic() - self.last_coordinator_message_monotonic
-                           if self.last_coordinator_message_monotonic else float("inf"))
-        return AgentContext(
-            airborne_armed=bool(self.armed and self.airborne and not self.landing),
-            own_fresh=own_fresh,
-            peers_live=set(self.peer_ids) <= fresh,
-            own_position_ne=(None if self.position is None
-                             else (float(self.position[0]), float(self.position[1]))),
-            peers=peers, coordinator_age_s=coordinator_age,
-        )
-
-    def _handle_transition_message(self, kind: str, message: dict) -> None:
-        epoch = message.get("epoch")
-        if not isinstance(epoch, str) or epoch != self.clock_sync_epoch:
-            return
-        wall = time.time()
-        operator_now = wall - self.operator_clock_offset_s
-        if kind == "transition_prepare" and self.mode_switch.state != AgentModeSwitch.IDLE:
-            reply = self.transition._ack(message.get("transition_id"), message.get("plan_hash"),
-                                         False, "mode_switch_active")
-            reply["epoch"] = epoch
-            self._send_to_operator(reply)
-        elif kind == "transition_prepare":
-            reply = self.transition.on_prepare(message, operator_now,
-                                               self._transition_context(wall))
-            reply["epoch"] = epoch
-            self._send_to_operator(reply)
-        elif kind == "transition_go":
-            reply = self.transition.on_go(message, operator_now)
-            if reply is not None:
-                reply["epoch"] = epoch
-                self._send_to_operator(reply)
-        elif kind == "transition_abort":
-            self.transition.on_abort(message, operator_now)
-        elif kind == "transition_done":
-            plan = self.transition.plan
-            self.transition.on_done(message)
-            if plan is not None and self.transition.state == AgentTransition.IDLE:
-                self._finish_transition(plan)
-
-    def _safety_neighbors(self, wall_now: float, max_age_s: float = 1.5) -> list:
-        """Every recently heard peer (not just the two ring neighbours) for the barrier safety filter."""
-        peers = []
-        degraded = getattr(self, "_peer_degraded", {})
-        for peer_id, (position, velocity, age_at_receipt, received_wall) in getattr(self, "_peer_memory", {}).items():
-            age = age_at_receipt + max(0.0, wall_now - received_wall)
-            if age <= max_age_s:
-                # A peer whose position estimate is degraded may be metres from where it says: keep 2 m more.
-                peers.append({"position": position + velocity * age, "velocity": velocity,
-                              "extra_m": self.DEGRADED_PEER_EXTRA_M if degraded.get(peer_id) else 0.0})
-        return peers
-
-    DEGRADED_PEER_EXTRA_M = 2.0
-
-    def _tick_estimate_health(self, now: float) -> None:
-        """Watch this drone's own position estimate; freeze on a glitch, land if it does not recover."""
-        health = getattr(self, "estimate_health", None)
-        if health is None or self.position is None or not self.position_at or not self.airborne:
-            return
-        before = health.state
-        state = health.update(self.position[:2], self.position_at)
-        if state != before:
-            print(f"[NODE {self.drone_id + 1}] position estimate {before} -> {state} "
-                  f"{{'glitches': {health.glitches}}}", flush=True)
-            if state == health.DEGRADED:
-                self._frozen_target = getattr(self, "last_position_target_ne", None)
-            elif state == health.OK:
-                self._frozen_target = None
-        if state == health.LAND and not self.landing:
-            self.safety_state = "estimate_degraded"
-            self.safety_reason = "position_estimate_glitches"
-            self._command_land(self.safety_reason)
-
-    def _mode_context(self, wall_now: float) -> ModeContext:
-        fresh = (self.position is not None and bool(self.position_at) and
-                 0.0 <= wall_now - self.position_at <= 1.0)
-        return ModeContext(healthy=bool(fresh and not self.landing),
-                           formation_idle=self.transition.state == AgentTransition.IDLE)
-
-    def _handle_mode_message(self, kind: str, message: dict) -> None:
-        epoch = message.get("epoch")
-        if not isinstance(epoch, str) or epoch != self.clock_sync_epoch:
-            return
-        wall = time.time()
-        operator_now = wall - self.operator_clock_offset_s
-        if kind == "mode_prepare":
-            reply = self.mode_switch.on_prepare(message, operator_now, self._mode_context(wall))
-            reply["epoch"] = epoch
-            self._send_to_operator(reply)
-        elif kind == "mode_go":
-            reply = self.mode_switch.on_go(message, operator_now)
-            if reply is not None:
-                reply["epoch"] = epoch
-                self._send_to_operator(reply)
-        elif kind == "mode_abort":
-            self.mode_switch.on_abort(message, operator_now)
-        elif kind == "mode_done":
-            self.mode_switch.on_done(message)
-
-    def _tick_mode_switch(self, wall_now: float) -> None:
-        operator_now = wall_now - self.operator_clock_offset_s
-        for action in self.mode_switch.tick(operator_now, self._mode_context(wall_now)):
-            if action[0] == "send":
-                message = dict(action[1])
-                message["epoch"] = self.clock_sync_epoch
-                self._send_to_operator(message)
-        mode = self.mode_switch.dominant_mode(operator_now)
-        if mode != self.control_mode:
-            print(f"[NODE {self.drone_id + 1}] control mode {self.control_mode} -> {mode}", flush=True)
-            self.control_mode = mode
-            self.agent.mode = mode
-
-    def _tick_geofence(self) -> None:
-        """Detection: report inside/warn/breach and land if a breach persists."""
-        fence = getattr(self, "geofence", None)
-        if fence is None or self.position is None:
-            return
-        state = fence.status(self.position[:2], -float(self.position[2]))
-        if state != self.fence_state:
-            if state == "breach":
-                self.fence_breaches += 1
-            print(f"[NODE {self.drone_id + 1}] geofence {self.fence_state} -> {state}", flush=True)
-            self.fence_state = state
-        if state != "breach":
-            self.fence_breach_since = None
-            return
-        now = time.monotonic()
-        if self.fence_breach_since is None:
-            self.fence_breach_since = now
-        elif now - self.fence_breach_since > self.FENCE_BREACH_LAND_S and not self.landing:
-            self._command_land("geofence_breach")
-
-    def _refresh_mission(self, intent_dict: dict, wall_now: float, mono: float,
-                         from_coordinator: bool = False) -> None:
-        """Extend the mission lease AND the agent's cached copy of the intent.
-
-        The cached intent is re-validated on every guidance step and expires with its own TTL; extending
-        only the lease would make a long autonomous period end in an "invalid mission intent" landing.
-        """
-        operator_now = wall_now - self.operator_clock_offset_s
-        self.mission_lease.accept(intent_dict, operator_now, mono)
-        self.current_mission = dict(intent_dict)
-        self.agent.cached_mission_intent = dict(intent_dict)
-        if from_coordinator:
-            self.last_coordinator_message_monotonic = mono
-            self.coordinator_connected = True
-
-    def _renewed_copy(self, base: dict, wall_now: float, ttl_s: float = 30.0) -> dict:
-        """The accepted mission with fresh issue/expiry times (route and goal unchanged)."""
-        operator_now = wall_now - self.operator_clock_offset_s
-        intent = dict(base)
-        intent.update(issued_at=operator_now, expires_at=operator_now + ttl_s, formation="configured",
-                      formation_slots=None, formation_start_slots=None, formation_transition_s=0.0)
-        return intent
-
-    def _renew_lease_if_autonomous(self) -> None:
-        """Decentralized/hybrid agents keep flying the last mission on peers when the coordinator is gone."""
-        if (self.control_mode not in ("decentralized", "hybrid") or self.current_mission is None or
-                self.coordinator_connected or not self.last_coordinator_message_monotonic):
-            return
-        if time.monotonic() - self.last_coordinator_message_monotonic > self.AUTONOMY_MAX_S:
-            return
-        wall = time.time()
-        if not (set(self.peer_ids) & set(self.peers.fresh_link_ids(wall))):
-            return          # alone: let the lease lapse and the existing failsafes act
-        if self.mission_lease.active(time.monotonic()) is None:
-            return          # already lapsed
-        self._refresh_mission(self._renewed_copy(self.current_mission, wall), wall, time.monotonic())
-
-    # ---- acting-coordinator failover (sitl/coordinator_election.py)
-    def _election_events(self, actions) -> None:
-        for action in actions:
-            if action[0] == "event":
-                print(f"[NODE {self.drone_id + 1}] {action[1].replace('_', ' ')} {action[2]}", flush=True)
-
-    LOCAL_PAUSE_S = 2.0   # a longer gap between election ticks means this agent, not the operator, went quiet
-
-    def _tick_election(self, wall_now: float) -> None:
-        mono = time.monotonic()
-        last = getattr(self, "_last_election_tick", None)
-        if last is not None and mono - last > self.LOCAL_PAUSE_S:
-            self.election.resume_after_local_pause(mono)
-        self._last_election_tick = mono
-        for message in self.peers.take_coordinator_messages():
-            self._handle_acting_intent(message, wall_now, mono)
-        if getattr(self, "membership", None) is None:
-            return                                      # failover needs the adaptive leader election
-        live = len(self.peers.fresh_link_ids(wall_now))
-        for action in self.election.tick(mono, self.elected_leader_id, live):
-            if action[0] == "publish":
-                self._publish_acting_intent(action[1], wall_now, mono)
-            else:
-                self._election_events([action])
-
-    def _publish_acting_intent(self, term: int, wall_now: float, mono: float) -> None:
-        if self.current_mission is None:
-            return
-        self._acting_sequence += 1
-        intent = self._renewed_copy(self.current_mission, wall_now)
-        intent["sequence"] = self._acting_sequence
-        self.peers.publish_coordinator(self.discovery_ids, wall_now, term, intent)
-        self._refresh_mission(intent, wall_now, mono, from_coordinator=True)
-
-    def _handle_acting_intent(self, message: dict, wall_now: float, mono: float) -> None:
-        accept, actions = self.election.on_acting_message(message["sender"], message["term"], mono)
-        self._election_events(actions)
-        if not accept:
-            return
-        operator_now = wall_now - self.operator_clock_offset_s
-        try:
-            intent = MissionIntent.from_dict(message["intent"], operator_now)
-        except (TypeError, ValueError):
-            return
-        key = (message["sender"], message["term"])
-        if intent.sequence <= self.last_acting_sequence.get(key, 0):
-            return
-        self.last_acting_sequence[key] = intent.sequence
-        self._refresh_mission(message["intent"], wall_now, mono, from_coordinator=True)
-
-    def _centralized_fail_stop(self, now: float) -> bool:
-        """Centralized mode depends on the coordinator: hold position, then land. True = handled."""
-        if self.control_mode != "centralized" or self.coordinator_connected:
-            self.central_hold_since = None
-            return False
-        if self.central_hold_since is None:
-            self.central_hold_since = now
-            print(f"[NODE {self.drone_id + 1}] centralized: coordinator lost; holding position", flush=True)
-        if self.position is not None:
-            self._send_position_target(np.array(self.position, dtype=float), -float(self.position[2]),
-                                       apply_layer=False)
-        if now - self.central_hold_since > self.CENTRAL_HOLD_LAND_S:
-            self._command_land("coordinator_lost_centralized")
-        return True
-
-    def _route_goal(self, intent, operator_now: float):
-        """Goal along the mission route (a pure function of the shared clock), or None."""
-        route = intent.route() if hasattr(intent, "route") else None
-        return None if route is None else route.position(operator_now)
-
-    def _goal_override(self, intent, operator_now: float):
-        """A formation transition owns the swarm centre; otherwise the route (if any) drives the goal."""
-        held = self._transition_goal(operator_now)
-        return held if held is not None else self._route_goal(intent, operator_now)
-
-    def _transition_goal(self, operator_now: float):
-        """Swarm centre to hold while a transition owns the slots, else None (use the mission goal)."""
-        transition = getattr(self, "transition", None)
-        if transition is None or transition.plan is None:
-            return None
-        if transition.state == AgentTransition.HOLD or (
-                transition.state in (AgentTransition.RUNNING, AgentTransition.ARRIVED) and
-                operator_now >= transition.plan.start_at):
-            return np.asarray(transition.plan.centroid_ne, dtype=float)
-        return None
-
-    def _finish_transition(self, plan) -> None:
-        """The morph is complete: adopt the target formation exactly."""
-        self.formation = plan.formation
-        if self.membership is not None:
-            self.membership.formation = plan.formation
-        target = np.asarray(plan.target_slots, dtype=float)
-        self.operator_formation_slots = target.copy()
-        self.all_slots = target.copy()
-        self.slot = self.all_slots[self.drone_id].copy()
-        self.formation_transition_progress = 1.0
-        self.membership_revision += 1
-
-    def _tick_transition(self, wall_now: float) -> None:
-        if self.transition.state == AgentTransition.IDLE:
-            return
-        plan = self.transition.plan
-        operator_now = wall_now - self.operator_clock_offset_s
-        for action in self.transition.tick(operator_now, self._transition_context(wall_now)):
-            if action[0] == "send":
-                message = dict(action[1])
-                message["epoch"] = self.clock_sync_epoch
-                self._send_to_operator(message)
-            elif action[1] == "arrived_timeout_close" and plan is not None:
-                self._finish_transition(plan)
-        if self.transition.state in (AgentTransition.RUNNING, AgentTransition.ARRIVED,
-                                     AgentTransition.HOLD) and (
-                self.transition.state == AgentTransition.HOLD or
-                operator_now >= self.transition.plan.start_at):
-            slots = self.transition.current_slots(operator_now)
-            self.all_slots = slots.copy()
-            self.slot = self.all_slots[self.drone_id].copy()
-            self.formation_transition_progress = float(
-                self.transition.status(operator_now)["progress"] or 0.0)
 
     def _send_command_ack(self, sequence: int, action: str, epoch: str) -> None:
         ack = {
@@ -933,51 +621,6 @@ class IndependentAgentNode:
             return f"launch_rejected_peer_links:{missing}"
         return None
 
-    def _check_peer_failsafe(self, now: float, fresh_peer_ids, peer_states=()) -> None:
-        """Degrade around one lost edge; land only when this node is isolated."""
-        if not self.airborne:
-            # Learn which configured peers were actually reachable before takeoff, but do
-            # not age a missing link into a preflight emergency.
-            self.peer_watchdog.update(now, fresh_peer_ids)
-            self.peer_watchdog.deactivate()
-            self.peer_timeout_ids = []
-            return
-        # A peer's local LAND is state information, not a swarm-wide command.  Copying
-        # it through the graph made one failed directed link cascade into a fleet-wide
-        # landing.  Keep its slot reserved and let each remaining node independently
-        # assess whether it still has a live route.
-        peers_landing = sorted({int(peer["id"]) for peer in peer_states
-                                if peer.get("landing") is True})
-        if peers_landing and not self.landing:
-            ids = ",".join(str(peer_id + 1) for peer_id in peers_landing)
-            self.safety_state = "peer_landing_observed"
-            self.safety_reason = f"peer_landing_observed:{ids}"
-        if not self.peer_watchdog.monitoring:
-            self.peer_watchdog.activate(now, fresh_peer_ids)
-        self.peer_timeout_ids = self.peer_watchdog.update(
-            now, fresh_peer_ids,
-        )
-        if self.peer_timeout_ids and not self.landing:
-            missing = ",".join(str(peer_id + 1) for peer_id in self.peer_timeout_ids)
-            required_ids = getattr(self, "peer_ids", self.peer_watchdog.peer_ids)
-            live_required = sorted(set(required_ids) & set(int(value)
-                                                             for value in fresh_peer_ids))
-            if live_required:
-                # Guidance already consumes only fresh received neighbors, so this is
-                # the local topology reconfiguration: remove the failed edge and keep
-                # controlling through the remaining one-hop links.
-                self.safety_state = "peer_link_degraded"
-                self.safety_reason = f"peer_link_degraded:{missing}"
-                self.last_command = self.safety_reason
-            else:
-                self.safety_state = "peer_isolation_failsafe"
-                self.safety_reason = f"isolated_peer_timeout:{missing}"
-                self._command_land(self.safety_reason)
-        elif (not self.peer_timeout_ids and not peers_landing and not self.landing and
-              self.safety_state in {"peer_link_degraded", "peer_landing_observed"}):
-            self.safety_state = "nominal"
-            self.safety_reason = None
-            self.last_command = "peer_links_restored"
 
     def _send_position_target(self, target_global: np.ndarray, altitude_m: float,
                               apply_layer: bool = True) -> None:
@@ -1051,68 +694,6 @@ class IndependentAgentNode:
         target_global[:2] = self._avoid_obstacles(target_global[:2])
         self._send_position_target(target_global, intent.target_alt_m + self.slot[2])
 
-    def _all_obstacles(self) -> list:
-        """Obstacles given in advance plus those this drone or a peer has sensed."""
-        sensor = getattr(self, "sensor", None)
-        return list(getattr(self, "obstacles", ())) + (list(sensor.known) if sensor is not None else [])
-
-    def _tick_obstacles(self, wall_now: float) -> None:
-        """Sense obstacles from the current position, learn peers' detections, and share what is known."""
-        sensor = getattr(self, "sensor", None)
-        if sensor is None:
-            return
-        found = sensor.update(self.position[:2]) if self.position is not None else []
-        for message in self.peers.take_obstacle_messages():
-            for obstacle in sensor.learn(message["items"]):
-                print(f"[NODE {self.drone_id + 1}] obstacle learned from D{message['sender'] + 1} "
-                      f"{{'north': {obstacle[0]:.1f}, 'east': {obstacle[1]:.1f}}}", flush=True)
-        for obstacle in found:
-            print(f"[NODE {self.drone_id + 1}] obstacle detected "
-                  f"{{'north': {obstacle[0]:.1f}, 'east': {obstacle[1]:.1f}, 'radius': {obstacle[2]:.1f}}}", flush=True)
-        known = len(sensor.known)
-        if known and (known != self._obstacles_published_count or wall_now - self._obstacles_published_at >= 2.0):
-            self.peers.publish_obstacles(self.discovery_ids, wall_now, sensor.shareable())
-            self._obstacles_published_count, self._obstacles_published_at = known, wall_now
-
-    def _avoid_obstacles(self, target_ne: np.ndarray) -> np.ndarray:
-        """Apply a bounded local repulsion from configured circular keep-out zones."""
-        target = np.asarray(target_ne, dtype=float).copy()
-        if self.position is None:
-            return target
-        position = np.asarray(self.position[:2], dtype=float)
-        correction = np.zeros(2, dtype=float)
-        for north, east, radius in self._all_obstacles():
-            delta = position - np.array([north, east], dtype=float)
-            distance = float(np.linalg.norm(delta))
-            influence = radius + 3.0
-            if distance >= influence:
-                continue
-            direction = delta / max(distance, 0.10)
-            correction += direction * min(2.0, influence - distance)
-        return target + correction
-
-    def _update_adaptive_membership(self, now: float, fresh_ids) -> None:
-        if self.membership is None:
-            return
-        if self.membership.update(now, fresh_ids):
-            self.membership_revision += 1
-        slot_map = self.membership.slot_map()
-        self.peer_ids = self.membership.neighbors_for()
-        membership_slots = np.asarray([
-            slot_map.get(agent_id, self.all_slots[agent_id])
-            for agent_id in range(self.count)
-        ], dtype=float)
-        self.all_slots = (self.operator_formation_slots.copy()
-                          if self.operator_formation_slots is not None else membership_slots)
-        self.slot = self.all_slots[self.drone_id].copy()
-        self.elected_leader_id = self.membership.leader_id
-        if len(self.membership.active_ids) == 1 and self.airborne and not self.landing:
-            self.safety_state = "peer_isolation_failsafe"
-            self.safety_reason = "adaptive_membership_isolated"
-            self._command_land(self.safety_reason)
-        elif self.safety_state in {"peer_link_degraded", "peer_landing_observed"}:
-            self.safety_state = "nominal"
-            self.safety_reason = None
 
     def _send_status(self, now: float) -> None:
         if now - self.last_status_at < 1.0:
