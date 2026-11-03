@@ -19,6 +19,7 @@ from typing import Iterable, Optional, Sequence, Tuple
 import numpy as np
 
 AVOID_ZONE_M = 3.0          # agents push away from an obstacle within radius + 3 m
+STAGGER_TOLERANCE_M = 2.0   # obstacles further apart than this along the path are not one gate
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,10 @@ def find_gap(obstacles: Iterable[Sequence[float]], origin_ne: Sequence[float], h
             side_a, side_b = float((a - origin) @ across), float((b - origin) @ across)
             if side_a * side_b >= 0:                       # both on the same side: not a gap the path goes through
                 continue
+            along_a, along_b = float((a - origin) @ forward), float((b - origin) @ forward)
+            # Staggered obstacles are not a side-by-side gate (Codex review #6); local avoidance handles them.
+            if abs(along_a - along_b) > max(items[i][2], items[j][2]) + STAGGER_TOLERANCE_M:
+                continue
             centre = (a + b) / 2
             along = float((centre - origin) @ forward)
             if not 0.0 < along <= lookahead_m:
@@ -72,6 +77,14 @@ def find_gap(obstacles: Iterable[Sequence[float]], origin_ne: Sequence[float], h
             if best is None or gap.along_m < best.along_m:
                 best = gap
     return best
+
+
+def through_route(origin_ne: Sequence[float], gap: Gap, target_ne: Sequence[float]) -> list:
+    """Waypoints that take the swarm through the gate's midpoint (the corridor the clearance check assumes), then on
+    to the target. Codex review #6: flying the original straight line could pass close to one tower even when the
+    centre-to-centre width looked passable."""
+    return [tuple(float(v) for v in np.asarray(origin_ne, float)[:2]), tuple(float(v) for v in gap.centre),
+            tuple(float(v) for v in np.asarray(target_ne, float)[:2])]
 
 
 def needs_squeeze(slots_ne: np.ndarray, heading_rad: float, gap: Gap, sigma_m: float = 0.0) -> bool:

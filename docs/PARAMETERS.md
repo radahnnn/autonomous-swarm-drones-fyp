@@ -49,10 +49,10 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 458 |  |
-| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 461 |  |
-| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 463 |  |
-| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 465 |  |
+| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 459 |  |
+| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 462 |  |
+| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 464 |  |
+| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 466 |  |
 
 ## `sitl/coordinator_election.py`
 
@@ -122,6 +122,7 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | Name | Value | Where | Note |
 |---|---|---|---|
 | `AVOID_ZONE_M` | `3.0` | (module), line 21 | agents push away from an obstacle within radius + 3 m |
+| `STAGGER_TOLERANCE_M` | `2.0` | (module), line 22 | obstacles further apart than this along the path are not one gate |
 
 ## `sitl/generate_gazebo_world.py`
 

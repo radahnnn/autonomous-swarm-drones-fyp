@@ -131,3 +131,27 @@ def test_a_refused_formation_ends_the_manoeuvre_instead_of_waiting_forever(monke
     c._set_formation = refuse
     c._gap_formation("column", 0.0, 8.0)
     assert c._gap["state"] == "done" and "gap_manoeuvre_abandoned" in c.events
+
+
+def test_codex_case_route_clipping_a_tower_is_steered_through_the_midpoint():
+    """Codex review #6: towers (20,-0.2) and (20,10): the straight path at E=0 hits the first tower; the column must fly
+    through the midpoint, which has (9 m free)/2 clearance on each side."""
+    gap = g.find_gap([(20.0, -0.2, 0.6), (20.0, 10.0, 0.6)], (0.0, 0.0), NORTH)
+    assert gap is not None and gap.centre == pytest.approx((20.0, 4.9))
+    route = g.through_route((0.0, 0.0), gap, (60.0, 0.0))
+    assert route[1] == pytest.approx((20.0, 4.9))                                  # via the gate's midpoint
+
+
+def test_staggered_towers_are_not_a_gate():
+    assert g.find_gap([(20.0, -4.0, 0.6), (30.0, 4.0, 0.6)], (0.0, 0.0), NORTH) is None
+
+
+def test_squeeze_then_through_uses_the_midpoint_route(monkeypatch):
+    c = _console(monkeypatch, slots_for("v", 6)[:, :2] + [8.0, 0.0])
+    c.transit("40", "0", "0.3")
+    c.route = type("R", (), {"position": lambda self, t: np.array([9.0, 0.0]), "finished": lambda self, t: False})()
+    c._tick_gap()
+    c.formation = "column"
+    c._tick_gap()
+    assert c._gap["state"] == "through" and len(c.route.waypoints) == 3
+    assert c.route.waypoints[1] == pytest.approx((20.0, 0.0))

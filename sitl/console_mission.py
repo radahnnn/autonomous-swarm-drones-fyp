@@ -156,12 +156,13 @@ class MissionMixin:
 
     GAP_PASS_SPEED_FACTOR = 0.6
 
-    def _resume_transit(self, speed_factor: float = 1.0) -> None:
+    def _resume_transit(self, speed_factor: float = 1.0, via_gap=None) -> None:
         g = self._gap
+        points = (gap_manoeuvre.through_route(self.goal_ne, via_gap, g["target"]) if via_gap is not None else
+                  [(float(self.goal_ne[0]), float(self.goal_ne[1])), (float(g["target"][0]), float(g["target"][1]))])
         try:
-            self.route = Route(((float(self.goal_ne[0]), float(self.goal_ne[1])),
-                                (float(g["target"][0]), float(g["target"][1]))),
-                               time.time() + 2.0, max(0.1, g["speed"] * speed_factor) * self.time_scale)
+            self.route = Route(tuple(points), time.time() + 2.0,
+                               max(0.1, g["speed"] * speed_factor) * self.time_scale)
         except ValueError:                                    # already at the target
             self.route, g["state"] = None, "done"
             return
@@ -254,7 +255,7 @@ class MissionMixin:
             if self.formation == "column":
                 g["state"] = "through"
                 print(">> Column formed: passing through the gap.", flush=True)
-                self._resume_transit(self.GAP_PASS_SPEED_FACTOR)
+                self._resume_transit(self.GAP_PASS_SPEED_FACTOR, via_gap=g["gap"])
             elif self.transition_pending is None and not getattr(self, "_transition_retries", {}).get("column"):
                 pass                                          # still planning / settling inside _set_formation
         elif g["state"] == "through":

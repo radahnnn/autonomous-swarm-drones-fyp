@@ -343,7 +343,8 @@ class ProtocolMixin:
         if self.transition_protocol and self.transition.busy:
             return result(False, "A formation transition is already active; wait for it to finish.",
                           code="transition_active", transition_id=self.transition.plan.transition_id)
-        if style == self.formation and not self.formation_hold:
+        # Same shape with a pinned heading or spacing is a different layout (Codex review #6): plan it anyway.
+        if style == self.formation and not self.formation_hold and heading_rad is None and min_spacing_m is None:
             return result(True, f"Formation {style.upper()} is already active; no transition needed.",
                           formation=style, unchanged=True)
         if getattr(self, "formation_transition_deadline", None) is not None:
