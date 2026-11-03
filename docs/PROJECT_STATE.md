@@ -143,7 +143,33 @@ assumed disturbance values, and has never flown.
 10. **When inputs arrive** - campus world (user's photos), measured realism values (hardware), optional ROS 2 bridge.
 Code freeze 17 Dec, deliverables 31 Dec.
 
+### Not done yet (open backlog, 2026-11-03) — everything requested or found that is not finished
+
+Software / evidence:
+- Ground-truth separation logging (true simulator positions, higher rate) — plan step 1.
+- Statistical report generator; repeat campaign (5-10 runs per key scenario); baselines/ablations; fault-injection campaign — plan steps 2-5.
+- Realistic 10-drone 2D mission not re-run since the retry + guard fixes (last: FAIL by 2 cm, min 2.48 m).
+- Leader-decided gap/formation manoeuvres (today the console decides) and real consensus with a partition test.
+- Protocol verification (bounded exhaustive state-space tests); code refactor of the two 2,000-line files; one config file; lint/type checks in CI; docs/architecture/reproduction guide.
+- Demo mode (one command, narrated) and a recorded Gazebo video.
+- Gazebo: trees are scenery only (user wants them as real obstacles); wind not modelled in Gazebo (only in 2D SITL); 10 drones never run in Gazebo; Gazebo runs ~0.2x real time.
+- Battery endurance cannot be simulated with SITL's generic quad (drain disabled) — must be measured on hardware.
+- Campus world (Military College of Signals, Rawalpindi; EE and SE departments) — waiting for the user's photos.
+- Optional: thin ROS 2 bridge; task allocation / coverage-path planning / image mosaic; benchmark vs a published method.
+
+Hardware (on hold by user decision; supervisor still expects physical flight):
+- Propellers-off bench test of the PC/ESP32 -> Matek command path (UART MAVLink first; CAN later).
+- RC receivers bound, accelerometer calibration, failsafes (RC loss, battery, ArduPilot fence), a pilot with RC override.
+- First hover with logged GPS error and Wi-Fi latency, fed back into `--realistic` (replacing the assumed values); then two drones at wide spacing; then the 5 new drones one at a time. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
+
+Waiting on the user:
+- Real drone details: battery (cells, mAh), GPS module, who flies RC, RC receivers per drone, drone-to-PC link (ESP32 Wi-Fi vs telemetry radios).
+- Campus photos; the demo date; the "idea" the user mentioned early on and has not shared yet.
+- GitHub connector in claude.ai is not authorized (pushing works via the `gh` CLI login on this PC).
+
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-03 — Claude — Added the open backlog ("Not done yet") under section 8.
 
 - 2026-11-03 — Claude — Tower-gap manoeuvre PASS in 2D (10) and Gazebo (6, real towers) under --realistic after widening the gap column (8 m), slower pass, 180 s cap, refusal handling.
 
