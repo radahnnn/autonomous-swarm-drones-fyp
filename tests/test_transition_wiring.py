@@ -545,3 +545,25 @@ def test_mode_switch_is_allowed_while_holding_after_an_abort(monkeypatch):
     swarm.console.formation_hold = True                    # stationary HOLD after an aborted transition
     assert not swarm.console.transition.busy
     assert swarm.console.set_control_mode("decentralized")["accepted"]
+
+
+def test_transient_pre_start_cancellation_is_retried_but_not_forever(monkeypatch, capsys):
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    started = []
+
+    class FakeTimer:
+        def __init__(self, delay, fn, args=()):
+            self.args, self.daemon = args, False
+        def start(self):
+            started.append(self.args)
+
+    monkeypatch.setattr("sitl.independent_swarm_console.threading.Timer", FakeTimer)
+    abort = ("event", "transition_aborted", {"reason": "agent_abort:1:peer_off_plan:7", "moved": False})
+    for _ in range(3):
+        console.transition_pending = ("line", None, None)
+        console._dispatch_transition([abort])
+    assert started == [("line",), ("line",)]                     # two retries, then it gives up
+    console.transition_pending = ("column", None, None)
+    console._dispatch_transition([("event", "transition_aborted", {"reason": "separation:1,2", "moved": False})])
+    assert started == [("line",), ("line",)]                     # a safety reason is never retried automatically

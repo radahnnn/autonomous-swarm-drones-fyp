@@ -922,6 +922,7 @@ class IndependentSwarmConsole:
             self.transition_pending = None
             self.formation_hold = False
             self.event("formation_transition_complete", formation=style)
+            getattr(self, "_transition_retries", {}).pop(style, None)
             print(f">> Formation transition to {style.upper()} complete.", flush=True)
         elif name == "transition_aborted" and pending is not None:
             if data.get("moved"):
@@ -931,8 +932,24 @@ class IndependentSwarmConsole:
                       "position. Re-issue a formation command to re-plan, or LAND.", flush=True)
             else:
                 self.transition_pending = None
-                print(f">> Formation transition cancelled before start ({data.get('reason')}); "
-                      "no drone moved.", flush=True)
+                style = pending[0]
+                reason = str(data.get("reason", ""))
+                retries = getattr(self, "_transition_retries", {})
+                used = retries.get(style, 0)
+                if any(word in reason for word in self.TRANSIENT_ABORTS) and used < self.TRANSITION_RETRIES:
+                    retries[style] = used + 1
+                    self._transition_retries = retries
+                    delay = 3.0 / self.time_scale
+                    print(f">> Formation transition cancelled before start ({reason}); no drone moved. "
+                          f"Transient on a lossy link: retrying in {delay:.0f} s "
+                          f"({used + 1}/{self.TRANSITION_RETRIES}).", flush=True)
+                    self.event("formation_transition_retry", formation=style, reason=reason, attempt=used + 1)
+                    timer = threading.Timer(delay, self._set_formation, args=(style,))
+                    timer.daemon = True
+                    timer.start()
+                else:
+                    print(f">> Formation transition cancelled before start ({reason}); "
+                          "no drone moved.", flush=True)
         elif name == "needs_operator":
             print("!! Formation HOLD has lasted too long; command a new formation or LAND.", flush=True)
 
@@ -1727,6 +1744,9 @@ class IndependentSwarmConsole:
                       side_m=side, speed_m_s=speed)
 
     SETTLE_TIMEOUT_S = 30.0
+    # Pre-start cancellations that a lossy radio or a still-settling drone cause; retried automatically (nothing moved).
+    TRANSIENT_ABORTS = ("peer_off_plan", "stale_peer_links", "ack_timeout", "late_acks", "start_off_plan")
+    TRANSITION_RETRIES = 2
 
     def _settle_errors(self):
         """Distance of every drone from its current position target (missing data counts as settled)."""
