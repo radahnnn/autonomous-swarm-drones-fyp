@@ -311,3 +311,21 @@ def test_a_long_gap_between_ticks_is_treated_as_a_local_pause(monkeypatch):
         clock["t"] += 0.5
         node._tick_election(clock["t"])
     assert node.election.state == "ACTING"
+
+
+def test_acting_period_is_a_hard_limit_until_the_operator_returns_codex_10():
+    """Codex review #10: takeover at 4, expiry at 15, and (before the fix) takeover again at 19."""
+    from sitl.coordinator_election import ElectionParams
+    e = CoordinatorElection(0, ElectionParams(election_timeout_s=3.0, acting_max_s=10.0))
+    e.note_operator(0.0)
+    assert any(a[0] == "event" and a[1] == "acting_coordinator_started" for a in e.tick(4.0, 0, 3))
+    expired = []
+    for t in range(5, 16):
+        expired += e.tick(float(t), 0, 3)
+    assert any(a[1] == "acting_coordinator_expired" for a in expired if a[0] == "event")
+    later = []
+    for t in range(16, 40):
+        later += e.tick(float(t), 0, 3)
+    assert not any(a[0] == "event" and a[1] == "acting_coordinator_started" for a in later)   # no renewal
+    e.note_operator(40.0)                                           # the operator really comes back
+    assert any(a[0] == "event" and a[1] == "acting_coordinator_started" for a in e.tick(44.0, 0, 3))

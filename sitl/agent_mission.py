@@ -80,17 +80,19 @@ class AgentMissionMixin:
         self._refresh_mission(intent, wall_now, mono, from_coordinator=True)
 
     def _handle_acting_intent(self, message: dict, wall_now: float, mono: float) -> None:
-        accept, actions = self.election.on_acting_message(message["sender"], message["term"], mono)
-        self._election_events(actions)
-        if not accept:
-            return
+        # Validate the carried mission and its order BEFORE it can refresh the election's view of the leader
+        # (Codex review #10: an invalid or replayed mission used to keep an acting coordinator looking alive).
         operator_now = wall_now - self.operator_clock_offset_s
         try:
             intent = MissionIntent.from_dict(message["intent"], operator_now)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, KeyError):
             return
         key = (message["sender"], message["term"])
         if intent.sequence <= self.last_acting_sequence.get(key, 0):
+            return
+        accept, actions = self.election.on_acting_message(message["sender"], message["term"], mono)
+        self._election_events(actions)
+        if not accept:
             return
         self.last_acting_sequence[key] = intent.sequence
         self._refresh_mission(message["intent"], wall_now, mono, from_coordinator=True)

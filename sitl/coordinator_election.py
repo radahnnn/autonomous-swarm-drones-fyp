@@ -45,11 +45,15 @@ class CoordinatorElection:
         self.acting_started_at: Optional[float] = None
         self._last_publish = float("-inf")
         self.takeovers = 0
+        # The acting period is a hard limit per operator-loss episode (Codex review #10): once used up, no new takeover
+        # until a real operator message arrives.
+        self.exhausted = False
 
     # ------------------------------------------------------------------ inputs
     def note_operator(self, now: float) -> List[Action]:
         """An operator mission message arrived: the operator is back (or never left)."""
         self.last_operator_at = now
+        self.exhausted = False
         actions: List[Action] = []
         if self.state == self.ACTING:
             actions.append(("event", "acting_coordinator_stepped_down",
@@ -101,7 +105,7 @@ class CoordinatorElection:
         p = self.params
         if self.state == self.FOLLOWER:
             if (self.operator_silent(now) and elected_leader_id == self.own_id and live_peer_count >= 1
-                    and not self.acting_present(now)):
+                    and not self.acting_present(now) and not self.exhausted):
                 self.term += 1
                 self.state, self.acting_started_at, self._last_publish = self.ACTING, now, float("-inf")
                 self.takeovers += 1
@@ -113,7 +117,7 @@ class CoordinatorElection:
             if now - (self.acting_started_at or now) > p.acting_max_s:
                 actions.append(("event", "acting_coordinator_expired", {"term": self.term}))
                 self.state, self.acting_started_at = self.FOLLOWER, None
-                self.last_operator_at = now           # do not re-elect immediately; let policies act
+                self.exhausted = True                 # no renewal until the operator really returns
                 return actions
             if now - self._last_publish >= p.publish_period_s:
                 self._last_publish = now
