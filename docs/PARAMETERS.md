@@ -154,7 +154,7 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `MIN_FLIGHT_ALT_M` | `2.0` | IndependentSwarmConsole, line 103 |  |
+| `MIN_FLIGHT_ALT_M` | `2.0` | IndependentSwarmConsole, line 108 |  |
 
 ## `sitl/mission_intent.py`
 
@@ -234,8 +234,8 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | Name | Value | Where | Note |
 |---|---|---|---|
 | `GATE_M` | `2.5` | (module), line 20 |  |
-| `MAX_POSITION_AGE_S` | `1.0` | RunMetrics, line 172 |  |
-| `LAND_MODE` | `9` | RunMetrics, line 173 |  |
+| `MAX_POSITION_AGE_S` | `1.0` | RunMetrics, line 173 |  |
+| `LAND_MODE` | `9` | RunMetrics, line 174 |  |
 | `warn_margin_m` | `0.25` | RunMetrics.__init__, line 24 | constructor default |
 | `history_s` | `300.0` | RunMetrics.__init__, line 24 | constructor default |
 | `sample_period_s` | `0.5` | RunMetrics.__init__, line 24 | constructor default |
