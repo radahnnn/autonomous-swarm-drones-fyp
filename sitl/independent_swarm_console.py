@@ -1890,6 +1890,25 @@ class IndependentSwarmConsole:
             self.route = None
             self._publish_intent()
 
+    def _gap_formation(self, style: str, heading: float, spacing) -> None:
+        """Request a gap-manoeuvre formation; if it is refused outright (not merely cancelled and retried), retry once,
+        then give up the manoeuvre and hold, so the swarm never waits forever (live finding: a refused column left the
+        state machine stuck)."""
+        for attempt in range(2):
+            self.last_formation_result = None
+            self._set_formation(style, heading, spacing)
+            result = getattr(self, "last_formation_result", None) or {}
+            if result.get("accepted", True):
+                return
+            if attempt == 0:
+                time.sleep(3.0 / self.time_scale)
+        g = self._gap
+        if g is not None:
+            g["state"] = "done"
+        self.event("gap_manoeuvre_abandoned", formation=style, reason=str(result.get("message")))
+        print(f"!! Gap manoeuvre stopped: {style.upper()} could not be planned ({result.get('message')}); holding.",
+              flush=True)
+
     def _known_obstacles(self) -> list:
         from sitl.operator_dashboard import _sensed_obstacles
         with self.lock:
@@ -1946,7 +1965,7 @@ class IndependentSwarmConsole:
             self._note_metric("gap_squeeze", free_width_m=round(gap.free_width_m, 2))
             print(f">> Gap of {gap.free_width_m:.1f} m ahead (formation needs more): changing to a COLUMN.", flush=True)
             # A moving single file under GPS error "breathes" along the track (live: 0.85 m at ~5.5 m spacing).
-            threading.Thread(target=self._set_formation, args=("column", heading, self.GAP_COLUMN_SPACING_M),
+            threading.Thread(target=self._gap_formation, args=("column", heading, self.GAP_COLUMN_SPACING_M),
                              daemon=True).start()
         elif g["state"] == "squeeze" and not busy:
             if self.formation == "column":
@@ -1962,7 +1981,7 @@ class IndependentSwarmConsole:
                 g["passed"].append(g["gap"].centre)
                 g["state"] = "reform"
                 print(">> Every drone is past the gap: back to the V.", flush=True)
-                threading.Thread(target=self._set_formation, args=("v", heading), daemon=True).start()
+                threading.Thread(target=self._gap_formation, args=("v", heading, None), daemon=True).start()
         elif g["state"] == "reform" and not busy and self.formation == "v":
             g["state"] = "cruise"
             self.event("gap_passed", centre=list(g["gap"].centre))

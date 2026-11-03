@@ -119,3 +119,16 @@ def test_min_spacing_spreads_the_column():
     pts = plan.slots_by_drone[:, :2]
     gaps = min(np.linalg.norm(pts[i] - pts[j]) for i in range(6) for j in range(i + 1, 6))
     assert gaps >= 8.0 - 1e-6 and g.formation_width(pts, 0.0) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_a_refused_formation_ends_the_manoeuvre_instead_of_waiting_forever(monkeypatch):
+    from sitl.independent_swarm_console import IndependentSwarmConsole
+    c = _console(monkeypatch, slots_for("v", 6)[:, :2] + [8.0, 0.0])
+    c.transit("40", "0", "0.3")
+    c._gap["state"] = "squeeze"
+    monkeypatch.setattr("sitl.independent_swarm_console.time.sleep", lambda s: None)
+    def refuse(style, heading=None, spacing=None):
+        c.last_formation_result = {"accepted": False, "message": "transition needs 200 s"}
+    c._set_formation = refuse
+    c._gap_formation("column", 0.0, 8.0)
+    assert c._gap["state"] == "done" and "gap_manoeuvre_abandoned" in c.events

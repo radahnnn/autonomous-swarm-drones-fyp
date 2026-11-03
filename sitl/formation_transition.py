@@ -41,7 +41,7 @@ def _minimum_pair_path_distance(start_a, end_a, start_b, end_b) -> float:
 
 def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=None,
                               minimum_separation_m: float = TRACKING_CLEARANCE_M,
-                              obstacles=(), max_transition_s: float = 90.0,
+                              obstacles=(), max_transition_s: float = 180.0,
                               peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S,
                               time_scale: float = 1.0,
                               position_sigma_m: float = 0.0,
