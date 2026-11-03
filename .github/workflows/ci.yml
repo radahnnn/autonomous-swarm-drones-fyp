@@ -30,6 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[all]"   # dev + sitl (pymavlink): the tests import sitl.*
 
+      - name: Lint (pyflakes: unused imports/variables, undefined names)
+        run: |
+          python -m pyflakes sitl swarm_core simulator experiments tests
+
       - name: Run Pytest Suite
         run: |
           python -m pytest -v

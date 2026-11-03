@@ -18,14 +18,7 @@ from sitl.mavlink_swarm_adapter import (
     MAVLinkDroneInterface,
     IntegratedPlant,
 )
-from sitl.scenarios import (
-    SITL_SCENARIOS,
-    get_available_scenarios,
-    get_scenario_parameters,
-    verify_and_set_param,
-    apply_scenario_via_mavlink,
-    dump_vehicle_parameters,
-)
+from sitl.scenarios import get_available_scenarios, get_scenario_parameters, verify_and_set_param, dump_vehicle_parameters
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationType
 

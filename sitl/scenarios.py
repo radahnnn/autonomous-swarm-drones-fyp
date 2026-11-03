@@ -5,8 +5,6 @@ SITL Environmental Scenarios, Parameter Verification & Configuration Dumper (Ite
 - Dumps the full active vehicle parameter set into experiments/results/ at the start of every run.
 """
 
-import os
-import sys
 import time
 import logging
 from pathlib import Path

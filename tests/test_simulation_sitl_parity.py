@@ -18,15 +18,9 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from swarm_core.config import get_profile, build_controllers_from_profile
+from swarm_core.config import get_profile
 from swarm_core.drone import Drone
-from swarm_core.formations import (
-    FormationGenerator,
-    FormationType,
-    assign_optimal_slots,
-    compute_formation_slots,
-    compute_desired_neighbor_offsets,
-)
+from swarm_core.formations import FormationGenerator, FormationType, compute_formation_slots, compute_desired_neighbor_offsets
 from simulator.engine import SwarmSimulation
 from sitl.common_frame import CommonCoordinateFrame
 from sitl.mavlink_swarm_adapter import (

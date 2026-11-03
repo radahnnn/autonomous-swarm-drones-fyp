@@ -1,5 +1,4 @@
 """Formation templates and live transition planning must work up to the 10-drone target (UNIT)."""
-import itertools
 import random
 
 import numpy as np

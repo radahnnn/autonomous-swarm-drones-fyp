@@ -1,5 +1,4 @@
 """Stale or replayed MissionIntent messages must not alter agent state (UNIT evidence)."""
-import time
 
 import numpy as np
 import pytest

@@ -13,16 +13,7 @@ Tests:
 import pytest
 import numpy as np
 
-import swarm_core
-import simulator
-from swarm_core.config import (
-    PROFILES,
-    ParameterProvenance,
-    SwarmConfigProfile,
-    get_profile,
-    get_active_profile,
-    set_active_profile,
-)
+from swarm_core.config import PROFILES, ParameterProvenance, SwarmConfigProfile, get_profile
 from swarm_core.drone import Drone
 from swarm_core.controllers.hybrid import HybridController, HybridMode
 from swarm_core.formations import FormationType

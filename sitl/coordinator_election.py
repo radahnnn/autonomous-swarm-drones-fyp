@@ -19,7 +19,7 @@ Times are monotonic seconds supplied by the caller.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 Action = Tuple[Any, ...]
 

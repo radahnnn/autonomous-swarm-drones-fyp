@@ -105,3 +105,11 @@ def test_wait_settled_waits_for_drifting_drones_and_reports_the_worst(tmp_path):
     c.position_sigma_m = 3.5                                    # noise widens the tolerance
     c.latest[1]["position_target_ne"] = [4.0, 0.0]
     assert c._wait_settled(timeout_s=0.1, poll_s=0.05)[0]
+
+
+def test_stale_link_drone_finds_the_first_broken_link():
+    from sitl.console_protocols import ProtocolMixin
+    ok = {"peer_ids": [1, 2], "peer_live_ids": [1, 2]}
+    bad = {"peer_ids": [0, 2], "peer_live_ids": [0]}
+    assert ProtocolMixin._stale_link_drone([ok, ok]) is None
+    assert ProtocolMixin._stale_link_drone([ok, bad, bad]) == 1

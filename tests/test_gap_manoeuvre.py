@@ -122,7 +122,6 @@ def test_min_spacing_spreads_the_column():
 
 
 def test_a_refused_formation_ends_the_manoeuvre_instead_of_waiting_forever(monkeypatch):
-    from sitl.independent_swarm_console import IndependentSwarmConsole
     c = _console(monkeypatch, slots_for("v", 6)[:, :2] + [8.0, 0.0])
     c.transit("40", "0", "0.3")
     c._gap["state"] = "squeeze"

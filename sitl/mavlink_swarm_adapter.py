@@ -23,12 +23,11 @@ Key Features & Parity Realism:
 """
 
 import sys
-import os
 import time
 import math
 import logging
 import threading
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 import numpy as np
 
 try:
@@ -38,24 +37,10 @@ except ImportError:
 
 from swarm_core.config import get_profile, build_controllers_from_profile
 from swarm_core.drone import Drone
-from swarm_core.formations import (
-    FormationGenerator,
-    FormationType,
-    compute_formation_slots,
-    compute_desired_neighbor_offsets,
-)
-from swarm_core.controllers.centralized import CentralizedController
-from swarm_core.controllers.decentralized import DecentralizedController
-from swarm_core.controllers.hybrid import HybridController, HybridMode
+from swarm_core.formations import FormationType, compute_formation_slots, compute_desired_neighbor_offsets
 from swarm_core.network import WirelessChannel
 from sitl.common_frame import CommonCoordinateFrame
-from sitl.scenarios import (
-    dump_vehicle_parameters,
-    apply_scenario_via_mavlink,
-    get_available_scenarios,
-    get_scenario_parameters,
-    verify_and_set_param,
-)
+from sitl.scenarios import dump_vehicle_parameters, apply_scenario_via_mavlink
 
 logger = logging.getLogger("MAVLinkSwarmAdapter")
 

@@ -408,11 +408,17 @@ class ProtocolMixin:
         positions = np.asarray([state["position"][:2] for state in states], dtype=float)
         if positions.shape != (self.count, 2) or not np.isfinite(positions).all():
             return result(False, "Position reports are incomplete or invalid.")
-        for index, state in enumerate(states):
-            expected = {int(peer) for peer in state.get("peer_ids", [])}
-            live = {int(peer) for peer in state.get("peer_live_ids", [])}
-            if expected - live:
-                return result(False, f"D{index + 1} has stale peer links.")
+        stale = self._stale_link_drone(states)
+        # A lossy radio drops links for a moment (live: one stale link refused a whole V re-form); wait a few seconds.
+        for _ in range(int(self.LINK_RECOVERY_WAIT_S / 0.5)):
+            if stale is None:
+                break
+            time.sleep(0.5)
+            with self.lock:
+                states = [self.latest.get(index, {}).copy() for index in range(self.count)]
+            stale = self._stale_link_drone(states)
+        if stale is not None:
+            return result(False, f"D{stale + 1} has stale peer links.")
         obstacles = [tuple(float(value) for value in str(item).split(","))
                      for item in getattr(self.args, "obstacle", ())]
         centroid = positions.mean(axis=0)
@@ -455,6 +461,18 @@ class ProtocolMixin:
     TRANSIENT_ABORTS = ("peer_off_plan", "stale_peer_links", "ack_timeout", "late_acks", "start_off_plan")
 
     TRANSITION_RETRIES = 2
+
+    LINK_RECOVERY_WAIT_S = 5.0
+
+    @staticmethod
+    def _stale_link_drone(states):
+        """Index of the first drone whose expected peer links are not all live (None if every link is fine)."""
+        for index, state in enumerate(states):
+            expected = {int(peer) for peer in state.get("peer_ids", [])}
+            live = {int(peer) for peer in state.get("peer_live_ids", [])}
+            if expected - live:
+                return index
+        return None
 
     def _settle_errors(self):
         """Distance of every drone from its current position target (missing data counts as settled)."""

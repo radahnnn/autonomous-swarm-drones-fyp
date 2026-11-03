@@ -49,15 +49,18 @@ Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (pare
 
 ## 3. Code map (this checkout)
 
-- `swarm_core/` — numerical foundation: config profiles, drone model, graph/Laplacian, network emulator, formations + Hungarian assignment, centralized/decentralized/hybrid controllers, safety.
-- `simulator/` — fast numerical engine and plots.
-- `sitl/` — ArduPilot integration (`mode_switch.py` = synchronized in-flight mode switching; `transition_protocol.py` = synchronized formation transitions). Key files: `swarm_console.py` (central pilot console), `independent_swarm_console.py` + `independent_agent_node.py` (one process per drone), `mission_intent.py` (coordinator→agent mission message), `peer_udp.py` (drone↔drone UDP), `decentralized_guidance.py`, `operator_dashboard.py` (browser UI), `flight_prep.py`, `fleet.py`, `formation_library.py`.
-- `experiments/` — validation and sweep scripts (SITL, burst outage, VM split, operator loss, restart, partition).
-- `tests/` — 766 tests. Mostly UNIT/INTEGRATION; they do not prove live SITL behaviour.
-- `docs/reports/` — dated validation reports; `docs/evidence/` and `docs/reports/evidence/` — compact committed evidence. Raw runs are not committed.
-- `runs/` — compact tracked evidence + ignored raw output. Five very large raw runs were moved to the SSD and are symlinked here.
-
-Commands: see `docs/CONSOLE_GUIDE.md` (e.g. `python3 -m sitl.swarm_console --drones 5 --standalone --control-mode hybrid --agent-runtime process`). Setup: `pip install -e ".[dev]"` and `pip install -e ".[sitl]"` (pymavlink is a separate extra).
+- `swarm_core/` — numerical foundation: config profiles, drone model, graph, network emulator, formations, the shared Hungarian assignment (`assignment.py`), wind model, controllers, safety.
+- `simulator/` — fast pure-Python engine and plots.
+- `sitl/` — live system (ArduPilot SITL / Gazebo). Independent runtime (used by all current work):
+  - console: `independent_swarm_console.py` (lifecycle, status, operator REPL) + mixins `console_clock.py`, `console_protocols.py` (mode switch, formation transitions, settling), `console_mission.py` (patrol, goto, transit + tower gap, capture, geofence), `console_metrics.py`;
+  - agent: `independent_agent_node.py` (MAVLink I/O, guidance, status) + mixins `agent_safety.py` (barrier neighbours, estimate health, geofence, obstacles, peer failsafe), `agent_protocols.py`, `agent_mission.py` (leases, election, coordinator-loss policy, routes, membership);
+  - pure logic: `transition_protocol.py`, `mode_switch.py`, `coordinator_election.py`, `cbf_filter.py`, `estimate_health.py`, `obstacle_sensing.py`, `gap_manoeuvre.py`, `route.py`, `geofence.py`, `formation_library.py`, `formation_transition.py`, `adaptive_membership.py`, `run_metrics.py`, `clock_budget.py`, `separation_geometry.py`;
+  - tools: `swarm_console.py` (entry point), `fleet_ctl.py` (scripted scenarios), `operator_dashboard.py`, `replay.py`, `generate_gazebo_world.py`, `gz_camera.py`, `patrol_layout.py`, launch scripts.
+  - Older runtimes still present (`--agent-runtime local|process`: `decentralized_guidance.DecentralizedGuidance`, `agent_process.py`, `peer_state_bus.py`, `mode_supervisor.py`, `mavlink_swarm_adapter.py`); retiring them is pending the user's decision.
+- `experiments/` — sweeps and validation scripts. `scenarios/` — scripted live missions for `sitl.fleet_ctl`.
+- `tools/parameter_table.py` → `docs/PARAMETERS.md` (every tunable constant; a test keeps it current).
+- `docs/history/legacy-scripts/` — 13 archived early scripts (not maintained).
+- `tests/` — about 820 tests, UNIT/INTEGRATION; CI also runs `pyflakes` (0 warnings).
 
 ## 4. Progress against the proposal (evidence-labelled)
 
@@ -142,6 +145,8 @@ Waiting on the user:
 - Campus photos; the demo date; the idea the user mentioned and has not shared yet.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-03 — Claude — Code efficiency (no behaviour change): 13 unused scripts archived; console and agent split into mixin modules; repo lint-clean (pyflakes in CI); generated parameter table.
 
 - 2026-11-03 — Claude — Removed the agent's 10-step recommendation plan at the user's request; section 8 now holds only user-requested or test-found items; new items only after consulting the user.
 

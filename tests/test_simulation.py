@@ -112,8 +112,7 @@ def test_outage_and_feedforward_simulation():
     # Schedule a full outage from t = 2.0s to 4.0s (longer than the 1.2s degrade timeout)
     sim.channel.add_outage(start_time=2.0, duration=2.0)
 
-    for step_i in range(160):  # 8.0 seconds
-        t = step_i * sim.dt
+    for _ in range(160):  # 8.0 seconds
         sim.centroid_target += sim.centroid_velocity * sim.dt
         sim.step()
 
@@ -463,7 +462,6 @@ def test_per_drone_velocity_in_control_loop():
     Item 26: Verifies that goal_v and target_v are evaluated per-drone inside
     the drone loop, ensuring each drone uses its own last received velocity.
     """
-    from unittest.mock import MagicMock
     drones = [Drone(0, [0.0, 0.0]), Drone(1, [2.0, 0.0]), Drone(2, [4.0, 0.0])]
     sim = SwarmSimulation(drones, control_mode="decentralized", latency_mean=0.0, gps_noise_std=0.0)
 

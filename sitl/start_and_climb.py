@@ -7,14 +7,12 @@ Usage:
 """
 
 import atexit
-import math
 import os
 from pathlib import Path
 import subprocess
 import sys
 import threading
 import time
-from typing import List, Optional
 import numpy as np
 
 # Use venv-ardupilot if available

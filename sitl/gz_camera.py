@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Dict, Optional
 
 _FORMATS = {"R8G8B8": ("RGB", 3), "RGB_INT8": ("RGB", 3), "B8G8R8": ("BGR", 3), "L8": ("L", 1), "L_INT8": ("L", 1)}
 
