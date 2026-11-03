@@ -55,7 +55,11 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
     "realistic": {
         "COMPASS_USE2": "0",
         "COMPASS_USE3": "0",
-        "SIM_GPS1_HNSE": "1.0",        # horizontal GPS wander, metres (plain GNSS with a good sky view)
+        # Horizontal GPS wander 0.5 m (was 1.0). SITL moves the GPS *position* in a circle while the GPS *velocity* stays
+        # exact; real receivers' errors are consistent. Live 2026-11-04: at 1.0 m plus wind, ArduPilot's EKF3 made 17-24
+        # emergency yaw resets / lane switches per 10-drone run and drones flew 7-18 m off steady targets (true-position
+        # near-misses down to 0.2 m); at 0.5 m: 0 resets, PASS, true min gap 5.07 m. Measure real GPS error on hardware.
+        "SIM_GPS1_HNSE": "0.5",
         "SIM_GPS1_NOISE": "0.5",       # vertical GPS error amplitude, metres
         "SIM_GPS1_LAG_MS": "120",      # GPS latency, milliseconds
         "SIM_GPS1_ACC": "1.2",         # reported accuracy, metres
@@ -86,7 +90,8 @@ SITL_SENSOR_PROFILE_OVERRIDES = {
 _REALISTIC = SITL_SENSOR_PROFILE_OVERRIDES["realistic"]
 _COMMON = {k: v for k, v in _REALISTIC.items() if k.startswith(("COMPASS", "SIM_BATT", "BATT", "MOT_BAT"))}
 for _name, _prefixes in (("realistic-gps", ("SIM_GPS1",)), ("realistic-wind", ("SIM_WIND",)),
-                         ("realistic-vibration", ("SIM_ACC1", "SIM_GYR1", "SIM_VIB")), ("realistic-battery", ())):
+                         ("realistic-vibration", ("SIM_ACC1", "SIM_GYR1", "SIM_VIB")), ("realistic-battery", ()),
+                         ("realistic-novibration", ("SIM_GPS1", "SIM_WIND"))):
     SITL_SENSOR_PROFILE_OVERRIDES[_name] = {**_COMMON, **{k: v for k, v in _REALISTIC.items() if k.startswith(_prefixes)}} \
         if _prefixes else dict(_COMMON)
 # Radio link of --realistic: per-packet loss, delay and jitter, with bursty (Gilbert-Elliott) loss.

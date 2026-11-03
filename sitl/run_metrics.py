@@ -56,6 +56,7 @@ class RunMetrics:
         # Evidence completeness (Codex review #5) and simulator ground truth (#16).
         self.ever_airborne: set = set()
         self.complete_samples = 0
+        self.completeness_samples = 0
         self.missing_airborne_episodes = 0
         self._missing: Dict[int, bool] = {}
         self.stale_position_samples = 0
@@ -179,6 +180,7 @@ class RunMetrics:
         if not self.ever_airborne:
             return
         all_present = True
+        self.completeness_samples += 1
         for index in self.ever_airborne:
             status = statuses.get(index) or {}
             # Present = we have a fresh airborne position, or a status that says it is no longer airborne (landing or
@@ -245,7 +247,7 @@ class RunMetrics:
         duration = None if self.started_at is None or ended_at is None else round(ended_at - self.started_at, 1)
         has_data = self.samples > 0
         failed = self.violations > 0 or self.ground_contacts > 0 or self.true_violations > 0
-        coverage = (self.complete_samples / self.samples) if self.samples else 0.0
+        coverage = (self.complete_samples / self.completeness_samples) if self.completeness_samples else 0.0
         complete = has_data and coverage >= 0.95 and self.missing_airborne_episodes == 0
         passed = bool(has_data and not failed and complete)
         tracking = np.asarray(self.tracking_errors, dtype=float)

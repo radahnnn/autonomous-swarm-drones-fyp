@@ -1188,7 +1188,7 @@ def main():
     parser.add_argument("--sitl-gcs-failsafe", action="store_true",
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass", "realistic", "realistic-gps", "realistic-wind",
-                                 "realistic-vibration", "realistic-battery"), default=None,
+                                 "realistic-vibration", "realistic-battery", "realistic-novibration"), default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
     parser.add_argument("--safety-filter", choices=("on", "off"), default="on",
                         help="independent runtime: control-barrier filter on the commanded setpoint (default on)")
