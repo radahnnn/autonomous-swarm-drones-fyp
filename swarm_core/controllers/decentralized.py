@@ -62,7 +62,6 @@ class DecentralizedController:
         """
         pos = np.array(measured_position, dtype=np.float64) if measured_position is not None else drone.position
         vel = np.array(measured_velocity, dtype=np.float64) if measured_velocity is not None else drone.velocity
-        accel = np.zeros(drone.dim, dtype=np.float64)
 
         if not neighbor_states and stop_without_neighbors:
             # A waypoint alone cannot establish safe motion when all peer state is

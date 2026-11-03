@@ -3,7 +3,7 @@ Swarm 2D Visualization and Animation Tool.
 Renders real-time drone states, communication topologies, trajectory trails, and telemetry.
 """
 
-from typing import List, Optional
+from typing import List
 import matplotlib
 # Use Agg backend for reliable rendering in all environments
 matplotlib.use("Agg")
@@ -182,7 +182,6 @@ class SwarmVisualizer:
 
             data = recorded_frames[frame_idx]
             pos = data["positions"]
-            vel = data["velocities"]
             targets = data["targets"]
             adj = data["adj"]
 

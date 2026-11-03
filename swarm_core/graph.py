@@ -3,7 +3,7 @@ Swarm Graph Theory and Network Topology.
 Models the swarm as a dynamic proximity graph G = (V, E) and computes Laplacian matrices.
 """
 
-from typing import List, Tuple
+from typing import List
 import numpy as np
 from swarm_core.drone import Drone
 

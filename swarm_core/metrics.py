@@ -3,7 +3,7 @@ Swarm Evaluation Metrics and Logging.
 Tracks formation tracking error, convergence duration, safety margins, and velocity consensus.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 import numpy as np
 from swarm_core.drone import Drone
