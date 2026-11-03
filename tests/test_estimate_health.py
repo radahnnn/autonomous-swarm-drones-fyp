@@ -128,11 +128,11 @@ def test_high_rate_jitter_is_not_a_glitch():
 
 
 def test_flyaway_from_a_steady_target_degrades_then_lands_if_extreme():
-    h = EstimateHealth(flyaway_m=4.0, flyaway_s=2.0, flyaway_land_m=10.0)
+    h = EstimateHealth(flyaway_m=4.0, flyaway_s=2.0, flyaway_land_m=10.0)   # explicit thresholds for this test
     target = (0.0, 0.0)
     assert h.check_tracking((1.0, 0.0), target, 0.0) == "ok"            # normal tracking error
     assert h.check_tracking((6.0, 0.0), target, 1.0) == "ok"            # far, but not for long yet
     assert h.check_tracking((7.0, 0.0), target, 3.1) == "degraded" and h.flyaways == 1
     assert h.check_tracking((12.0, 0.0), target, 5.2) == "land"         # still far and beyond 10 m
     calm = EstimateHealth()
-    assert all(calm.check_tracking((3.5, 0.0), target, float(t)) == "ok" for t in range(30))   # within 4 m: fine
+    assert all(calm.check_tracking((2.5, 0.0), target, float(t)) == "ok" for t in range(30))   # within 3 m: fine

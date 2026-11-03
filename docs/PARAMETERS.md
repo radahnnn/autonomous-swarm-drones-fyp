@@ -84,8 +84,8 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | `recover_s` | `5.0` | EstimateHealth.__init__, line 22 | constructor default |
 | `land_after_s` | `15.0` | EstimateHealth.__init__, line 22 | constructor default |
 | `min_dt_s` | `0.5` | EstimateHealth.__init__, line 22 | constructor default |
-| `flyaway_m` | `4.0` | EstimateHealth.__init__, line 22 | constructor default |
-| `flyaway_s` | `2.0` | EstimateHealth.__init__, line 22 | constructor default |
+| `flyaway_m` | `3.0` | EstimateHealth.__init__, line 22 | constructor default |
+| `flyaway_s` | `1.0` | EstimateHealth.__init__, line 22 | constructor default |
 | `flyaway_land_m` | `10.0` | EstimateHealth.__init__, line 22 | constructor default |
 
 ## `sitl/fleet.py`

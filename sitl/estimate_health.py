@@ -20,7 +20,7 @@ class EstimateHealth:
     OK, DEGRADED, LAND = "ok", "degraded", "land"
 
     def __init__(self, max_speed_m_s: float = 4.0, recover_s: float = 5.0, land_after_s: float = 15.0,
-                 min_dt_s: float = 0.5, flyaway_m: float = 4.0, flyaway_s: float = 2.0, flyaway_land_m: float = 10.0):
+                 min_dt_s: float = 0.5, flyaway_m: float = 3.0, flyaway_s: float = 1.0, flyaway_land_m: float = 10.0):
         if not (max_speed_m_s > 0 and recover_s > 0 and land_after_s > recover_s and min_dt_s > 0):
             raise ValueError("estimate-health thresholds must be positive and land_after_s > recover_s")
         self.max_speed_m_s, self.recover_s, self.land_after_s, self.min_dt_s = max_speed_m_s, recover_s, land_after_s, min_dt_s
@@ -29,6 +29,7 @@ class EstimateHealth:
         self._last: Optional[tuple] = None
         self._last_glitch_at: Optional[float] = None
         self._degraded_since: Optional[float] = None
+        # 3 m / 1 s (was 4 m / 2 s): a flyaway at ~4 m/s covered 8 m before the old check fired (campaign 2026-11-04).
         # Flyaway: far from the commanded target for a sustained time (live finding 2026-11-04: under combined
         # realistic disturbances two drones left steady targets by 7 m and 18 m while the swarm logic was correct).
         self.flyaway_m, self.flyaway_s, self.flyaway_land_m = flyaway_m, flyaway_s, flyaway_land_m
