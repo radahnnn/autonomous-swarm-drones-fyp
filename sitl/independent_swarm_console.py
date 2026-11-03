@@ -1407,7 +1407,8 @@ class IndependentSwarmConsole:
         print(f">> Directed peer link D{sender} -> D{recipient} "
               f"{'cut' if blocked else 'restored'}; reverse traffic is unchanged.")
 
-    def _set_formation(self, style: str, heading_rad: float | None = None) -> None:
+    def _set_formation(self, style: str, heading_rad: float | None = None,
+                       min_spacing_m: float | None = None) -> None:
         def result(accepted: bool, message: str, **details):
             self.last_formation_result = {
                 "accepted": accepted, "message": message, **details,
@@ -1462,7 +1463,8 @@ class IndependentSwarmConsole:
             try:
                 plan = plan_formation_transition(positions, style, centroid_ne=centroid,
                                                  time_scale=self.time_scale,
-                                                 position_sigma_m=self.position_sigma_m, heading_rad=heading_rad)
+                                                 position_sigma_m=self.position_sigma_m, heading_rad=heading_rad,
+                                                 min_spacing_m=min_spacing_m)
             except (TypeError, ValueError) as exc:
                 return result(False, str(exc))
             self.formation_resume_goal = self.goal_ne.copy()
@@ -1503,7 +1505,7 @@ class IndependentSwarmConsole:
         try:
             plan = plan_formation_transition(
                 positions, style, centroid_ne=centroid, obstacles=obstacles, time_scale=self.time_scale,
-                position_sigma_m=self.position_sigma_m, heading_rad=heading_rad,
+                position_sigma_m=self.position_sigma_m, heading_rad=heading_rad, min_spacing_m=min_spacing_m,
             )
         except (TypeError, ValueError) as exc:
             return result(False, str(exc))
@@ -1868,12 +1870,15 @@ class IndependentSwarmConsole:
         self._publish_intent()
         print(f">> Transit to N {target[0]:.1f} E {target[1]:.1f} at {speed_sim:g} m/s; watching for gaps.", flush=True)
 
-    def _resume_transit(self) -> None:
+    GAP_COLUMN_SPACING_M = 8.0
+    GAP_PASS_SPEED_FACTOR = 0.6
+
+    def _resume_transit(self, speed_factor: float = 1.0) -> None:
         g = self._gap
         try:
             self.route = Route(((float(self.goal_ne[0]), float(self.goal_ne[1])),
                                 (float(g["target"][0]), float(g["target"][1]))),
-                               time.time() + 2.0, g["speed"] * self.time_scale)
+                               time.time() + 2.0, max(0.1, g["speed"] * speed_factor) * self.time_scale)
         except ValueError:                                    # already at the target
             self.route, g["state"] = None, "done"
             return
@@ -1940,12 +1945,14 @@ class IndependentSwarmConsole:
             self.event("gap_squeeze", centre=list(gap.centre), free_width_m=gap.free_width_m)
             self._note_metric("gap_squeeze", free_width_m=round(gap.free_width_m, 2))
             print(f">> Gap of {gap.free_width_m:.1f} m ahead (formation needs more): changing to a COLUMN.", flush=True)
-            threading.Thread(target=self._set_formation, args=("column", heading), daemon=True).start()
+            # A moving single file under GPS error "breathes" along the track (live: 0.85 m at ~5.5 m spacing).
+            threading.Thread(target=self._set_formation, args=("column", heading, self.GAP_COLUMN_SPACING_M),
+                             daemon=True).start()
         elif g["state"] == "squeeze" and not busy:
             if self.formation == "column":
                 g["state"] = "through"
                 print(">> Column formed: passing through the gap.", flush=True)
-                self._resume_transit()
+                self._resume_transit(self.GAP_PASS_SPEED_FACTOR)
             elif self.transition_pending is None and not getattr(self, "_transition_retries", {}).get("column"):
                 pass                                          # still planning / settling inside _set_formation
         elif g["state"] == "through":

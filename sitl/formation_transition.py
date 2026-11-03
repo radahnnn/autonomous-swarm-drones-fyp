@@ -45,7 +45,8 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
                               peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S,
                               time_scale: float = 1.0,
                               position_sigma_m: float = 0.0,
-                              heading_rad: float | None = None) -> FormationTransitionPlan:
+                              heading_rad: float | None = None,
+                              min_spacing_m: float | None = None) -> FormationTransitionPlan:
     """Assign slots by shortest travel and reject paths that violate separation.
 
     Positions are current shared-frame North/East metres. The resulting offsets
@@ -79,6 +80,8 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
         minimum_separation_m = max(minimum_separation_m,
                                    min(ABORT_SEPARATION_M + position_sigma_m, closest_now - 0.05))
     spread_to = TARGET_MIN_SPACING_M + 1.5 * position_sigma_m
+    if min_spacing_m is not None:
+        spread_to = max(spread_to, float(min_spacing_m))      # e.g. a single file under GPS error
     if template_minimum < spread_to and formation not in WORLD_ANCHORED:
         slots = slots * (spread_to / template_minimum)
     relative_current = current - centroid

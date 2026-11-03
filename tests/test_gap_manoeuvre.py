@@ -86,6 +86,7 @@ def test_transit_squeezes_into_a_column_passes_and_reforms_the_v(monkeypatch):
     c.route = type("R", (), {"position": lambda self, t: np.array([9.0, 0.0]), "finished": lambda self, t: False})()
     c._tick_gap()
     assert c._gap["state"] == "squeeze" and c.calls[-1][0] == "column" and c.route is None
+    assert c.calls[-1][2] == c.GAP_COLUMN_SPACING_M                  # wide single file
     c.formation = "column"
     c._tick_gap()
     assert c._gap["state"] == "through"
@@ -108,3 +109,13 @@ def test_a_gap_too_narrow_even_for_a_column_holds_instead(monkeypatch):
     c.route = type("R", (), {"position": lambda self, t: np.array([9.0, 0.0]), "finished": lambda self, t: False})()
     c._tick_gap()
     assert c._gap["state"] == "done" and "gap_too_narrow" in c.events and c.calls == []
+
+
+def test_min_spacing_spreads_the_column():
+    from sitl.formation_transition import plan_formation_transition
+    start = slots_for("v", 6)[:, :2]
+    plan = plan_formation_transition(start, "column", centroid_ne=np.zeros(2), heading_rad=0.0, min_spacing_m=8.0,
+                                     max_transition_s=500.0)
+    pts = plan.slots_by_drone[:, :2]
+    gaps = min(np.linalg.norm(pts[i] - pts[j]) for i in range(6) for j in range(i + 1, 6))
+    assert gaps >= 8.0 - 1e-6 and g.formation_width(pts, 0.0) == pytest.approx(0.0, abs=1e-6)
