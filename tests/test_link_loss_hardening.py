@@ -59,3 +59,36 @@ def test_agent_declares_the_link_dead_only_after_the_silence_limit():
     assert node._link_dead(1000.0 + IndependentAgentNode.LINK_DEAD_EXIT_S + 1) is True
     node.command_in_progress = True                       # a long arm/takeoff helper is running
     assert node._link_dead(1000.0 + 500) is False
+
+
+def test_land_during_arming_cancels_it_and_the_land_message_is_still_processed():
+    """Codex review #9: a LAND sent while an agent is stuck arming must stop the arm/takeoff and still be handled."""
+    from sitl.independent_agent_node import IndependentAgentNode
+
+    class Feed:
+        def __init__(self):
+            self.queue = []
+        def poll(self):
+            out, self.queue = self.queue, []
+            return out
+
+    node = object.__new__(IndependentAgentNode)
+    node.operator = Feed()
+    node.operator.queue = [{"type": "status_request"}]
+    assert node._land_requested_during_blocking_step() is False
+    node.operator.queue = [{"type": "command", "action": "land", "sequence": 9}]
+    assert node._land_requested_during_blocking_step() is True
+    assert [m.get("type") for m in node._deferred_operator] == ["status_request", "command"]   # nothing dropped
+
+
+def test_takeoff_helper_stops_when_cancelled():
+    from sitl.flight_prep import takeoff_and_verify
+
+    class Conn:
+        target_system = target_component = 1
+        class mav:
+            @staticmethod
+            def command_long_send(*a):
+                raise AssertionError("must not send takeoff after cancellation")
+
+    assert takeoff_and_verify(Conn(), "D1", 5.0, timeout=5.0, cancelled=lambda: True) is False

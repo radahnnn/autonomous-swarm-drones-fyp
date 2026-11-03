@@ -82,12 +82,16 @@ def arm_with_retry(conn, label: str, timeout: float = 180.0, force_after: float 
 
 
 def takeoff_and_verify(conn, label: str, target_alt: float, timeout: float = 60.0,
-                       min_climb: float = 0.5, heartbeat_callback=None) -> bool:
-    """Command takeoff and confirm the vehicle actually leaves the ground (relative alt >= min_climb)."""
+                       min_climb: float = 0.5, heartbeat_callback=None, cancelled=None) -> bool:
+    """Command takeoff and confirm the vehicle actually leaves the ground (relative alt >= min_climb).
+    ``cancelled()`` returning True (e.g. an operator LAND arrived) stops the attempt immediately."""
     t0 = time.time()
     last_cmd = 0.0
     alt: Optional[float] = None
     while time.time() - t0 < timeout:
+        if cancelled is not None and cancelled():
+            print(f"  [{label}] Takeoff cancelled")
+            return False
         if heartbeat_callback is not None:
             heartbeat_callback()
         if time.time() - last_cmd > 5.0:

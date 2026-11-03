@@ -356,8 +356,21 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             self.safety_reason = "agent_process_restarted_while_airborne"
             self._command_land(self.safety_reason)
 
+    def _land_requested_during_blocking_step(self) -> bool:
+        """Called from inside arm/takeoff: read operator messages without dropping them, report whether one is LAND.
+
+        Codex review #9: arming and takeoff block this agent's loop for up to ~2 min; a LAND sent meanwhile used to wait
+        until they finished (and could expire). Messages read here are kept and processed by the normal loop after."""
+        pending = getattr(self, "_deferred_operator", None)
+        if pending is None:
+            pending = self._deferred_operator = []
+        fresh = list(self.operator.poll())
+        pending.extend(fresh)
+        return any(m.get("type") == "command" and m.get("action") == "land" for m in pending)
+
     def _receive_operator_messages(self) -> None:
-        for message in self.operator.poll():
+        deferred, self._deferred_operator = list(getattr(self, "_deferred_operator", None) or []), []
+        for message in deferred + list(self.operator.poll()):
             if message.get("version") != OPERATOR_VERSION:
                 continue
             kind = message.get("type")
@@ -559,12 +572,14 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                     try:
                         self.armed = arm_with_retry(self.conn, f"Node {self.drone_id + 1}", timeout=120.0,
                                                     force_after=121.0,
-                                                    heartbeat_callback=self._send_gcs_heartbeat)
-                        if self.armed:
+                                                    heartbeat_callback=self._send_gcs_heartbeat,
+                                                    cancelled=self._land_requested_during_blocking_step)
+                        if self.armed and not self._land_requested_during_blocking_step():
                             alt = float(message.get("target_alt_m", 5.0))
                             self.airborne = takeoff_and_verify(
                                 self.conn, f"Node {self.drone_id + 1}", alt,
                                 heartbeat_callback=self._send_gcs_heartbeat,
+                                cancelled=self._land_requested_during_blocking_step,
                             )
                             self.last_command = "airborne" if self.airborne else "takeoff_failed"
                     finally:
