@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import contextlib
+import io
 import json
 import re
 from pathlib import Path
 import math
+import sys
 import threading
 import time
 
@@ -116,6 +119,38 @@ def _coordinator_summary(latest: dict) -> dict:
             term = max(term, info["term"])
     common = max(set(sources), key=sources.count) if sources else None
     return {"source": common, "acting": sorted(acting), "term": term}
+
+
+_REJECTION_WORDS = ("blocked", "refused", "not available", "usage:", "cannot", "not sent", "not acknowledged")
+
+
+class _Tee(io.TextIOBase):
+    """Write to the real stdout and keep a copy (so the dashboard can report what a command printed)."""
+
+    def __init__(self, real):
+        self.real, self.buffer_text = real, io.StringIO()
+
+    def write(self, text):
+        self.buffer_text.write(text)
+        return self.real.write(text)
+
+    def flush(self):
+        self.real.flush()
+
+
+def _run_capturing(fn, *args) -> str:
+    tee = _Tee(sys.stdout)
+    with contextlib.redirect_stdout(tee):
+        fn(*args)
+    return tee.buffer_text.getvalue()
+
+
+def _result_from_output(command: str, printed: str) -> dict:
+    """Commands that only print: report their text, and a rejection if it says so (Codex review #11: the dashboard
+    used to answer "accepted" even when the console had refused)."""
+    text = " ".join(line.strip(" >!") for line in printed.strip().splitlines()[-3:]).strip()
+    rejected = any(word in printed.lower() for word in _REJECTION_WORDS)
+    return {"accepted": not rejected, "message": text or f"Command sent: {command}"}
 
 
 def _sensed_obstacles(latest: dict) -> list:
@@ -372,6 +407,36 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
             else:
                 self.send_value(PAGE, "text/html; charset=utf-8")
 
+        def _post_mode(self):
+            try:
+                size = min(int(self.headers.get("Content-Length", "0")), 1024)
+                mode = str(json.loads(self.rfile.read(size))["mode"]).strip().lower()
+                if mode not in {"centralized", "decentralized", "hybrid"}:
+                    raise ValueError("unknown control architecture")
+                state = state_provider() if state_provider else dashboard_state(session)
+                if state.get("airborne", 0) or state.get("armed", 0):
+                    if hasattr(session, "set_control_mode"):
+                        result = session.set_control_mode(mode)
+                        self.send_value(json.dumps(result), status=202 if result.get("accepted") else 409)
+                        return
+                    self.send_value(json.dumps({
+                        "message": "Land and disarm all drones before changing architecture."
+                    }), status=409)
+                    return
+                if mode_switch is not None:
+                    result = mode_switch(mode)
+                    self.send_value(json.dumps(result), status=int(result.get("status", 202)))
+                    return
+                command = session.mode_relaunch_command(mode)
+                self.send_value(json.dumps({
+                    "message": (f"{mode.title()} selected. Stop this grounded console, "
+                                "then run the copied relaunch command."),
+                    "command": command,
+                }))
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                self.send_value(json.dumps({"message": str(exc)}), status=400)
+            return
+
         def do_POST(self):
             if self.path == "/replay" and hasattr(session, "replay_post"):
                 try:
@@ -382,33 +447,14 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
                     self.send_value(json.dumps({"message": f"bad replay request: {exc}"}), status=400)
                 return
             if self.path == "/mode":
+                # Same lock as /formation and /command (Codex review #11): one control action at a time.
+                if not action_lock.acquire(blocking=False):
+                    self.send_value('{"message":"Another command is still running"}', status=409)
+                    return
                 try:
-                    size = min(int(self.headers.get("Content-Length", "0")), 1024)
-                    mode = str(json.loads(self.rfile.read(size))["mode"]).strip().lower()
-                    if mode not in {"centralized", "decentralized", "hybrid"}:
-                        raise ValueError("unknown control architecture")
-                    state = state_provider() if state_provider else dashboard_state(session)
-                    if state.get("airborne", 0) or state.get("armed", 0):
-                        if hasattr(session, "set_control_mode"):
-                            result = session.set_control_mode(mode)
-                            self.send_value(json.dumps(result), status=202 if result.get("accepted") else 409)
-                            return
-                        self.send_value(json.dumps({
-                            "message": "Land and disarm all drones before changing architecture."
-                        }), status=409)
-                        return
-                    if mode_switch is not None:
-                        result = mode_switch(mode)
-                        self.send_value(json.dumps(result), status=int(result.get("status", 202)))
-                        return
-                    command = session.mode_relaunch_command(mode)
-                    self.send_value(json.dumps({
-                        "message": (f"{mode.title()} selected. Stop this grounded console, "
-                                    "then run the copied relaunch command."),
-                        "command": command,
-                    }))
-                except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-                    self.send_value(json.dumps({"message": str(exc)}), status=400)
+                    self._post_mode()
+                finally:
+                    action_lock.release()
                 return
             if self.path == "/formation":
                 try:
@@ -474,10 +520,8 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
                         result = command_proxy(command)
                     else:
                         session.last_command_result = None
-                        session.handle(command)
-                        result = session.last_command_result or {
-                            "accepted": True, "message": f"Command accepted: {command}",
-                        }
+                        printed = _run_capturing(session.handle, command)
+                        result = session.last_command_result or _result_from_output(command, printed)
                     accepted = bool(result.get("accepted", True))
                     status = int(result.get("status", 200 if accepted else 409))
                     result.setdefault("message", f"Command accepted: {command}")

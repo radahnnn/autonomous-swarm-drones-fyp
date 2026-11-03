@@ -245,3 +245,12 @@ def test_dashboard_extras_sensed_obstacles_realism_and_captures(tmp_path):
     assert shots["label"] == "pairs_A" and [f["drone"] for f in shots["frames"]] == [1]    # unsafe names dropped
     assert od._realism(session)["profile"] == "realistic"
     assert not od._CAPTURE_NAME.match("../x_D1.png") and not od._CAPTURE_NAME.match("1_a_D1.png/../../x")
+
+
+def test_print_only_rejections_are_reported_as_rejected_codex_11():
+    from sitl.operator_dashboard import _result_from_output, _run_capturing
+    printed = _run_capturing(lambda: print(">> Move blocked: a route is active; use 'route stop' first."))
+    result = _result_from_output("w 5", printed)
+    assert result["accepted"] is False and "route is active" in result["message"]
+    ok = _result_from_output("status", "D1: airborne armed=yes\n")
+    assert ok["accepted"] is True
