@@ -255,6 +255,21 @@ class MissionMixin:
             # A moving single file under GPS error "breathes" along the track (live: 0.85 m at ~5.5 m spacing).
             threading.Thread(target=self._gap_formation, args=("column", heading, self.GAP_COLUMN_SPACING_M),
                              daemon=True).start()
+        elif g["state"] in ("squeeze", "reform") and not busy and getattr(self, "formation_hold", False):
+            # The gap formation aborted mid-move (e.g. a drone flagged degraded went off plan) and the swarm HOLDs.
+            # Re-plan from where everyone is now, at most twice; then stop the manoeuvre (live finding 2026-11-04:
+            # the state machine used to wait for that formation forever).
+            g["replans"] = g.get("replans", 0) + 1
+            style = "column" if g["state"] == "squeeze" else "v"
+            if g["replans"] > 2:
+                g["state"] = "done"
+                self.event("gap_manoeuvre_abandoned", formation=style, reason="repeated_aborts")
+                print(f"!! Gap manoeuvre stopped: {style.upper()} aborted repeatedly; holding.", flush=True)
+                return
+            print(f">> {style.upper()} aborted while moving; re-planning from the current positions "
+                  f"({g['replans']}/2).", flush=True)
+            spacing = self.GAP_COLUMN_SPACING_M if style == "column" else None
+            threading.Thread(target=self._gap_formation, args=(style, heading, spacing), daemon=True).start()
         elif g["state"] == "squeeze" and not busy:
             if self.formation == "column":
                 g["state"] = "through"

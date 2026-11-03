@@ -156,3 +156,15 @@ def test_squeeze_then_through_uses_the_midpoint_route(monkeypatch):
     c._tick_gap()
     assert c._gap["state"] == "through" and len(c.route.waypoints) == 3
     assert c.route.waypoints[1] == pytest.approx((20.0, 0.0))
+
+
+def test_aborted_gap_formation_is_replanned_then_abandoned(monkeypatch):
+    c = _console(monkeypatch, slots_for("v", 6)[:, :2] + [8.0, 0.0])
+    c.transit("40", "0", "0.3")
+    c._gap.update(state="reform", gap=g.find_gap(TOWERS, (0.0, 0.0), NORTH))
+    c.formation, c.formation_hold = "column", True               # the V transition aborted mid-move: HOLD
+    for expected in (1, 2):
+        c._tick_gap()
+        assert c.calls[-1][0] == "v" and c._gap["replans"] == expected
+    c._tick_gap()
+    assert c._gap["state"] == "done" and "gap_manoeuvre_abandoned" in c.events
