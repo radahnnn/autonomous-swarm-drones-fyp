@@ -23,6 +23,7 @@ from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
 from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
+from sitl.estimate_health import EstimateHealth
 from sitl.obstacle_sensing import ObstacleSensor, validate as validate_obstacle
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch, ModeContext
 from sitl.smoothing import min_jerk
@@ -91,6 +92,9 @@ class IndependentAgentNode:
         self.transition = AgentTransition(drone_id, count, scaled_params(time_scale, position_sigma_m))
         self._discovered = []
         self._peer_memory = {}   # peer id -> (position, velocity, age at receipt, receipt wall time)
+        self._peer_degraded = {}  # peer id -> its position estimate is degraded (it said so)
+        self.estimate_health = EstimateHealth()
+        self._frozen_target = None
         if control_mode not in CONTROL_MODES:
             raise ValueError("independent agent control mode must be centralized, decentralized or hybrid")
         self.control_mode = control_mode
@@ -587,6 +591,9 @@ class IndependentAgentNode:
                     continue
                 self._peer_memory[int(peer["id"])] = (
                     position, velocity, float(peer.get("age", 0.0)), float(wall_now))
+                if not hasattr(self, "_peer_degraded"):
+                    self._peer_degraded = {}
+                self._peer_degraded[int(peer["id"])] = bool(peer.get("degraded", False))
             except (KeyError, TypeError, ValueError, IndexError):
                 continue
 
@@ -643,11 +650,35 @@ class IndependentAgentNode:
     def _safety_neighbors(self, wall_now: float, max_age_s: float = 1.5) -> list:
         """Every recently heard peer (not just the two ring neighbours) for the barrier safety filter."""
         peers = []
-        for position, velocity, age_at_receipt, received_wall in getattr(self, "_peer_memory", {}).values():
+        degraded = getattr(self, "_peer_degraded", {})
+        for peer_id, (position, velocity, age_at_receipt, received_wall) in getattr(self, "_peer_memory", {}).items():
             age = age_at_receipt + max(0.0, wall_now - received_wall)
             if age <= max_age_s:
-                peers.append({"position": position + velocity * age, "velocity": velocity})
+                # A peer whose position estimate is degraded may be metres from where it says: keep 2 m more.
+                peers.append({"position": position + velocity * age, "velocity": velocity,
+                              "extra_m": self.DEGRADED_PEER_EXTRA_M if degraded.get(peer_id) else 0.0})
         return peers
+
+    DEGRADED_PEER_EXTRA_M = 2.0
+
+    def _tick_estimate_health(self, now: float) -> None:
+        """Watch this drone's own position estimate; freeze on a glitch, land if it does not recover."""
+        health = getattr(self, "estimate_health", None)
+        if health is None or self.position is None or not self.position_at or not self.airborne:
+            return
+        before = health.state
+        state = health.update(self.position[:2], self.position_at)
+        if state != before:
+            print(f"[NODE {self.drone_id + 1}] position estimate {before} -> {state} "
+                  f"{{'glitches': {health.glitches}}}", flush=True)
+            if state == health.DEGRADED:
+                self._frozen_target = getattr(self, "last_position_target_ne", None)
+            elif state == health.OK:
+                self._frozen_target = None
+        if state == health.LAND and not self.landing:
+            self.safety_state = "estimate_degraded"
+            self.safety_reason = "position_estimate_glitches"
+            self._command_land(self.safety_reason)
 
     def _mode_context(self, wall_now: float) -> ModeContext:
         fresh = (self.position is not None and bool(self.position_at) and
@@ -953,6 +984,9 @@ class IndependentAgentNode:
         if self.global_origin is None:
             return
         target = np.asarray(target_global, dtype=float).copy()
+        frozen = getattr(self, "_frozen_target", None)
+        if frozen is not None and getattr(self, "estimate_health", None) is not None and self.estimate_health.degraded:
+            target[:2] = frozen               # estimate glitch: stop manoeuvring, hold the last good target
         altitude_m = float(altitude_m)
         if apply_layer:
             altitude_m += getattr(self, "altitude_offset_m", 0.0)   # per-drone altitude layer
@@ -1116,6 +1150,7 @@ class IndependentAgentNode:
             "membership_revision": self.membership_revision,
             "obstacle_count": len(self._all_obstacles()),
             "obstacle_sensing": self.sensor.status(),
+            "estimate_health": self.estimate_health.status(),
             "recovery_state": self.recovery_state,
             "mission_sequence": self.last_mission_sequence,
             "mission_active": self.mission_lease.active(time.monotonic()) is not None,
@@ -1205,7 +1240,7 @@ class IndependentAgentNode:
                 self.agent.update_local_state(self.position[:2], self.position_at)
                 self.peers.publish(self.position[:2], self.agent.velocity,
                                    self.position_at, self.discovery_ids, now,
-                                   landing=self.landing)
+                                   landing=self.landing, degraded=self.estimate_health.degraded)
                 discovered = self.peers.receive(now, self.discovery_ids)
                 fresh_peer_ids = self.peers.fresh_link_ids(now)
                 if (self.pending_formation is not None and self.membership is not None
@@ -1244,6 +1279,7 @@ class IndependentAgentNode:
                 self._tick_geofence()
                 self._tick_election(now)
                 self._tick_obstacles(now)
+                self._tick_estimate_health(now)
                 neighbors = [peer for peer in discovered if peer["id"] in self.peer_ids]
                 if self.membership is None:
                     self._check_peer_failsafe(now, fresh_peer_ids, neighbors)

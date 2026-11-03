@@ -195,9 +195,9 @@ class UdpPeerStateTransport:
         self.socket.setblocking(False)
 
     def publish(self, position, velocity, sample_time: float, peer_ids: Iterable[int],
-                now: float, landing: bool = False) -> None:
-        if not isinstance(landing, bool):
-            raise ValueError("peer landing state must be boolean")
+                now: float, landing: bool = False, degraded: bool = False) -> None:
+        if not isinstance(landing, bool) or not isinstance(degraded, bool):
+            raise ValueError("peer landing and degraded states must be boolean")
         self.sequence += 1
         packet = {
             "version": VERSION,
@@ -207,6 +207,7 @@ class UdpPeerStateTransport:
             "sequence": self.sequence,
             "sample_time": float(sample_time),
             "landing": landing,
+            "degraded": degraded,
             "position": np.asarray(position, dtype=float)[:2].tolist(),
             "velocity": np.asarray(velocity, dtype=float)[:2].tolist(),
         }
@@ -493,6 +494,7 @@ class UdpPeerStateTransport:
                 position = np.asarray(packet.get("position"), dtype=float)
                 velocity = np.asarray(packet.get("velocity"), dtype=float)
                 landing = packet.get("landing")
+                degraded = packet.get("degraded", False)       # absent in packets from older agents
                 if not math.isfinite(sample_time) or not -MAX_FUTURE_SKEW_S <= age <= MAX_PEER_AGE_S:
                     self.rejected_stale += 1
                     continue
@@ -502,7 +504,7 @@ class UdpPeerStateTransport:
                 if not np.isfinite(position).all() or not np.isfinite(velocity).all():
                     self.rejected_invalid += 1
                     continue
-                if not isinstance(landing, bool):
+                if not isinstance(landing, bool) or not isinstance(degraded, bool):
                     self.rejected_invalid += 1
                     continue
                 if not self._accept_peer_session(peer_id, session_id):
@@ -520,6 +522,7 @@ class UdpPeerStateTransport:
                     "age": age,
                     "confidence": 1.0,
                     "landing": landing,
+                    "degraded": degraded,
                 })
             except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError, OverflowError):
                 self.rejected_invalid += 1

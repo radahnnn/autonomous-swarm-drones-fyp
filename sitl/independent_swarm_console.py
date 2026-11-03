@@ -111,6 +111,7 @@ class IndependentSwarmConsole:
     _fence_seen = None
     _acting_seen = None
     _obstacles_seen = None
+    _estimate_seen = None
     _safety_seen = None
     route: Route | None = None
 
@@ -852,6 +853,8 @@ class IndependentSwarmConsole:
             self._safety_seen = {}
         if self._obstacles_seen is None:
             self._obstacles_seen = {}
+        if self._estimate_seen is None:
+            self._estimate_seen = {}
         with self.lock:
             states = {index: state.copy() for index, state in self.latest.items()}
         self.metrics.update(time.time(), states)
@@ -875,6 +878,11 @@ class IndependentSwarmConsole:
             if filt and not self._safety_seen.get(index):
                 self._note_metric("safety_filter_activation", drone=index + 1)
             self._safety_seen[index] = filt
+            health = (state.get("estimate_health") or {}).get("state", "ok")
+            if health != "ok" and self._estimate_seen.get(index, "ok") == "ok":
+                self._note_metric("estimate_degraded", drone=index + 1, state=health)
+                print(f">> D{index + 1}: position estimate {health.upper()} (glitch); peers keep extra distance.", flush=True)
+            self._estimate_seen[index] = health
             sensing = state.get("obstacle_sensing") or {}
             known = int(sensing.get("known", 0) or 0)
             if known > self._obstacles_seen.get(index, 0):

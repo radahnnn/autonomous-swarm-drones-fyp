@@ -37,12 +37,13 @@ class FilterResult:
     closest_m: Optional[float]      # distance to the nearest considered neighbour
 
 
-def _constraints(position: np.ndarray, neighbors: Iterable[Tuple[np.ndarray, np.ndarray]],
+def _constraints(position: np.ndarray, neighbors,
                  distance: float, alpha: float, horizon_m: float):
-    """Half-planes a.u >= b for neighbours inside the consideration radius."""
+    """Half-planes a.u >= b for neighbours inside the consideration radius (optional per-neighbour extra distance)."""
     rows: List[Tuple[np.ndarray, float]] = []
     closest = None
-    for other_position, other_velocity in neighbors:
+    for other_position, other_velocity, extra in neighbors:
+        pair_distance = distance + extra
         delta = position - other_position
         d = float(np.linalg.norm(delta))
         if not math.isfinite(d):
@@ -52,7 +53,7 @@ def _constraints(position: np.ndarray, neighbors: Iterable[Tuple[np.ndarray, np.
             continue
         if d < 1e-6:                                   # coincident estimates: push along a fixed axis
             delta, d = np.array([1.0, 0.0]) * 1e-3, 1e-3
-        h = d * d - distance * distance
+        h = d * d - pair_distance * pair_distance
         rows.append((delta, float(delta @ other_velocity) - 0.5 * alpha * h))
     return rows, closest
 
@@ -65,8 +66,9 @@ def filter_velocity(position, nominal_velocity, neighbors, *, distance: float = 
                     max_speed: float = 1.5, horizon_m: float = 8.0) -> FilterResult:
     """Closest velocity to ``nominal_velocity`` that keeps every pair outside ``distance`` (see module doc).
 
-    ``neighbors`` is an iterable of ``(position, velocity)`` pairs (2-D). Non-finite or malformed
-    neighbours are ignored; a non-finite own state or nominal velocity raises ``ValueError``.
+    ``neighbors`` is an iterable of ``(position, velocity)`` or ``(position, velocity, extra_distance)`` items (2-D);
+    the extra distance (>= 0) widens the barrier for that neighbour, e.g. one whose position estimate is degraded.
+    Non-finite or malformed neighbours are ignored; a non-finite own state or nominal velocity raises ``ValueError``.
     """
     position = np.asarray(position, dtype=float)[:2]
     nominal = np.asarray(nominal_velocity, dtype=float)[:2]
@@ -78,10 +80,12 @@ def filter_velocity(position, nominal_velocity, neighbors, *, distance: float = 
     for item in neighbors:
         try:
             p, v = np.asarray(item[0], dtype=float)[:2], np.asarray(item[1], dtype=float)[:2]
+            extra = float(item[2]) if len(item) > 2 else 0.0
         except (TypeError, ValueError, IndexError):
             continue
-        if p.shape == (2,) and v.shape == (2,) and np.isfinite(p).all() and np.isfinite(v).all():
-            clean.append((p, v))
+        if (p.shape == (2,) and v.shape == (2,) and np.isfinite(p).all() and np.isfinite(v).all()
+                and math.isfinite(extra) and extra >= 0.0):
+            clean.append((p, v, extra))
     rows, closest = _constraints(position, clean, distance, alpha, horizon_m)
     speed = float(np.linalg.norm(nominal))
     start = nominal if speed <= max_speed else nominal * (max_speed / speed)

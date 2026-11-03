@@ -185,7 +185,8 @@ class LocalDroneAgent:
         pairs = []
         for item in others or ():
             try:
-                pairs.append((np.asarray(item["position"], dtype=float), np.asarray(item["velocity"], dtype=float)))
+                pairs.append((np.asarray(item["position"], dtype=float), np.asarray(item["velocity"], dtype=float),
+                              float(item.get("extra_m", 0.0))))
             except (KeyError, TypeError, ValueError):
                 continue
         safe, result = filtered_setpoint(pos, np.asarray(target, dtype=float)[:2], pairs,
