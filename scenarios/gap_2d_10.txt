@@ -1,0 +1,17 @@
+# Tower gap, 10 drones in 2D (run with --realistic --sensed-obstacle=40,-5.6,0.6 --sensed-obstacle=40,5.6,0.6):
+# fly north in a V; two towers 11.2 m apart (10 m free) stand across the path at N 40; the drones sense them, the swarm
+# stops short, forms a column along the path, passes, re-forms the V and finishes the transit.
+wait swarm ready 900
+send launch
+poll 10 300 airborne armed=yes
+sleep 20
+send transit 90 0 0.3
+expect Changing to a COLUMN|changing to a COLUMN 600
+expect Column formed 400
+expect back to the V 600
+expect V restored 400
+expect Transit complete 600
+status
+health
+send land
+sleep 60

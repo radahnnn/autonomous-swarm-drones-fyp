@@ -17,6 +17,7 @@ from pymavlink import mavutil
 from sitl.fleet import build_fleet
 from sitl.formation_library import STYLES, slots_for
 from sitl.formation_transition import plan_formation_transition
+from sitl import gap_manoeuvre
 from sitl.clock_budget import compute_budget
 from sitl.clock_sync import best_clock_sample, estimate_clock_offset
 from sitl.mission_intent import MissionIntent
@@ -1121,6 +1122,7 @@ class IndependentSwarmConsole:
                 self._tick_transition_protocol()
             self._tick_mode_switch_protocol()
             self._update_metrics()
+            self._tick_gap()
             if self.route is not None:
                 self.goal_ne = np.asarray(self.route.position(time.time()), dtype=float)
             if self.formation_transition_deadline is not None:
@@ -1405,7 +1407,7 @@ class IndependentSwarmConsole:
         print(f">> Directed peer link D{sender} -> D{recipient} "
               f"{'cut' if blocked else 'restored'}; reverse traffic is unchanged.")
 
-    def _set_formation(self, style: str) -> None:
+    def _set_formation(self, style: str, heading_rad: float | None = None) -> None:
         def result(accepted: bool, message: str, **details):
             self.last_formation_result = {
                 "accepted": accepted, "message": message, **details,
@@ -1460,7 +1462,7 @@ class IndependentSwarmConsole:
             try:
                 plan = plan_formation_transition(positions, style, centroid_ne=centroid,
                                                  time_scale=self.time_scale,
-                                                 position_sigma_m=self.position_sigma_m)
+                                                 position_sigma_m=self.position_sigma_m, heading_rad=heading_rad)
             except (TypeError, ValueError) as exc:
                 return result(False, str(exc))
             self.formation_resume_goal = self.goal_ne.copy()
@@ -1501,7 +1503,7 @@ class IndependentSwarmConsole:
         try:
             plan = plan_formation_transition(
                 positions, style, centroid_ne=centroid, obstacles=obstacles, time_scale=self.time_scale,
-                position_sigma_m=self.position_sigma_m,
+                position_sigma_m=self.position_sigma_m, heading_rad=heading_rad,
             )
         except (TypeError, ValueError) as exc:
             return result(False, str(exc))
@@ -1672,6 +1674,8 @@ class IndependentSwarmConsole:
                     print(f"!! D{index + 1} landing was not confirmed; keep SITL running for recovery.")
         elif action == "goto" and len(parts) == 3:
             self.goto(parts[1], parts[2])
+        elif action == "transit" and len(parts) in (3, 4):
+            self.transit(parts[1], parts[2], parts[3] if len(parts) == 4 else "0.3")
         elif action == "capture":
             self.capture(parts[1] if len(parts) > 1 else "capture")
         elif action == "coord" and len(parts) > 1:
@@ -1839,6 +1843,125 @@ class IndependentSwarmConsole:
         self.event("capture", label=safe_label, frames=got, expected=self.count)
         print(f">> Captured {got}/{self.count} camera frames ({safe_label}) -> {directory}", flush=True)
         return {"accepted": got == self.count, "message": f"{got}/{self.count} frames", "frames": frames}
+
+    # ------------------------------------------------------------------ gap manoeuvre (V -> column -> V)
+    _gap = None
+
+    def transit(self, north: str, east: str, speed: str = "0.3") -> None:
+        """transit <north> <east> [speed]: fly straight there; squeeze through gaps between sensed obstacles."""
+        try:
+            target = np.array([float(north), float(east)])
+            speed_sim = float(speed)
+            heading = gap_manoeuvre.heading_to(self.goal_ne, target)
+            route = Route(((float(self.goal_ne[0]), float(self.goal_ne[1])), (float(target[0]), float(target[1]))),
+                          time.time() + 2.0, speed_sim * self.time_scale)
+        except ValueError as exc:
+            print(f">> Transit refused: {exc}")
+            return
+        if self.route is not None:
+            print(">> Transit refused: a route is active; use 'route stop' first.")
+            return
+        self.route = route
+        self._gap = {"state": "cruise", "target": target, "heading": heading, "speed": speed_sim, "passed": []}
+        self._note_metric("transit_start", north=float(target[0]), east=float(target[1]))
+        self.event("transit_start", target=[float(target[0]), float(target[1])], heading_deg=math.degrees(heading))
+        self._publish_intent()
+        print(f">> Transit to N {target[0]:.1f} E {target[1]:.1f} at {speed_sim:g} m/s; watching for gaps.", flush=True)
+
+    def _resume_transit(self) -> None:
+        g = self._gap
+        try:
+            self.route = Route(((float(self.goal_ne[0]), float(self.goal_ne[1])),
+                                (float(g["target"][0]), float(g["target"][1]))),
+                               time.time() + 2.0, g["speed"] * self.time_scale)
+        except ValueError:                                    # already at the target
+            self.route, g["state"] = None, "done"
+            return
+        self._publish_intent()
+
+    def _pause_transit(self, at=None) -> None:
+        if self.route is not None:
+            self.goal_ne = np.asarray(self.route.position(time.time()) if at is None else at, dtype=float)
+            self.route = None
+            self._publish_intent()
+
+    def _known_obstacles(self) -> list:
+        from sitl.operator_dashboard import _sensed_obstacles
+        with self.lock:
+            latest = {index: state.copy() for index, state in self.latest.items()}
+        known = _sensed_obstacles(latest)
+        for raw in getattr(self.args, "obstacle", ()):
+            try:
+                known.append([float(v) for v in str(raw).split(",")])
+            except ValueError:
+                pass
+        return known
+
+    def _drone_positions(self) -> np.ndarray:
+        with self.lock:
+            return np.asarray([self.latest.get(i, {}).get("position", [np.nan] * 3)[:2] for i in range(self.count)],
+                              dtype=float)
+
+    def _tick_gap(self) -> None:
+        """Gap state machine: cruise -> squeeze (column) -> through -> reform (V) -> cruise ... -> done."""
+        g = self._gap
+        if g is None or g["state"] == "done":
+            return
+        heading, sigma = g["heading"], self.position_sigma_m
+        busy = self.transition_protocol and (self.transition.busy or self.transition_pending is not None)
+        if g["state"] == "cruise":
+            if self.route is None or self.route.finished(time.time()):
+                g["state"] = "done"
+                self._pause_transit()
+                print(">> Transit complete.", flush=True)
+                return
+            here = self.route.position(time.time())
+            gap = gap_manoeuvre.find_gap(self._known_obstacles(), here, heading, lookahead_m=40.0)
+            if gap is None or any(np.allclose(gap.centre, c, atol=1.0) for c in g["passed"]):
+                return
+            positions = self._drone_positions()
+            if not np.isfinite(positions).all():
+                return
+            relative = positions - positions.mean(axis=0)
+            if not gap_manoeuvre.needs_squeeze(relative, heading, gap, sigma):
+                return
+            stop = gap_manoeuvre.stop_point(gap, here, heading, gap_manoeuvre.formation_length(relative, heading) * 2)
+            if float((stop - here) @ gap_manoeuvre.unit(heading)) > 0.5:
+                return                                         # not there yet: keep flying towards the stop point
+            self._pause_transit()
+            g["gap"] = gap
+            if not gap_manoeuvre.passable_single_file(gap, sigma):
+                g["state"] = "done"
+                self.event("gap_too_narrow", free_width_m=gap.free_width_m)
+                print(f"!! Gap ahead is {gap.free_width_m:.1f} m wide: too narrow even in single file; holding.",
+                      flush=True)
+                return
+            g["state"] = "squeeze"
+            self.event("gap_squeeze", centre=list(gap.centre), free_width_m=gap.free_width_m)
+            self._note_metric("gap_squeeze", free_width_m=round(gap.free_width_m, 2))
+            print(f">> Gap of {gap.free_width_m:.1f} m ahead (formation needs more): changing to a COLUMN.", flush=True)
+            threading.Thread(target=self._set_formation, args=("column", heading), daemon=True).start()
+        elif g["state"] == "squeeze" and not busy:
+            if self.formation == "column":
+                g["state"] = "through"
+                print(">> Column formed: passing through the gap.", flush=True)
+                self._resume_transit()
+            elif self.transition_pending is None and not getattr(self, "_transition_retries", {}).get("column"):
+                pass                                          # still planning / settling inside _set_formation
+        elif g["state"] == "through":
+            positions = self._drone_positions()
+            if np.isfinite(positions).all() and gap_manoeuvre.all_past(positions, g["gap"], heading):
+                self._pause_transit()
+                g["passed"].append(g["gap"].centre)
+                g["state"] = "reform"
+                print(">> Every drone is past the gap: back to the V.", flush=True)
+                threading.Thread(target=self._set_formation, args=("v", heading), daemon=True).start()
+        elif g["state"] == "reform" and not busy and self.formation == "v":
+            g["state"] = "cruise"
+            self.event("gap_passed", centre=list(g["gap"].centre))
+            self._note_metric("gap_passed")
+            print(">> V restored: continuing the transit.", flush=True)
+            self._resume_transit()
 
     def route_command(self, args) -> None:
         if not args or args[0] not in ("stop", "status"):

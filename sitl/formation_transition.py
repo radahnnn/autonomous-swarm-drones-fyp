@@ -44,7 +44,8 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
                               obstacles=(), max_transition_s: float = 90.0,
                               peak_speed_limit_m_s: float = TRANSITION_PEAK_SPEED_M_S,
                               time_scale: float = 1.0,
-                              position_sigma_m: float = 0.0) -> FormationTransitionPlan:
+                              position_sigma_m: float = 0.0,
+                              heading_rad: float | None = None) -> FormationTransitionPlan:
     """Assign slots by shortest travel and reject paths that violate separation.
 
     Positions are current shared-frame North/East metres. The resulting offsets
@@ -85,7 +86,9 @@ def plan_formation_transition(current_positions_ne, formation: str, centroid_ne=
     best = None
     # A formation has no fixed compass orientation. Search rotations and choose
     # the assignment with the widest simultaneous straight-path clearance.
-    angles = [0.0] if formation in WORLD_ANCHORED else np.linspace(0.0, 2.0 * np.pi, 72, endpoint=False)
+    # ``heading_rad`` pins the template's North axis to a direction of travel (a column or V aligned with the path).
+    angles = ([float(heading_rad)] if heading_rad is not None else
+              [0.0] if formation in WORLD_ANCHORED else np.linspace(0.0, 2.0 * np.pi, 72, endpoint=False))
     candidates = []
     for angle in angles:
         rotation = np.asarray([[np.cos(angle), -np.sin(angle)],
