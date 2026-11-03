@@ -77,3 +77,16 @@ Not yet run with all fixes: the 6-drone Gazebo survey patrol under `--realistic`
   outside the towers' push zone). Diagnosis: in a moving single file under ~1 m GPS error the drones' along-track
   lags differ and the ~5.5 m spacing breathes below the gate. **Next:** wider column spacing for the gap (~8 m) and a
   slower pass, then rerun; Gazebo version with two real towers after that.
+
+## Tower gap: PASS in 2D (10 drones) and Gazebo (6 drones), both under `--realistic`
+Fixes after the first gap run: the gap column is spaced 8 m and passed at 60 % speed; the transition plausibility cap
+is 180 s (the 8 m column needed 91.7 s); a refused gap formation now retries once and then ends the manoeuvre (the
+first version waited forever).
+| Run | Towers | Result | Min gap |
+|---|---|---|---|
+| 2D SITL, 10 drones | N 40, E +/-5.6 (10 m free) | sense -> column -> through -> all past -> V -> transit complete; **PASS** | 4.53 m |
+| Gazebo, 6 drones, real tower models | N 25, E +/-5.6 | same sequence; camera captures before / in column / after; **PASS** | 3.42 m |
+Evidence: `docs/evidence/2026-10-30/gap_2d10_pass_20261103_run_report.json`,
+`docs/evidence/2026-10-30/gap_gazebo6_pass_20261103_run_report.json`, `docs/evidence/2026-11-01/gazebo_gap_column_cameras.png`.
+One run each. Decisions are made by the console (coordinator); the elected-leader version (works without the ground
+station) is the next step for this feature.

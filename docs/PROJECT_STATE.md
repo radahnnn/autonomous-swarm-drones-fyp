@@ -120,7 +120,7 @@ Not verified / open:
 
 Agreed with the user on 2026-11-02 (targets: 10 drones in 2D SITL and 6 in Gazebo 3D for every feature; physical flight with the team's drones within about a month, supervisor's requirement):
 
-0. **Tower-gap column spacing (next):** the manoeuvre works live (sense -> column -> through -> all past) but consecutive column members came within 0.85 m under GPS noise; widen the gap column (~8 m), pass slower, rerun 10x2D then 6xGazebo with real towers. Estimation-health guard DONE (2026-11-03).
+0. **Done 2026-11-03:** tower-gap manoeuvre PASS in 2D (10 drones, 4.53 m) and Gazebo (6 drones, real towers, 3.42 m) under --realistic; estimation-health guard; Gazebo survey patrol PASS. **Next:** repeats (3-5 runs each) for variance; leader-decided gap manoeuvre (no ground station); physical track.
    Previously: **Estimation-health guard (found 2026-11-03):** under all realistic disturbances one drone's position estimate jumped ~10 m/s and produced a 1.0 m near-miss; agents must detect implausible jumps in their own estimate, mark themselves degraded and hold/land, and peers must widen the safety distance (`docs/reports/REALISTIC_SIMULATION_2026-11-03.md`).
 1. **Realistic-noise tuning (largely done 2026-11-03, see report):** under `--realistic` (GPS ~1 m wander, wind, vibration, battery, lossy radio) the 6-drone Gazebo pair transitions aborted (separation < 2.8 m; peer off plan > 1.5 m). Widen spacing and set protocol thresholds from the GPS error; rerun 10x2D and 6xGazebo.
 2. **Tower-gap manoeuvre (user's idea):** two towers on the route; drones sense and share them; a gap check decides the V does not fit; stop, transition to a column (one behind another), pass through, then back to V and continue. Coordinator-decided first, then elected-leader-decided (works without the ground station). Gap must allow GPS error + safety distance (~7-8 m).
@@ -131,6 +131,8 @@ Agreed with the user on 2026-11-02 (targets: 10 drones in 2D SITL and 6 in Gazeb
 7. Code freeze 17 Dec, deliverables 31 Dec.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-03 — Claude — Tower-gap manoeuvre PASS in 2D (10) and Gazebo (6, real towers) under --realistic after widening the gap column (8 m), slower pass, 180 s cap, refusal handling.
 
 - 2026-11-03 — Claude — Estimation-health guard, transient-cancellation retry, dashboard upgrade (mission buttons, camera gallery, sensed obstacles, per-drone status, realism badge), tower-gap manoeuvre (`transit`). Gazebo 6-drone survey patrol under --realistic PASS (4.81 m); 10-drone tower gap works up to the V re-form but FAIL (0.85 m between column members). See the report update.
 
