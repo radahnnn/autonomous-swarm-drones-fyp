@@ -345,3 +345,45 @@ def test_lossy_channel_never_switches_without_full_acks_and_always_ends_consiste
         results["switched" if coord.mode == "decentralized" else "kept"] += 1
     if loss == 0.0:
         assert results["switched"] == 50
+
+
+def test_done_delivered_to_only_one_agent_never_splits_the_fleet_codex_1():
+    """Codex review #1: DONE reaches D1 only, then D2's status goes stale. Before the fix the coordinator rolled back and
+    the fleet ended in [decentralized, centralized]. Now the commit is irreversible and both end in the new mode."""
+    coord = CoordinatorModeSwitch(2, "centralized")
+    agents = [AgentModeSwitch(0, "centralized"), AgentModeSwitch(1, "centralized")]
+    t = 0.0
+    for action in coord.begin("decentralized", t):
+        if action[0] == "send":
+            for a in agents:
+                coord.on_ack(a.on_prepare(action[1], t, OK), t)
+    done_seen = {0: False, 1: False}
+    stale_from = None
+    while t < 60.0:
+        t += 0.1
+        views = {}
+        for a in agents:
+            a.tick(t, OK)
+            stale = stale_from is not None and a.drone_id == 1 and t > stale_from
+            views[a.drone_id] = ModeView(9.0 if stale else 0.1, a.dominant_mode(t), a.state,
+                                         None if a.plan is None else a.plan.switch_id, True, (10.0 * a.drone_id, 0.0))
+        for action in coord.tick(t, views):
+            if action[0] != "send":
+                continue
+            message = action[1]
+            kind = message["type"]
+            for a in agents:
+                if kind == "mode_go":
+                    a.on_go(message, t)
+                elif kind == "mode_done":
+                    if a.drone_id == 0:                      # DONE only ever reaches D1
+                        a.on_done(message)
+                        done_seen[0] = True
+                        stale_from = stale_from or t           # ...and D2's status goes stale right after
+                elif kind == "mode_abort":
+                    a.on_abort(message, t)
+        if coord.state == CoordinatorModeSwitch.IDLE and all(a.state == AgentModeSwitch.IDLE for a in agents) and done_seen[0]:
+            break
+    assert done_seen[0]
+    assert [a.mode for a in agents] == ["decentralized", "decentralized"]
+    assert coord.mode == "decentralized"

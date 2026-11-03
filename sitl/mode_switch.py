@@ -293,7 +293,7 @@ class CoordinatorModeSwitch:
         self.abort_reason: Optional[str] = None
         self._prepared_at = self._last_send = self._verified_since = self._rolled_since = 0.0
         self._verified_set = False
-        self._done_sent = False
+        self._done_sent, self._done_at = False, 0.0
 
     @property
     def busy(self) -> bool:
@@ -309,7 +309,7 @@ class CoordinatorModeSwitch:
                               now + self.params.lead_s, self.params.ramp_s)
         self.plan, self.state, self.last_id = plan, self.PREPARING, plan.switch_id
         self.acks, self.abort_reason, self._verified_set = {}, None, False
-        self._done_sent = False
+        self._done_sent, self._done_at = False, 0.0
         self._prepared_at = self._last_send = now
         return [("send", plan.to_prepare_message()),
                 ("event", "mode_prepare", {"switch_id": plan.switch_id, "from_mode": plan.from_mode,
@@ -318,6 +318,10 @@ class CoordinatorModeSwitch:
     def abort(self, reason: str, now: float) -> List[Action]:
         if self.plan is None or self.state in (self.IDLE, self.ROLLING_BACK):
             return []
+        if self._done_sent:
+            # Irreversible commit (Codex review #1): once DONE may have reached any agent, a rollback would split the
+            # fleet between modes. Keep driving everyone to the new mode instead.
+            return [("event", "mode_abort_ignored_after_commit", {"switch_id": self.plan.switch_id, "reason": reason})]
         started = self.state in (self.SWITCHING, self.VERIFYING) or now >= self.plan.start_at
         self.abort_reason = reason
         self.state = self.ROLLING_BACK if started else self.IDLE
@@ -383,6 +387,8 @@ class CoordinatorModeSwitch:
                 self._last_send = now
                 return [("send", self._go())]
             return []
+        if self.state == self.VERIFYING and self._done_sent:
+            return self._verify(now, views)        # committed: only confirm, never abort (see abort())
         if self.state in (self.SWITCHING, self.VERIFYING):
             reason = self._violation(now, views)
             if reason is not None:
@@ -431,12 +437,16 @@ class CoordinatorModeSwitch:
     def _verify(self, now: float, views: Dict[int, ModeView]) -> List[Action]:
         plan = self.plan
         if self._done_sent:
-            # `done` is retransmitted until every agent has closed the switch (state IDLE, new mode).
-            if all(views[i].mode == plan.to_mode and views[i].state == AgentModeSwitch.IDLE
+            # `done` is retransmitted until every agent has closed the switch (state IDLE, new mode). Agents that never
+            # hear it self-commit to the new mode after verify_close_s, so the fleet converges either way.
+            if all(i in views and views[i].mode == plan.to_mode and views[i].state == AgentModeSwitch.IDLE
                    for i in range(self.count)):
                 self.mode, self.state = plan.to_mode, self.IDLE
                 return [("event", "mode_switch_complete",
                          {"switch_id": plan.switch_id, "mode": plan.to_mode})]
+            if now - self._done_at > self.params.verify_close_s + self.params.overrun_s:
+                self.mode, self.state = plan.to_mode, self.IDLE
+                return [("event", "mode_commit_unconfirmed", {"switch_id": plan.switch_id, "mode": plan.to_mode})]
             if now - self._last_send >= self.params.prepare_retry_s:
                 self._last_send = now
                 return [("send", self._done())]
@@ -450,7 +460,7 @@ class CoordinatorModeSwitch:
             self._verified_since, self._verified_set = now, True
         if now - self._verified_since < self.params.verify_dwell_s:
             return []
-        self._done_sent, self._last_send = True, now
+        self._done_sent, self._last_send, self._done_at = True, now, now
         return [("send", self._done())]
 
     def _done(self) -> Dict[str, Any]:
