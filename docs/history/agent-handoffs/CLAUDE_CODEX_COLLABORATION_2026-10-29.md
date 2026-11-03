@@ -339,3 +339,9 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 
 - See the update section of `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`. Next: widen the gap column, rerun the gap (2D, then Gazebo with towers); repeats for variance.
 - Recommended Codex review: `sitl/estimate_health.py` thresholds, `IndependentSwarmConsole._tick_gap` state machine (threads started from the console loop), the retry timer interplay with operator commands, `operator_dashboard` capture serving (filename regex).
+
+### 2026-11-03 (end of day) — Claude — plan agreed: strengthen the software (hardware on hold)
+
+- Results today (all pushed): Gazebo 6-drone survey patrol PASS under --realistic; tower-gap manoeuvre PASS in 2D (10) and Gazebo (6, real towers); estimation-health guard; transient-cancellation retry; dashboard upgrade. Details: `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`.
+- Panel-style self-critique and the 10-step plan are in PROJECT_STATE section 8. Weakest points: single-run evidence, no baselines, estimate-based sampled separation, assumed realism values, never flown.
+- Next step: Step 1, ground-truth separation logging. Codex (software chat): good review targets are `sitl/estimate_health.py`, `IndependentSwarmConsole._tick_gap` / `_gap_formation`, the retry timer, and `operator_dashboard` capture serving.

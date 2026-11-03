@@ -118,17 +118,30 @@ Not verified / open:
 
 ## 8. Plan
 
-Agreed with the user on 2026-11-02 (targets: 10 drones in 2D SITL and 6 in Gazebo 3D for every feature; physical flight with the team's drones within about a month, supervisor's requirement):
+Agreed with the user on 2026-11-03. **Hardware is on hold (user decision) to strengthen the software first;** the
+supervisor still expects physical flight, so the propellers-off bench test should resume as soon as possible.
+Targets for every feature: 10 drones in 2D SITL and 6 in Gazebo 3D. Rationale (panel-style critique): the work is
+strong engineering but its evidence is single-run, has no baselines, uses sampled estimate-based separation and
+assumed disturbance values, and has never flown.
 
-0. **Done 2026-11-03:** tower-gap manoeuvre PASS in 2D (10 drones, 4.53 m) and Gazebo (6 drones, real towers, 3.42 m) under --realistic; estimation-health guard; Gazebo survey patrol PASS. **Next:** repeats (3-5 runs each) for variance; leader-decided gap manoeuvre (no ground station); physical track.
-   Previously: **Estimation-health guard (found 2026-11-03):** under all realistic disturbances one drone's position estimate jumped ~10 m/s and produced a 1.0 m near-miss; agents must detect implausible jumps in their own estimate, mark themselves degraded and hold/land, and peers must widen the safety distance (`docs/reports/REALISTIC_SIMULATION_2026-11-03.md`).
-1. **Realistic-noise tuning (largely done 2026-11-03, see report):** under `--realistic` (GPS ~1 m wander, wind, vibration, battery, lossy radio) the 6-drone Gazebo pair transitions aborted (separation < 2.8 m; peer off plan > 1.5 m). Widen spacing and set protocol thresholds from the GPS error; rerun 10x2D and 6xGazebo.
-2. **Tower-gap manoeuvre (user's idea):** two towers on the route; drones sense and share them; a gap check decides the V does not fit; stop, transition to a column (one behind another), pass through, then back to V and continue. Coordinator-decided first, then elected-leader-decided (works without the ground station). Gap must allow GPS error + safety distance (~7-8 m).
-3. Survey patrol end to end in Gazebo (cameras, pairs, hybrid with coordinator cut, regroup); trees as real obstacles.
-4. Repeats (3-5 runs) of the key 2D and Gazebo scenarios for variance.
-5. Physical track (hardware chat): propellers-off bench link test (PC/ESP32 to Matek, UART MAVLink), RC + failsafes, then one-drone hover with logged GPS error and Wi-Fi latency fed back into `--realistic`, then two drones at wide spacing; add drones as the 5 new ones arrive. `docs/HARDWARE_READINESS_CHECKLIST.md` gates every step.
-6. Later: campus look from the user's photos; wind in Gazebo; benchmark vs a baseline; task allocation; thin ROS 2 bridge (optional).
-7. Code freeze 17 Dec, deliverables 31 Dec.
+1. **Ground-truth measurement** - log true simulator positions (SITL/Gazebo) and compute separation from them at a
+   higher rate, alongside the estimate-based metric. (Next step.)
+2. **Statistical report generator** - one command: runs folder -> tables/plots (median / p05 gap, failure rate,
+   tracking error per scenario).
+3. **Repeat campaign** - 5-10 runs of: realistic 10-drone 2D mission, 10-drone 2D tower gap, 6-drone Gazebo patrol and
+   tower gap.
+4. **Baselines / ablations** - same scenarios with safety filter, estimate guard, retry, sigma tuning off, and
+   centralized-only: the measured value of each feature (thesis contribution table).
+5. **Fault-injection campaign** - scripted drone kill, coordinator loss, radio partition, GPS dropout, with pass/fail
+   criteria.
+6. **Leader-decided manoeuvres** - gap and formation decisions by the elected leader (no ground station) + partition
+   test.
+7. **Code quality** (in parallel with runs) - split `independent_swarm_console.py` / `independent_agent_node.py` into
+   modules, one versioned config for thresholds, lint + type checks in CI, docs/architecture/reproduction guide.
+8. **Protocol verification** - exhaustive bounded state-space tests of transition and mode-switch protocols.
+9. **Demo mode** - one command plays the whole story with dashboard narration; recorded Gazebo video.
+10. **When inputs arrive** - campus world (user's photos), measured realism values (hardware), optional ROS 2 bridge.
+Code freeze 17 Dec, deliverables 31 Dec.
 
 ## Changelog (newest first; one line per change to this file)
 
