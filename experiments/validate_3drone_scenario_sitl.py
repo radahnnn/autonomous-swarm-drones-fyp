@@ -16,12 +16,11 @@ Runs the same 3-drone scenario in swarm_core and in ArduPilot SITL on a common t
 import os
 import sys
 import time
-import math
 import shutil
 import subprocess
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -54,14 +53,8 @@ except ImportError:
 from swarm_core.config import get_profile, build_controllers_from_profile
 from swarm_core.drone import Drone
 from swarm_core.formations import FormationGenerator, FormationType
-from swarm_core.controllers.centralized import CentralizedController
 from sitl.common_frame import CommonCoordinateFrame
-from sitl.scenarios import (
-    dump_vehicle_parameters,
-    verify_and_set_param,
-    apply_scenario_via_mavlink,
-    get_available_scenarios,
-)
+from sitl.scenarios import dump_vehicle_parameters, verify_and_set_param, apply_scenario_via_mavlink
 
 
 def get_unified_v_geometry(spacing: float = 3.0) -> np.ndarray:

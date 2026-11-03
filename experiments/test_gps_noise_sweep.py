@@ -23,9 +23,7 @@ Noise Levels Tested:
 Reports raw numbers (mean +/- std) across multiple seeds.
 """
 
-import os
-import shutil
-from typing import Dict, List
+from typing import Dict
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt

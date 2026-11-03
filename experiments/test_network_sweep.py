@@ -7,8 +7,6 @@ Evaluates:
 Reports Mean +/- Standard Deviation across multiple random seeds.
 """
 
-import os
-import shutil
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt

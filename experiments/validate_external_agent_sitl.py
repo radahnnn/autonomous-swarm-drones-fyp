@@ -1075,7 +1075,7 @@ def main() -> None:
             if replacement_dir is None:
                 raise RuntimeError("replacement operator did not report its evidence directory")
             replacement_event_path = Path(replacement_dir) / "events.jsonl"
-            replacement_events = wait_for_events(
+            wait_for_events(
                 terminal, replacement_event_path,
                 lambda rows: any(
                     row.get("kind") == "operator_takeover_mission"

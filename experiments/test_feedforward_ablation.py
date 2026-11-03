@@ -9,9 +9,7 @@ Evaluates:
    e_steady = (2.2 + 0.20) / 1.8 * 0.8544 = (2.4 / 1.8) * 0.8544 = 1.1392 m.
 """
 
-import os
-import shutil
-from typing import Dict, List
+from typing import Dict
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -101,10 +99,10 @@ def main():
     v_target_norm = float(np.linalg.norm([0.8, 0.3]))
     expected_lag_no_ff = ((kd + cd) / kp) * v_target_norm
 
-    print(f"\n[ANALYTICAL DERIVATION]")
+    print("\n[ANALYTICAL DERIVATION]")
     print(f"  Target Velocity: ||v_target|| = sqrt(0.8^2 + 0.3^2) = {v_target_norm:.4f} m/s")
     print(f"  Controller Gains: kp = {kp}, kd = {kd}, Rotor Drag: cd = {cd}")
-    print(f"  Theoretical Steady Lag: e_steady = ((kd + cd) / kp) * ||v_target||")
+    print("  Theoretical Steady Lag: e_steady = ((kd + cd) / kp) * ||v_target||")
     print(f"                         = (({kd} + {cd}) / {kp}) * {v_target_norm:.4f}")
     print(f"                         = ({kd+cd:.2f} / {kp:.2f}) * {v_target_norm:.4f} = {expected_lag_no_ff:.4f} m (~1.14 m)")
     print("-" * 90)

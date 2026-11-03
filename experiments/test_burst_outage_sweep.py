@@ -20,9 +20,7 @@ Reports raw numbers (mean +/- std):
 - Min inter-drone distance (m) vs collision barrier (0.7m)
 """
 
-import os
-import shutil
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -422,16 +420,16 @@ def run_burst_diagnostic_and_log(num_drones: int = 5, seed: int = 42) -> None:
     empirical_rate = total_accepted / total_ticks
 
     print("  ...")
-    print(f"\n  DIAGNOSTIC SUMMARY & THEORETICAL ANALYSIS:")
+    print("\n  DIAGNOSTIC SUMMARY & THEORETICAL ANALYSIS:")
     print(f"  - Sends per recipient per tick: {sends_per_recipient_per_tick} packets/tick ({num_drones - 1} peer broadcasts + 1 coordinator heartbeat).")
     print(f"  - Coordinator packet delivery rate over {total_ticks} ticks: {empirical_rate * 100:.1f}%.")
-    print(f"  - Theoretical Explanation of Difference from (2):")
-    print(f"    In Recommendation 2, WirelessChannel operates standalone with exactly 1 send per tick,")
-    print(f"    matching the discrete Markov transitions 1:1. In the multi-drone swarm simulation, each recipient")
+    print("  - Theoretical Explanation of Difference from (2):")
+    print("    In Recommendation 2, WirelessChannel operates standalone with exactly 1 send per tick,")
+    print("    matching the discrete Markov transitions 1:1. In the multi-drone swarm simulation, each recipient")
     print(f"    receives {sends_per_recipient_per_tick} distinct packets per 50ms tick. By enforcing per-tick temporal")
-    print(f"    coherence in WirelessChannel._update_ge_state (advancing state at most once per tick timestamp),")
-    print(f"    all incoming packets dispatched within the same tick experience the identical physical channel state,")
-    print(f"    accurately modeling the coherence time of real RF fading.")
+    print("    coherence in WirelessChannel._update_ge_state (advancing state at most once per tick timestamp),")
+    print("    all incoming packets dispatched within the same tick experience the identical physical channel state,")
+    print("    accurately modeling the coherence time of real RF fading.")
     print("=========================================================================================\n")
 
 

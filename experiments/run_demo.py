@@ -6,7 +6,6 @@ Line -> V-Shape -> Circle -> Grid with Hungarian optimal assignment and collisio
 
 import argparse
 import json
-import os
 from pathlib import Path
 import subprocess
 import matplotlib
@@ -58,7 +57,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("==================================================")
-    print(f"  Swarm Drones FYP: 4-Formation Transition Demo   ")
+    print("  Swarm Drones FYP: 4-Formation Transition Demo   ")
     print(f"  Profile: {args.profile} | Seed: {args.seed}     ")
     print("==================================================")
 

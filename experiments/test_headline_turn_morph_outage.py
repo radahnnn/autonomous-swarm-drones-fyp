@@ -26,11 +26,9 @@ Reports:
 - Active safety parameter provenance (safe_radius, collision_dist, collision_threshold)
 """
 
-import os
 import sys
-import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import matplotlib
@@ -277,7 +275,6 @@ def main():
             label="Intended Centroid (Turn at t=5s)",
         )
         # Mark turn and morph points
-        t_arr = ref_res["history_t"]
         idx_turn = int(5.0 / 0.05)
         idx_morph = int(6.0 / 0.05)
         ax1.plot(ref_res["history_centroid"][idx_turn, 0], ref_res["history_centroid"][idx_turn, 1], "ro", markersize=8, label="Turn Start (t=5s)")
@@ -353,7 +350,7 @@ def main():
     ax4.legend(loc="upper left", fontsize=8.5)
     ax4.grid(True, alpha=0.3)
 
-    suptitle = fig.suptitle(
+    fig.suptitle(
         f"Ground-Link Outage Resilience: Overlapping Turn & Formation Morph Across 6 Fallback Strategies\n"
         f"Active Safety Provenance: safe_radius = {active_safe_radius:.2f}m | collision_threshold = {active_collision_thresh:.2f}m | collision_dist = {active_collision_dist:.2f}m",
         fontsize=13,

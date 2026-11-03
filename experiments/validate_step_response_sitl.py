@@ -14,11 +14,9 @@ Validate Sim Against SITL: Position Step Response & Parameter Fitting (Task C It
 import os
 import sys
 import time
-import math
 import subprocess
-import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

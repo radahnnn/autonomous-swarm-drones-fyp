@@ -12,7 +12,6 @@ import ipaddress
 import json
 import os
 from pathlib import Path
-import signal
 import socket
 import subprocess
 import sys
