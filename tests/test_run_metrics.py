@@ -150,3 +150,11 @@ def test_true_positions_can_fail_a_run_the_estimates_pass_and_landing_is_complet
         clean.update(float(t), {0: _st(t, 0, 0, truth=(0, 0)), 1: _st(t, 10, 0, truth=(10, 0))})
     clean.update(6.0, {0: _st(6, 0, 0, airborne=False, armed=False), 1: _st(6, 10, 0, airborne=False, armed=False)})
     assert clean.report(7.0)["result"] == "PASS"
+
+
+def test_landing_drones_still_armed_are_not_missing():
+    from sitl.run_metrics import RunMetrics
+    m = RunMetrics(2, sample_period_s=0.001)
+    m.update(1.0, {0: _st(1.0, 0, 0), 1: _st(1.0, 10, 0)})
+    m.update(2.0, {0: _st(2.0, 0, 0, airborne=False, armed=True), 1: _st(2.0, 10, 0, airborne=False, armed=True)})
+    assert m.missing_airborne_episodes == 0

@@ -181,8 +181,10 @@ class RunMetrics:
         all_present = True
         for index in self.ever_airborne:
             status = statuses.get(index) or {}
-            landed = status.get("airborne") is False and status.get("armed") is False
-            missing = index not in points and not landed
+            # Present = we have a fresh airborne position, or a status that says it is no longer airborne (landing or
+            # landed; landing drones are still armed). Missing = no usable status while it may still be flying.
+            not_flying = bool(status) and status.get("airborne") is False
+            missing = index not in points and not not_flying
             if missing and not self._missing.get(index):
                 self.missing_airborne_episodes += 1
             self._missing[index] = missing
