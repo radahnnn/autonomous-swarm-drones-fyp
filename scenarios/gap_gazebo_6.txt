@@ -1,0 +1,20 @@
+# Tower gap in Gazebo, 6 drones (world: OBSTACLES="25,-5.6,0.6 25,5.6,0.6" with cameras; console: --gazebo
+# --time-scale 0.2 --realistic --sensed-obstacle=25,-5.6,0.6 --sensed-obstacle=25,5.6,0.6 --sense-range 12).
+wait swarm ready 1800
+send launch
+poll 6 1500 airborne armed=yes
+sleep 30
+send capture before_gap
+send transit 75 0 0.3
+expect changing to a COLUMN 2400
+expect Column formed 1500
+send capture column_formed
+expect back to the V 3000
+send capture past_gap
+expect V restored 1500
+expect Transit complete 3000
+send capture transit_done
+status
+health
+send land
+sleep 240

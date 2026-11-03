@@ -5,7 +5,7 @@ wait swarm ready 900
 send launch
 poll 10 300 airborne armed=yes
 sleep 20
-send transit 90 0 0.3
+send transit 120 0 0.3
 expect Changing to a COLUMN|changing to a COLUMN 600
 expect Column formed 400
 expect back to the V 600
