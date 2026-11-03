@@ -118,56 +118,32 @@ Not verified / open:
 
 ## 8. Plan
 
-Agreed with the user on 2026-11-03. **Hardware is on hold (user decision) to strengthen the software first;** the
-supervisor still expects physical flight, so the propellers-off bench test should resume as soon as possible.
-Targets for every feature: 10 drones in 2D SITL and 6 in Gazebo 3D. Rationale (panel-style critique): the work is
-strong engineering but its evidence is single-run, has no baselines, uses sampled estimate-based separation and
-assumed disturbance values, and has never flown.
+Rule set by the user (2026-11-03): this section lists only what the user asked for or what testing found. Agent
+recommendations are NOT written here; new items are added only after consulting the user, and results are recorded
+only once tested and proven (with their evidence label). Hardware is on hold by the user's decision.
 
-1. **Ground-truth measurement** - log true simulator positions (SITL/Gazebo) and compute separation from them at a
-   higher rate, alongside the estimate-based metric. (Next step.)
-2. **Statistical report generator** - one command: runs folder -> tables/plots (median / p05 gap, failure rate,
-   tracking error per scenario).
-3. **Repeat campaign** - 5-10 runs of: realistic 10-drone 2D mission, 10-drone 2D tower gap, 6-drone Gazebo patrol and
-   tower gap.
-4. **Baselines / ablations** - same scenarios with safety filter, estimate guard, retry, sigma tuning off, and
-   centralized-only: the measured value of each feature (thesis contribution table).
-5. **Fault-injection campaign** - scripted drone kill, coordinator loss, radio partition, GPS dropout, with pass/fail
-   criteria.
-6. **Leader-decided manoeuvres** - gap and formation decisions by the elected leader (no ground station) + partition
-   test.
-7. **Code quality** (in parallel with runs) - split `independent_swarm_console.py` / `independent_agent_node.py` into
-   modules, one versioned config for thresholds, lint + type checks in CI, docs/architecture/reproduction guide.
-8. **Protocol verification** - exhaustive bounded state-space tests of transition and mode-switch protocols.
-9. **Demo mode** - one command plays the whole story with dashboard narration; recorded Gazebo video.
-10. **When inputs arrive** - campus world (user's photos), measured realism values (hardware), optional ROS 2 bridge.
-Code freeze 17 Dec, deliverables 31 Dec.
+### Not done yet (open items, 2026-11-03)
 
-### Not done yet (open backlog, 2026-11-03) — everything requested or found that is not finished
-
-Software / evidence:
-- Ground-truth separation logging (true simulator positions, higher rate) — plan step 1.
-- Statistical report generator; repeat campaign (5-10 runs per key scenario); baselines/ablations; fault-injection campaign — plan steps 2-5.
-- Realistic 10-drone 2D mission not re-run since the retry + guard fixes (last: FAIL by 2 cm, min 2.48 m).
-- Leader-decided gap/formation manoeuvres (today the console decides) and real consensus with a partition test.
-- Protocol verification (bounded exhaustive state-space tests); code refactor of the two 2,000-line files; one config file; lint/type checks in CI; docs/architecture/reproduction guide.
-- Demo mode (one command, narrated) and a recorded Gazebo video.
-- Gazebo: trees are scenery only (user wants them as real obstacles); wind not modelled in Gazebo (only in 2D SITL); 10 drones never run in Gazebo; Gazebo runs ~0.2x real time.
-- Battery endurance cannot be simulated with SITL's generic quad (drain disabled) — must be measured on hardware.
+Requested by the user, not finished:
+- Leader-decided tower-gap / formation decisions (today the console decides).
+- Gazebo: trees as real obstacles (now scenery only); wind in Gazebo.
 - Campus world (Military College of Signals, Rawalpindi; EE and SE departments) — waiting for the user's photos.
-- Optional: thin ROS 2 bridge; task allocation / coverage-path planning / image mosaic; benchmark vs a published method.
+- Hardware (on hold): propellers-off bench test of the PC/ESP32 -> Matek link; RC + failsafes; first hover; then
+  two drones; then the 5 new ones. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
 
-Hardware (on hold by user decision; supervisor still expects physical flight):
-- Propellers-off bench test of the PC/ESP32 -> Matek command path (UART MAVLink first; CAN later).
-- RC receivers bound, accelerometer calibration, failsafes (RC loss, battery, ArduPilot fence), a pilot with RC override.
-- First hover with logged GPS error and Wi-Fi latency, fed back into `--realistic` (replacing the assumed values); then two drones at wide spacing; then the 5 new drones one at a time. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
+Found by testing, not yet resolved:
+- Realistic 10-drone 2D mission: last run FAIL by 2 cm (min 2.48 m), not re-run since the retry + guard fixes.
+- Battery endurance cannot be simulated with SITL's generic quad (drain disabled); must be measured on hardware.
+- Disturbance values in `--realistic` are assumptions until measured on the team's drones.
+- Most results are single runs.
 
 Waiting on the user:
-- Real drone details: battery (cells, mAh), GPS module, who flies RC, RC receivers per drone, drone-to-PC link (ESP32 Wi-Fi vs telemetry radios).
-- Campus photos; the demo date; the "idea" the user mentioned early on and has not shared yet.
-- GitHub connector in claude.ai is not authorized (pushing works via the `gh` CLI login on this PC).
+- Drone details: battery (cells, mAh), GPS module, who flies RC, RC receivers per drone, drone-to-PC link.
+- Campus photos; the demo date; the idea the user mentioned and has not shared yet.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-03 — Claude — Removed the agent's 10-step recommendation plan at the user's request; section 8 now holds only user-requested or test-found items; new items only after consulting the user.
 
 - 2026-11-03 — Claude — Added the open backlog ("Not done yet") under section 8.
 

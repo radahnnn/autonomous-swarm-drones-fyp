@@ -345,3 +345,7 @@ Copy this block for every work session. Append new entries; do not rewrite old r
 - Results today (all pushed): Gazebo 6-drone survey patrol PASS under --realistic; tower-gap manoeuvre PASS in 2D (10) and Gazebo (6, real towers); estimation-health guard; transient-cancellation retry; dashboard upgrade. Details: `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`.
 - Panel-style self-critique and the 10-step plan are in PROJECT_STATE section 8. Weakest points: single-run evidence, no baselines, estimate-based sampled separation, assumed realism values, never flown.
 - Next step: Step 1, ground-truth separation logging. Codex (software chat): good review targets are `sitl/estimate_health.py`, `IndependentSwarmConsole._tick_gap` / `_gap_formation`, the retry timer, and `operator_dashboard` capture serving.
+
+### 2026-11-03 — Claude — user rule: no agent recommendations in the project files
+
+- At the user's request the 10-step recommendation plan was removed from PROJECT_STATE section 8 (the entry above that mentions it is superseded). From now on: only items the user asked for or that testing found are recorded; results only once tested and proven; new plan items only after consulting the user. Applies to every agent writing these files.
