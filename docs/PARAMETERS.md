@@ -281,7 +281,7 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | `coord_loss_s` | `3.0` | TransitionParams, line 64 |  |
 | `hold_timeout_s` | `20.0` | TransitionParams, line 65 |  |
 | `agent_start_check_s` | `1.0` | TransitionParams, line 66 |  |
-| `arrived_close_s` | `7.0` | TransitionParams, line 67 |  |
+| `arrived_close_s` | `15.0` | TransitionParams, line 69 |  |
 
 ## `swarm_core/controllers/centralized.py`
 

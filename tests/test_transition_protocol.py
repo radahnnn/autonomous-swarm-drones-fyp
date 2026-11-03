@@ -461,3 +461,15 @@ def test_local_violation_before_the_common_start_discards_and_still_reports():
     assert agent.state == AgentTransition.IDLE
     sends = [a[1] for a in actions if a[0] == "send"]
     assert sends and sends[0]["type"] == "transition_abort" and sends[0]["reason"] == "own_fault"
+
+
+def test_self_close_waits_for_the_coordinator_window_and_needs_real_arrival_codex_8():
+    assert P.arrived_close_s > P.overrun_s                      # a coordinator abort always lands first
+    agent, plan = running_agent()
+    agent.tick(18.5, ctx_for(plan, 1, alpha=1.0))
+    assert agent.state == AgentTransition.ARRIVED
+    lagging = ctx_for(plan, 1, alpha=1.0)
+    target = plan.position_at(1, 1.0)
+    lagging = type(lagging)(**{**lagging.__dict__, "own_position_ne": (float(target[0]) + 5.0, float(target[1]))})
+    actions = agent.tick(10.0 + 8.0 + P.arrived_close_s + 0.1, lagging)
+    assert agent.state == AgentTransition.HOLD and any(a[1] == "arrival_not_confirmed" for a in actions if a[0] == "event")

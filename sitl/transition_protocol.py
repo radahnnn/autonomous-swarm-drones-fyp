@@ -64,7 +64,9 @@ class TransitionParams:
     coord_loss_s: float = 3.0
     hold_timeout_s: float = 20.0
     agent_start_check_s: float = 1.0
-    arrived_close_s: float = 7.0
+    # Must exceed overrun_s so a coordinator abort for a lagging drone always lands before any self-close
+    # (Codex review #8: 7 s < 12 s let a lagging drone close and then ignore the abort).
+    arrived_close_s: float = 15.0
 
 
 _ease = min_jerk
@@ -310,6 +312,13 @@ class AgentTransition:
             self.state = self.ARRIVED
         if (self.state == self.ARRIVED and
                 now >= plan.start_at + plan.duration_s + self.params.arrived_close_s):
+            # Self-close only if this drone is really at its target; otherwise HOLD (never adopt an unreached layout).
+            target = plan.position_at(self.drone_id, 1.0)
+            own = ctx.own_position_ne
+            if own is not None and float(np.linalg.norm(np.asarray(own, dtype=float) - target)) > self.params.arrival_tol_m:
+                actions.append(("event", "arrival_not_confirmed", {"transition_id": plan.transition_id}))
+                self._hold("arrival_not_confirmed", 1.0)
+                return actions
             actions.append(("event", "arrived_timeout_close", {"transition_id": plan.transition_id}))
             self._close()  # lost transition_done must not leave the agent in a transition forever
             return actions
