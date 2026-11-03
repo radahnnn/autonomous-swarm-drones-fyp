@@ -226,3 +226,22 @@ def test_dashboard_state_carries_the_live_run_metrics_and_the_page_renders_them(
     assert state["metrics"]["state"] == "ok" and state["metrics"]["drones"][0]["id"] == 1
     json.dumps(state, allow_nan=False)                       # the dashboard serializes strictly
     assert "function renderMetrics" in PAGE and "renderMetrics();renderReplay();mode.textContent" in PAGE
+
+
+def test_dashboard_extras_sensed_obstacles_realism_and_captures(tmp_path):
+    import json as _json
+    from sitl import operator_dashboard as od
+    latest = {0: {"obstacle_sensing": {"items": [[5.0, -1.5, 0.6]]}},
+              1: {"obstacle_sensing": {"items": [[5.2, -1.4, 0.6], [-13.0, -3.0, 0.5]]}}}
+    assert od._sensed_obstacles(latest) == [[5.0, -1.5, 0.6], [-13.0, -3.0, 0.5]]     # merged across drones
+    cap = tmp_path / "captures"
+    cap.mkdir()
+    (cap / "index.jsonl").write_text(_json.dumps({"label": "pairs_A", "utc": "x", "frames": [
+        {"drone": 1, "file": "17000_pairs_A_D1.png"}, {"drone": 2, "file": "../../etc/passwd"},
+        {"drone": 3, "file": None}]}) + "\n")
+    session = type("S", (), {"run_dir": tmp_path, "args": type("A", (), {"sitl_sensor_profile": "realistic"})(),
+                             "position_sigma_m": 1.0})()
+    shots = od._latest_captures(session)
+    assert shots["label"] == "pairs_A" and [f["drone"] for f in shots["frames"]] == [1]    # unsafe names dropped
+    assert od._realism(session)["profile"] == "realistic"
+    assert not od._CAPTURE_NAME.match("../x_D1.png") and not od._CAPTURE_NAME.match("1_a_D1.png/../../x")

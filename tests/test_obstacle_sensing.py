@@ -31,7 +31,7 @@ def test_sharing_between_two_drones_and_dedupe():
     assert b.learn(a.shareable()) == [(5.0, 5.0, 0.6)]
     assert b.learn(a.shareable()) == []                          # same pole again
     assert b.learn([[5.3, 5.2, 0.6]]) == []                      # within the merge tolerance: same pole
-    assert b.status() == {"known": 1, "detected": 0, "learned": 1, "range_m": 3.0}
+    assert b.status() == {"known": 1, "detected": 0, "learned": 1, "range_m": 3.0, "items": [[5.0, 5.0, 0.6]]}
 
 
 def test_malformed_and_oversized_peer_data_is_ignored():

@@ -117,3 +117,11 @@ def test_peers_marked_degraded_get_extra_distance():
     node._peer_degraded = {1: True, 2: False}
     extras = sorted(p["extra_m"] for p in node._safety_neighbors(10.0))
     assert extras == [0.0, IndependentAgentNode.DEGRADED_PEER_EXTRA_M]
+
+
+def test_high_rate_jitter_is_not_a_glitch():
+    import random
+    random.seed(1)
+    h = EstimateHealth()
+    states = feed(h, [(0.1 * i, (0.03 * i + random.uniform(-0.3, 0.3), random.uniform(-0.3, 0.3))) for i in range(300)])
+    assert set(states) == {"ok"}

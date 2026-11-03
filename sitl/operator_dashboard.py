@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import re
+from pathlib import Path
 import math
 import threading
 import time
@@ -47,6 +49,8 @@ aside{background:var(--card);border-left:1px solid var(--edge);padding:20px;over
 <h2>Move swarm</h2><div class="grid"><span></span><button onclick="send('w 5')">↑ North</button><span></span><button onclick="send('a 5')">← West</button><button onclick="send('status')">Refresh</button><button onclick="send('d 5')">East →</button><span></span><button onclick="send('s 5')">↓ South</button><span></span></div>
 <h2>Formation shape</h2><div class="grid" id="shapes"></div><div class="sub" id="shapehelp">Shape changes are available grounded, or in flight after safety checks.</div>
 <h2>Altitude</h2><div class="grid two"><button onclick="send('u 2')">Up 2 m</button><button onclick="send('j 2')">Down 2 m</button></div>
+<h2>Mission</h2><div class="grid"><button onclick="send('patrol square 12')">Start patrol</button><button onclick="send('route stop')">Stop patrol</button><button onclick="send('goto 0 0')">Return home</button><button onclick="send('capture dashboard')">Capture images</button><button onclick="send('coord off')">Cut coordinator</button><button onclick="send('coord on')">Restore coordinator</button></div><div class="sub" id="realism" style="margin-top:7px"></div>
+<h2>Camera</h2><div class="sub" id="caphelp">No images yet (Gazebo world with cameras, then "Capture images").</div><div id="gallery" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px"></div>
 <h2>Communication test</h2><div class="fault"><input id="from" type="number" min="1" value="1" aria-label="sender"><input id="to" type="number" min="1" value="2" aria-label="recipient"><button id="blocklink" onclick="link(true)">Block link</button><button id="restorelink" onclick="link(false)">Restore link</button></div><div class="sub" style="margin-top:7px">Cuts one direction only. The remaining drones should keep flying.</div>
 <h2>Run metrics</h2><div class="card mx" id="mx"><div class="row"><b class="big" id="mxgap">—</b><span class="sub" id="mxstate">waiting for flight</span></div><div class="bar"><i id="mxbar"></i><u style="left:50%" title="separation gate"></u></div><canvas id="mxspark" style="height:56px;width:100%"></canvas><div class="sub" id="mxline"></div><div class="sub" id="mxdrones"></div><div class="sub" id="mxcount"></div><div class="sub" id="mxcoord"></div></div>
 <h2>Drone health & recovery</h2><div class="sub" id="recoveryhelp">Recovery controls depend on the active architecture.</div><div id="agents" class="agentsgrid"></div><div class="msg" id="msg"></div>
@@ -78,11 +82,12 @@ document.getElementById('mxdrones').textContent='modes '+(Object.entries(modes).
 let co=state.coordinator||{},ct=document.getElementById('mxcoord');ct.textContent=co.source?('coordinator: '+(co.acting&&co.acting.length?'ACTING D'+co.acting.join(',D')+' (term '+co.term+')':co.source)):'';ct.style.color=co.acting&&co.acting.length?'var(--warn)':'';
 let c=m.counters||{};document.getElementById('mxcount').textContent=Object.keys(c).length?Object.entries(c).map(([k,v])=>k.replace(/_/g,' ')+' '+v).join(' · '):''}
 async function poll(){try{let r=await fetch('/state',{cache:'no-store'});state=await r.json();update()}catch(e){mode.textContent='DISCONNECTED';mode.className='bad'}setTimeout(poll,350)}
-function update(){renderMetrics();renderReplay();mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
+function renderExtras(){let r=state.realism||{};document.getElementById('realism').textContent=r.profile&&r.profile!=='matek-single-compass'&&r.profile!=='baseline'?('Simulation: '+r.profile+' · GPS σ '+r.position_sigma_m+' m · spacing ×'+r.formation_scale):'Simulation: ideal (no disturbances)';let c=state.captures,g=document.getElementById('gallery'),h=document.getElementById('caphelp');if(c&&c.frames&&c.frames.length){h.textContent='Latest capture: '+c.label+' · '+(c.utc||'').slice(11,19)+' UTC';let html=c.frames.map(f=>'<a href="/captures/'+f.file+'" target="_blank"><img src="/captures/'+f.file+'" title="D'+f.drone+'" style="width:100%;border-radius:4px"></a>').join('');if(g.dataset.k!==c.label+c.utc){g.innerHTML=html;g.dataset.k=c.label+c.utc}}}
+function update(){renderExtras();renderMetrics();renderReplay();mode.textContent=state.transitioning?'SWITCHING…':state.control_mode.toUpperCase();mode.className=state.transitioning?'warn':(state.healthy===state.count?'ok':'warn');health.textContent=state.healthy+' / '+state.count;leader.textContent=state.leader==null?'—':'D'+state.leader;let gap=Number.isFinite(state.minimum_separation_m)?' · min gap '+state.minimum_separation_m.toFixed(1)+' m':'';mission.textContent=state.airborne+' airborne · '+state.formation.toUpperCase()+gap+' · target N '+state.goal[0].toFixed(1)+' E '+state.goal[1].toFixed(1)+' · '+state.altitude.toFixed(1)+' m';
  document.querySelectorAll('.modebtn').forEach(b=>{let active=b.dataset.mode===state.control_mode;b.classList.toggle('active',active);b.disabled=!!state.transitioning||!!state.mode_switching||((state.airborne>0||state.armed>0)&&!state.mode_switch_enabled)||!state.healthy});modehelp.textContent=state.mode_switching?('Switching to '+state.mode_switch_target+' ('+state.mode_switch_state+')…'):(state.transitioning?'Switching safely to '+state.switch_target+'; the dashboard stays connected.':(state.transition_error||(state.mode_switch_enabled?'Click another mode to switch all drones in flight (synchronized, blended, rolls back on failure).':'Select another mode to restart the grounded controller while SITL remains running.')));
  shapes.innerHTML=state.formations.map(style=>'<button class="shape" onclick="setShape(\''+style+'\')">'+state.formation_labels[style]+'</button>').join('');document.querySelectorAll('.shape').forEach(b=>{b.classList.toggle('active',b.textContent.toLowerCase()===state.formation);b.disabled=!state.formation_change_enabled||!state.formation_change_allowed||!!state.formation_transitioning||!!state.transitioning});shapehelp.textContent=!state.formation_change_enabled?'Formation controls are unavailable in this mode.':(state.formation_transitioning?'Smooth formation transition: '+Math.round(100*(state.formation_transition_progress||0))+'% complete; wait before issuing another change.':(!state.formation_change_allowed?'Waiting for fresh, healthy status and a safe all-grounded or all-airborne swarm.':'Every requested shape is screened for path clearance; unsafe or crowded transitions are rejected.'));
  document.getElementById('blocklink').disabled=!state.peer_fault_enabled||!!state.transitioning;document.getElementById('restorelink').disabled=!state.peer_fault_enabled||!!state.transitioning;recoveryhelp.textContent=state.recovery_help||'Recovery controls depend on the active architecture.';
- agents.innerHTML=state.agents.map(a=>'<div class="card"><div class="row"><b><span class="dot" style="background:'+(a.health==='OK'?'var(--ok)':a.health==='STALE'?'var(--bad)':'var(--warn)')+'"></span>D'+a.id+(a.leader?' ★':'')+'</b><b>'+a.health+'</b></div><div class="row sub"><span>'+(a.airborne?'Airborne':'Grounded')+' · '+a.safety+'</span><span>'+a.members+' members</span></div><div class="row sub"><span>Agent '+(a.agent_online?'online':'stopped')+'</span><span>'+String(a.formation||state.formation).toUpperCase()+'</span></div><button onclick="agentAction('+a.id+','+(a.agent_online?'true':'false')+')" '+(a.agent_action_enabled?'':'disabled')+'>'+(a.agent_online?(state.recovery_label||'Kill agent'):'Revive / restart')+'</button></div>').join('');raw.textContent=JSON.stringify(state,null,2)}
+ agents.innerHTML=state.agents.map(a=>'<div class="card"><div class="row"><b><span class="dot" style="background:'+(a.health==='OK'?'var(--ok)':a.health==='STALE'?'var(--bad)':'var(--warn)')+'"></span>D'+a.id+(a.leader?' ★':'')+'</b><b>'+a.health+'</b></div><div class="row sub"><span>'+(a.airborne?'Airborne':'Grounded')+' · '+a.safety+'</span><span>'+a.members+' members</span></div><div class="row sub"><span>Agent '+(a.agent_online?'online':'stopped')+'</span><span>'+String(a.formation||state.formation).toUpperCase()+'</span></div><div class="row sub"><span style="color:'+(a.estimate==='ok'?'inherit':'var(--bad)')+'">GPS '+(a.estimate==='ok'?'ok':a.estimate.toUpperCase())+'</span><span>'+(a.filter_active?'⛨ avoiding':'')+(a.obstacles_known?' · '+a.obstacles_known+' obst.':'')+'</span></div><button onclick="agentAction('+a.id+','+(a.agent_online?'true':'false')+')" '+(a.agent_action_enabled?'':'disabled')+'>'+(a.agent_online?(state.recovery_label||'Kill agent'):'Revive / restart')+'</button></div>').join('');raw.textContent=JSON.stringify(state,null,2)}
 function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);let s=18*devicePixelRatio,W=c.width,H=c.height,cn=0,ce=0,n=0;if(state)state.agents.forEach(a=>{if(a.position){cn+=a.position[0];ce+=a.position[1];n++}});if(n){cn/=n;ce/=n}let X=e=>W/2+(e-ce)*s,Y=q=>H/2-(q-cn)*s;
  x.strokeStyle='#1c293b';x.lineWidth=1;for(let i=-30;i<=30;i+=5){x.beginPath();x.moveTo(X(i),0);x.lineTo(X(i),H);x.stroke();x.beginPath();x.moveTo(0,Y(i));x.lineTo(W,Y(i));x.stroke()}x.fillStyle='#91a0b8';x.font=13*devicePixelRatio+'px system-ui';x.fillText('N ↑',W-55*devicePixelRatio,28*devicePixelRatio);
  if(!state)return;if(state.route&&state.route.waypoints.length>1){x.save();x.strokeStyle='#38d996aa';x.lineWidth=2*devicePixelRatio;x.setLineDash([3*devicePixelRatio,5*devicePixelRatio]);x.beginPath();state.route.waypoints.forEach((p,i)=>i?x.lineTo(X(p[1]),Y(p[0])):x.moveTo(X(p[1]),Y(p[0])));x.stroke();x.restore()}if(state.geofence){let f=state.geofence,m=f.margin_m||0;x.save();x.lineWidth=2*devicePixelRatio;x.strokeStyle='#ffbd59';x.setLineDash([]);
@@ -90,6 +95,7 @@ function draw(){requestAnimationFrame(draw);x.clearRect(0,0,c.width,c.height);le
   const rect=(a,dash)=>{x.setLineDash(dash?[6*devicePixelRatio,6*devicePixelRatio]:[]);x.strokeRect(X(a[1]),Y(a[2]),(a[3]-a[1])*s,(a[2]-a[0])*s)};
   if(f.kind==='circle'&&f.radius_m<1e5){ring(f.radius_m,false);ring(f.radius_m-m,true)}else if(f.kind==='box'){rect(f.box,false);rect([f.box[0]+m,f.box[1]+m,f.box[2]-m,f.box[3]-m],true)}x.restore()}
  if(!state)return;state.obstacles.forEach(o=>{x.beginPath();x.arc(X(o[1]),Y(o[0]),o[2]*s,0,Math.PI*2);x.fillStyle='#ff647426';x.fill();x.strokeStyle='#ff6474';x.stroke()});
+ (state.sensed_obstacles||[]).forEach(o=>{x.beginPath();x.setLineDash([4,3]);x.arc(X(o[1]),Y(o[0]),Math.max(o[2]*s,4),0,Math.PI*2);x.strokeStyle='#ff9f43';x.lineWidth=2*devicePixelRatio;x.stroke();x.setLineDash([])});
  let gx=X(state.goal[1]),gy=Y(state.goal[0]);x.strokeStyle='#ffbd59';x.lineWidth=2*devicePixelRatio;x.beginPath();x.arc(gx,gy,8*devicePixelRatio,0,Math.PI*2);x.moveTo(gx-13*devicePixelRatio,gy);x.lineTo(gx+13*devicePixelRatio,gy);x.moveTo(gx,gy-13*devicePixelRatio);x.lineTo(gx,gy+13*devicePixelRatio);x.stroke();
  let byId=Object.fromEntries(state.agents.filter(a=>a.position).map(a=>[a.id,a]));x.setLineDash([5*devicePixelRatio,5*devicePixelRatio]);x.strokeStyle='#62a8ff88';x.lineWidth=1.5*devicePixelRatio;state.agents.forEach(a=>{if(!a.position)return;a.peers.forEach(pid=>{let b=byId[pid];if(!b||a.id>pid)return;x.beginPath();x.moveTo(X(a.position[1]),Y(a.position[0]));x.lineTo(X(b.position[1]),Y(b.position[0]));x.stroke()})});x.setLineDash([]);
  state.agents.forEach(a=>{if(!a.position)return;(trail[a.id]??=[]).push([a.position[0],a.position[1]]);if(trail[a.id].length>120)trail[a.id].shift();x.beginPath();trail[a.id].forEach((p,i)=>i?x.lineTo(X(p[1]),Y(p[0])):x.moveTo(X(p[1]),Y(p[0])));x.strokeStyle='#62a8ff55';x.stroke()});
@@ -110,6 +116,49 @@ def _coordinator_summary(latest: dict) -> dict:
             term = max(term, info["term"])
     common = max(set(sources), key=sources.count) if sources else None
     return {"source": common, "acting": sorted(acting), "term": term}
+
+
+def _sensed_obstacles(latest: dict) -> list:
+    """Obstacles the drones found with their (simulated) range sensors, merged across drones."""
+    found = []
+    for status in latest.values():
+        for item in (status.get("obstacle_sensing") or {}).get("items", []) or []:
+            try:
+                n, e, r = (float(v) for v in item)
+            except (TypeError, ValueError):
+                continue
+            if all(abs(n - f[0]) > 0.75 or abs(e - f[1]) > 0.75 for f in found):
+                found.append([n, e, r])
+    return found[:32]
+
+
+def _realism(session) -> dict:
+    from sitl.formation_library import formation_scale
+    try:
+        scale = formation_scale()
+    except ValueError:
+        scale = None
+    return {"profile": getattr(getattr(session, "args", None), "sitl_sensor_profile", None),
+            "position_sigma_m": getattr(session, "position_sigma_m", 0.0), "formation_scale": scale}
+
+
+_CAPTURE_NAME = re.compile(r"^[0-9]+_[A-Za-z0-9_-]{1,40}_D[0-9]{1,2}\.png$")
+
+
+def _latest_captures(session) -> dict | None:
+    """The most recent camera capture round (from the console's captures/index.jsonl)."""
+    run_dir = getattr(session, "run_dir", None)
+    if run_dir is None:
+        return None
+    index = Path(run_dir) / "captures" / "index.jsonl"
+    try:
+        last = index.read_text(encoding="utf-8").strip().splitlines()[-1]
+        entry = json.loads(last)
+    except (OSError, IndexError, ValueError):
+        return None
+    return {"label": entry.get("label"), "utc": entry.get("utc"),
+            "frames": [{"drone": f.get("drone"), "file": f.get("file")} for f in entry.get("frames", [])
+                       if f.get("file") and _CAPTURE_NAME.match(str(f.get("file")))]}
 
 
 def dashboard_state(session) -> dict:
@@ -223,6 +272,9 @@ def dashboard_state(session) -> dict:
             "members": len(status.get("active_member_ids", [])),
             "peers": [int(value) + 1 for value in status.get("peer_ids", [])],
             "live_peers": [int(value) + 1 for value in status.get("peer_live_ids", [])],
+            "estimate": (status.get("estimate_health") or {}).get("state", "ok"),
+            "obstacles_known": int((status.get("obstacle_sensing") or {}).get("known", 0) or 0),
+            "filter_active": bool((status.get("safety_filter") or {}).get("active")),
         })
     obstacles = []
     for raw in getattr(session.args, "obstacle", ()):
@@ -281,6 +333,9 @@ def dashboard_state(session) -> dict:
         "altitude": float(session.target_alt_m),
         "coordinator_stream": bool(session.intent_enabled),
         "agents": agents, "obstacles": obstacles,
+        "sensed_obstacles": _sensed_obstacles(latest),
+        "realism": _realism(session),
+        "captures": _latest_captures(session),
         "minimum_separation_m": _minimum_separation(agents),
     }
 
@@ -304,6 +359,13 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
         def do_GET(self):
             if self.path == "/replay" and hasattr(session, "replay_info"):
                 self.send_value(json.dumps(session.replay_info(), allow_nan=False))
+            elif self.path.startswith("/captures/") and getattr(session, "run_dir", None) is not None:
+                name = self.path[len("/captures/"):]
+                path = Path(session.run_dir) / "captures" / name
+                if not _CAPTURE_NAME.match(name) or not path.is_file():
+                    self.send_value('{"message":"not found"}', status=404)
+                    return
+                self.send_value(path.read_bytes(), "image/png")
             elif self.path == "/state":
                 state = state_provider() if state_provider else dashboard_state(session)
                 self.send_value(json.dumps(state, allow_nan=False))
@@ -394,7 +456,8 @@ def start_dashboard(session, port: int, *, state_provider=None, mode_switch=None
                 size = min(int(self.headers.get("Content-Length", "0")), 1024)
                 command = str(json.loads(self.rfile.read(size))["command"]).strip()
                 allowed = {"launch", "land", "status", "preflight", "w 5", "s 5", "a 5", "d 5",
-                           "u 2", "j 2"}
+                           "u 2", "j 2", "patrol square 12", "route stop", "goto 0 0", "capture dashboard",
+                           "coord off", "coord on"}
                 parts = command.split()
                 valid_link = (len(parts) == 3 and parts[0] in {"link-block", "link-restore"}
                               and all(value.isdigit() for value in parts[1:]))

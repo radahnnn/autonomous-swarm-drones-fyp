@@ -75,4 +75,5 @@ class ObstacleSensor:
 
     def status(self) -> dict:
         return {"known": len(self.known), "detected": self.detected_by_self,
-                "learned": self.learned_from_peers, "range_m": self.range_m}
+                "learned": self.learned_from_peers, "range_m": self.range_m,
+                "items": [[round(v, 2) for v in item] for item in self.known[:MAX_SHARED]]}
