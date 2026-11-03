@@ -27,7 +27,9 @@ class AgentSafetyMixin:
         if health is None or self.position is None or not self.position_at or not self.airborne:
             return
         before = health.state
-        state = health.update(self.position[:2], self.position_at)
+        health.update(self.position[:2], self.position_at)
+        state = health.check_tracking(self.position[:2], getattr(self, "last_position_target_ne", None),
+                                      self.position_at)
         if state != before:
             print(f"[NODE {self.drone_id + 1}] position estimate {before} -> {state} "
                   f"{{'glitches': {health.glitches}}}", flush=True)
@@ -37,7 +39,7 @@ class AgentSafetyMixin:
                 self._frozen_target = None
         if state == health.LAND and not self.landing:
             self.safety_state = "estimate_degraded"
-            self.safety_reason = "position_estimate_glitches"
+            self.safety_reason = "position_estimate_or_flyaway"
             self._command_land(self.safety_reason)
 
     def _tick_geofence(self) -> None:

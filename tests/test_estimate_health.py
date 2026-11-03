@@ -106,7 +106,7 @@ def test_agent_freezes_on_a_glitch_and_lands_if_it_persists(capsys):
         n = -n
         node.position, node.position_at = np.array([n, 0.0, -5.0]), 100.0 + step
         node._tick_estimate_health(100.0 + step)
-    assert node.landed_reason == "position_estimate_glitches"
+    assert node.landed_reason == "position_estimate_or_flyaway"
 
 
 def test_peers_marked_degraded_get_extra_distance():
@@ -125,3 +125,14 @@ def test_high_rate_jitter_is_not_a_glitch():
     h = EstimateHealth()
     states = feed(h, [(0.1 * i, (0.03 * i + random.uniform(-0.3, 0.3), random.uniform(-0.3, 0.3))) for i in range(300)])
     assert set(states) == {"ok"}
+
+
+def test_flyaway_from_a_steady_target_degrades_then_lands_if_extreme():
+    h = EstimateHealth(flyaway_m=4.0, flyaway_s=2.0, flyaway_land_m=10.0)
+    target = (0.0, 0.0)
+    assert h.check_tracking((1.0, 0.0), target, 0.0) == "ok"            # normal tracking error
+    assert h.check_tracking((6.0, 0.0), target, 1.0) == "ok"            # far, but not for long yet
+    assert h.check_tracking((7.0, 0.0), target, 3.1) == "degraded" and h.flyaways == 1
+    assert h.check_tracking((12.0, 0.0), target, 5.2) == "land"         # still far and beyond 10 m
+    calm = EstimateHealth()
+    assert all(calm.check_tracking((3.5, 0.0), target, float(t)) == "ok" for t in range(30))   # within 4 m: fine

@@ -20,7 +20,7 @@ class EstimateHealth:
     OK, DEGRADED, LAND = "ok", "degraded", "land"
 
     def __init__(self, max_speed_m_s: float = 4.0, recover_s: float = 5.0, land_after_s: float = 15.0,
-                 min_dt_s: float = 0.5):
+                 min_dt_s: float = 0.5, flyaway_m: float = 4.0, flyaway_s: float = 2.0, flyaway_land_m: float = 10.0):
         if not (max_speed_m_s > 0 and recover_s > 0 and land_after_s > recover_s and min_dt_s > 0):
             raise ValueError("estimate-health thresholds must be positive and land_after_s > recover_s")
         self.max_speed_m_s, self.recover_s, self.land_after_s, self.min_dt_s = max_speed_m_s, recover_s, land_after_s, min_dt_s
@@ -29,6 +29,11 @@ class EstimateHealth:
         self._last: Optional[tuple] = None
         self._last_glitch_at: Optional[float] = None
         self._degraded_since: Optional[float] = None
+        # Flyaway: far from the commanded target for a sustained time (live finding 2026-11-04: under combined
+        # realistic disturbances two drones left steady targets by 7 m and 18 m while the swarm logic was correct).
+        self.flyaway_m, self.flyaway_s, self.flyaway_land_m = flyaway_m, flyaway_s, flyaway_land_m
+        self._far_since: Optional[float] = None
+        self.flyaways = 0
 
     def update(self, position_ne: Sequence[float], t: float) -> str:
         north, east = float(position_ne[0]), float(position_ne[1])
@@ -56,9 +61,30 @@ class EstimateHealth:
                 self.state = self.LAND
         return self.state
 
+    def check_tracking(self, position_ne: Sequence[float], target_ne: Optional[Sequence[float]], t: float) -> str:
+        """Flag a drone that stays far from its commanded target (flyaway). Sustained > flyaway_m for flyaway_s ->
+        DEGRADED (peers keep extra distance); > flyaway_land_m for flyaway_s -> LAND (like an EKF failsafe)."""
+        if target_ne is None or not all(math.isfinite(float(v)) for v in (*position_ne[:2], *target_ne[:2], t)):
+            return self.state
+        error = math.hypot(float(position_ne[0]) - float(target_ne[0]), float(position_ne[1]) - float(target_ne[1]))
+        if error <= self.flyaway_m:
+            self._far_since = None
+            return self.state
+        if self._far_since is None:
+            self._far_since = t
+            return self.state
+        if t - self._far_since >= self.flyaway_s:
+            if error > self.flyaway_land_m:
+                self.state = self.LAND
+            elif self.state == self.OK:
+                self.flyaways += 1
+                self.state, self._degraded_since = self.DEGRADED, t
+            self._last_glitch_at = t                      # keep it degraded while it stays far away
+        return self.state
+
     @property
     def degraded(self) -> bool:
         return self.state != self.OK
 
     def status(self) -> dict:
-        return {"state": self.state, "glitches": self.glitches}
+        return {"state": self.state, "glitches": self.glitches, "flyaways": self.flyaways}
