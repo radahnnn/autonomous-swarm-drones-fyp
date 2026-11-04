@@ -195,3 +195,20 @@ def test_flying_swarm_altitude_command_has_a_floor(capsys):
     assert "limited" in capsys.readouterr().out.lower()
     console.handle("u 100")
     assert console.target_alt_m == 25.0                      # existing ceiling still applies
+
+
+def test_two_layers_put_neighbours_of_the_starting_v_at_different_heights():
+    # Live 2026-11-04: ID mod 2 put close V pairs (D1-D2, D5-D7, D7-D9...) on the same layer.
+    from sitl.formation_library import slots_for
+    from sitl.geofence import formation_layer_index
+    for n in (6, 10):
+        slots = slots_for("v", n)
+        layers = [formation_layer_index(slots, i, 2) for i in range(n)]
+        points = slots[:, :2]
+        d = np.linalg.norm(points[:, None] - points[None], axis=2)
+        closest = d[np.triu_indices(n, 1)].min()
+        for i in range(n):
+            for j in range(i + 1, n):
+                if d[i, j] <= 1.2 * closest:
+                    assert layers[i] != layers[j], (n, i, j)
+    assert [formation_layer_index(None, i, 3) for i in range(4)] == [0, 1, 2, 0]   # other counts unchanged

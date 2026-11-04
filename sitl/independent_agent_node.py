@@ -110,7 +110,8 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         self._acting_sequence = 0
         self.last_acting_sequence = {}
         self.geofence = geofence
-        self.altitude_offset_m = altitude_layer_offset(drone_id, altitude_layers, layer_spacing_m)
+        self.altitude_offset_m = altitude_layer_offset(drone_id, altitude_layers, layer_spacing_m,
+                                                       slots=slots_for(formation, count))
         self.fence_state = "inside"
         self.fence_breach_since = None
         self.fence_breaches = 0

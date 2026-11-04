@@ -125,7 +125,39 @@ class Geofence:
         return None
 
 
-def altitude_layer_offset(drone_id: int, layers: int, spacing_m: float) -> float:
+def formation_layer_index(slots, drone_id: int, layers: int) -> int:
+    """Layer of a drone such that neighbours in the starting formation fly at different heights (2 layers).
+
+    Live finding 2026-11-04 (campaign stats-20261104-layers): with layer = ID mod 2 the close pairs of the V (D1-D2,
+    D5-D7, D7-D9, ...) were often on the SAME layer, so the layers did not separate them. Two-colour the starting
+    formation's proximity graph (slots within 1.2 x the closest slot spacing are neighbours) breadth-first from drone 0;
+    for a V this alternates along each arm. Fixed per drone for the flight (no height change during transitions).
+    Other layer counts keep ID mod layers."""
+    if layers != 2:
+        return int(drone_id) % layers
+    import numpy as np
+    points = np.asarray(slots, dtype=float)[:, :2]
+    n = len(points)
+    if n < 2:
+        return 0
+    distances = np.linalg.norm(points[:, None, :] - points[None, :, :], axis=2)
+    closest = float(np.min(distances[np.triu_indices(n, 1)]))
+    adjacent = (distances <= 1.2 * closest) & ~np.eye(n, dtype=bool)
+    colour = [-1] * n
+    for root in range(n):
+        if colour[root] != -1:
+            continue
+        colour[root], queue = 0, [root]
+        while queue:
+            i = queue.pop(0)
+            for j in np.flatnonzero(adjacent[i]):
+                if colour[j] == -1:
+                    colour[j] = 1 - colour[i]
+                    queue.append(int(j))
+    return colour[int(drone_id)]
+
+
+def altitude_layer_offset(drone_id: int, layers: int, spacing_m: float, slots=None) -> float:
     """Constant altitude offset (m, positive up) for a drone: layer = id mod layers.
 
     Layers are assigned by drone ID so a drone never changes altitude during a formation transition;
@@ -136,4 +168,5 @@ def altitude_layer_offset(drone_id: int, layers: int, spacing_m: float) -> float
         raise ValueError("altitude layers must be between 1 and 5")
     if not math.isfinite(spacing_m) or spacing_m < 0 or spacing_m > 5.0:
         raise ValueError("altitude layer spacing must be between 0 and 5 m")
-    return float((int(drone_id) % layers) * spacing_m)
+    index = formation_layer_index(slots, drone_id, layers) if slots is not None else int(drone_id) % layers
+    return float(index * spacing_m)
