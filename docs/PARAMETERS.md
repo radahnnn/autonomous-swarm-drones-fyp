@@ -17,7 +17,7 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `LOCAL_PAUSE_S` | `2.0` | AgentMissionMixin, line 54 | a longer gap between election ticks means this agent, not the operator, went quiet |
+| `LOCAL_PAUSE_S` | `2.0` | AgentMissionMixin, line 55 | a longer gap between election ticks means this agent, not the operator, went quiet |
 
 ## `sitl/agent_process.py`
 
@@ -104,6 +104,15 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | Name | Value | Where | Note |
 |---|---|---|---|
 | `GUIDED_MODE` | `4` | (module), line 16 |  |
+
+## `sitl/formation_consensus.py`
+
+| Name | Value | Where | Note |
+|---|---|---|---|
+| `GAIN` | `3.0` | FormationReference, line 30 | 1/s; consensus gain towards the neighbours' mean reference (stable for dt*GAIN < 1) |
+| `VELOCITY_GAIN` | `3.0` | FormationReference, line 31 | 1/s; consensus gain of the leader-velocity estimate |
+| `MAX_RATE_M_S` | `1.5` | FormationReference, line 32 | never move the reference faster than the drones can follow |
+| `HOLD_S` | `3.0` | FormationReference, line 33 | dead-reckon this long without neighbours, then hold |
 
 ## `sitl/formation_library.py`
 

@@ -1,0 +1,22 @@
+# 10 drones, decentralized formation from neighbours (sitl/formation_consensus.py): switch to DECENTRALIZED, patrol,
+# cut the operator->drone link mid-mission for 90 s (followers never read the operator goal; the elected leader carries
+# the mission), restore it, stop and land.
+wait swarm ready 900
+send launch
+poll 10 300 airborne armed=yes
+sleep 20
+send mode decentralized
+expect Control mode is now DECENTRALIZED 90
+send patrol square 12 0.3
+sleep 30
+send coord off
+sleep 90
+status
+send coord on
+sleep 15
+status
+send route stop
+sleep 8
+send land
+sleep 60
+health

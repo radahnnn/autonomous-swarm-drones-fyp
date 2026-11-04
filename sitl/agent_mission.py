@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import numpy as np
 from sitl.mission_intent import MissionIntent
+from sitl.formation_consensus import FormationReference, formation_correction
 
 
 class AgentMissionMixin:
@@ -116,6 +117,51 @@ class AgentMissionMixin:
         """Goal along the mission route (a pure function of the shared clock), or None."""
         route = intent.route() if hasattr(intent, "route") else None
         return None if route is None else route.position(operator_now)
+
+    # ---- decentralized formation reference (sitl/formation_consensus.py; user decision 2026-11-04, item 2)
+    def _decentralized_weight(self, operator_now: float, coordinator_connected: bool) -> float:
+        """1 = fully decentralized (formation from neighbours, goal from the elected leader), 0 = shared goal.
+        Hybrid counts as decentralized once the coordinator is lost. A mode switch blends smoothly."""
+        def dec(mode):
+            return 1.0 if mode == "decentralized" or (mode == "hybrid" and not coordinator_connected) else 0.0
+        switch = getattr(self, "mode_switch", None)
+        mode = getattr(self, "control_mode", "hybrid")
+        a, b, w = switch.weights(operator_now) if switch is not None else (mode, mode, 1.0)
+        return (1.0 - w) * dec(a) + w * dec(b)
+
+    def _decentralized_goal(self, intent, operator_now: float, neighbors, coordinator_connected: bool):
+        """Goal override for this tick. The elected leader anchors the consensus reference to the mission goal;
+        followers fly their consensus reference plus a bounded correction from neighbours' measured positions.
+        Formation transitions stay centrally planned (the plan's centre is used unchanged)."""
+        base = self._goal_override(intent, operator_now)
+        leader_goal = np.asarray(base if base is not None else intent.goal_ne, dtype=float)[:2]
+        reference = getattr(self, "formation_reference", None)
+        if reference is None:
+            reference = self.formation_reference = FormationReference()
+        is_leader = getattr(self, "elected_leader_id", 0) == getattr(self, "drone_id", 0)
+        slots = getattr(self, "all_slots", None)
+        slots = np.zeros((0, 3)) if slots is None else slots
+        refs, implied = [], []
+        for peer in neighbors:
+            shared = peer.get("reference")
+            if shared is not None:
+                refs.append((shared[0], shared[1], max(0.0, operator_now - shared[2])))
+            if peer.get("id") is not None and 0 <= int(peer["id"]) < len(slots):
+                implied.append((peer["position"], slots[int(peer["id"])][:2]))
+        ref = reference.update(operator_now, is_leader, leader_goal, refs)
+        self.formation_reference_time = operator_now
+        weight = self._decentralized_weight(operator_now, coordinator_connected)
+        held = self._transition_goal(operator_now) is not None
+        correction = (np.zeros(2) if is_leader or held or getattr(self, "position", None) is None
+                      or getattr(self, "slot", None) is None else
+                      formation_correction(self.position[:2], self.slot[:2], implied))
+        self.formation_reference_status = {
+            "leader": is_leader, "weight": round(weight, 3), "ref": [round(float(v), 2) for v in ref],
+            "lead_error_m": round(float(np.linalg.norm(ref - leader_goal)), 2),
+            "correction_m": round(float(np.linalg.norm(correction)), 2), "neighbours": len(refs)}
+        if held or weight <= 0.0:
+            return base
+        return (1.0 - weight) * leader_goal + weight * (ref + correction)
 
     def _goal_override(self, intent, operator_now: float):
         """A formation transition owns the swarm centre; otherwise the route (if any) drives the goal."""

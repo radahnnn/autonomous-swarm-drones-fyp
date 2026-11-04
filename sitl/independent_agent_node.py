@@ -728,7 +728,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                                                            AgentTransition.ARRIVED,
                                                            AgentTransition.HOLD)),
                 position_setpoint_tracking=True,
-                goal_override=self._goal_override(intent, mission_now),
+                goal_override=self._decentralized_goal(intent, mission_now, neighbors, coordinator_connected),
                 safety_neighbors=self._safety_neighbors(time.time()),
                 mode_weights=(self.mode_switch.weights(mission_now)
                               if getattr(self, "mode_switch", None) is not None else None),
@@ -792,6 +792,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             "mission_sequence": self.last_mission_sequence,
             "mission_active": self.mission_lease.active(time.monotonic()) is not None,
             "control_mode": self.control_mode,
+            "formation_reference": getattr(self, "formation_reference_status", None),
             "coordinator_connected": self.coordinator_connected,
             "mode_switch": self.mode_switch.status(now - self.operator_clock_offset_s),
             "altitude_layer_m": self.altitude_offset_m,
@@ -875,9 +876,12 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                 elif intent is None:
                     self.current_mission = None
                 self.agent.update_local_state(self.position[:2], self.position_at)
+                reference = getattr(self, "formation_reference", None)
                 self.peers.publish(self.position[:2], self.agent.velocity,
                                    self.position_at, self.discovery_ids, now,
-                                   landing=self.landing, degraded=self.estimate_health.degraded)
+                                   landing=self.landing, degraded=self.estimate_health.degraded,
+                                   reference=None if reference is None or reference.ref is None else
+                                   (reference.ref, reference.rate, self.formation_reference_time))
                 discovered = self.peers.receive(now, self.discovery_ids)
                 fresh_peer_ids = self.peers.fresh_link_ids(now)
                 if (self.pending_formation is not None and self.membership is not None

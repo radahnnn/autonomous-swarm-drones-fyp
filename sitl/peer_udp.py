@@ -195,7 +195,9 @@ class UdpPeerStateTransport:
         self.socket.setblocking(False)
 
     def publish(self, position, velocity, sample_time: float, peer_ids: Iterable[int],
-                now: float, landing: bool = False, degraded: bool = False) -> None:
+                now: float, landing: bool = False, degraded: bool = False, reference=None) -> None:
+        """reference: optional (ref_ne, leader_velocity_ne, ref_time) of the decentralized formation reference
+        (`sitl.formation_consensus`); ref_time is in the shared operator clock."""
         if not isinstance(landing, bool) or not isinstance(degraded, bool):
             raise ValueError("peer landing and degraded states must be boolean")
         self.sequence += 1
@@ -211,6 +213,10 @@ class UdpPeerStateTransport:
             "position": np.asarray(position, dtype=float)[:2].tolist(),
             "velocity": np.asarray(velocity, dtype=float)[:2].tolist(),
         }
+        if reference is not None:
+            ref, rate, ref_time = reference
+            packet["reference"] = {"ref": np.asarray(ref, dtype=float)[:2].tolist(),
+                                   "rate": np.asarray(rate, dtype=float)[:2].tolist(), "time": float(ref_time)}
         encoded = self._encode(packet)
         for peer_id in set(int(value) for value in peer_ids):
             if peer_id < 0 or peer_id >= self.peer_count or peer_id == self.drone_id:
@@ -515,7 +521,9 @@ class UdpPeerStateTransport:
                     continue
                 self.last_sequence[peer_id] = sequence
                 self.delivered += 1
+                reference = _parse_reference(packet.get("reference"))     # optional; absent from older agents
                 received.append({
+                    "reference": reference,
                     "id": peer_id,
                     "position": position,
                     "velocity": velocity,
@@ -596,3 +604,19 @@ class UdpPeerStateTransport:
 
     def close(self) -> None:
         self.socket.close()
+
+
+def _parse_reference(value):
+    """(ref, rate, time) from a peer packet's optional formation reference, or None if absent/invalid."""
+    if not isinstance(value, dict):
+        return None
+    try:
+        ref = np.asarray(value["ref"], dtype=float)
+        rate = np.asarray(value["rate"], dtype=float)
+        ref_time = float(value["time"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if ref.shape != (2,) or rate.shape != (2,) or not (np.isfinite(ref).all() and np.isfinite(rate).all()
+                                                       and math.isfinite(ref_time)):
+        return None
+    return ref, rate, ref_time
