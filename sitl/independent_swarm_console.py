@@ -21,7 +21,7 @@ from sitl.geofence import Geofence
 from sitl.run_metrics import RunMetrics
 from sitl.route import Route
 from sitl.mode_switch import CoordinatorModeSwitch
-from sitl.swarm_console import SwarmConsole
+from sitl.sitl_launcher import SitlLauncher
 from sitl.transition_protocol import CoordinatorTransition, scaled_params
 from sitl.console_clock import ClockSyncMixin
 from sitl.console_protocols import ProtocolMixin
@@ -139,12 +139,10 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
             for index, entry in self.peer_roster.items()
         }
         self.root = Path(__file__).resolve().parent.parent
-        self.launcher = SwarmConsole(
+        self.launcher = SitlLauncher(
             n=self.count,
             use_gazebo=True if args.gazebo else (False if args.standalone else None),
             force_restart=args.restart,
-            control_mode="centralized",
-            agent_runtime="local",
         )
         self.launcher.evidence = None
         self.nodes = []
@@ -394,17 +392,19 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
         self.process_manifest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     def mode_relaunch_command(self, mode: str) -> str:
-        """Build the explicit 2D relaunch command used by the dashboard selector."""
+        """Build the explicit 2D relaunch command used by the dashboard selector. Only the independent runtime exists
+        (legacy runtimes retired 2026-11-04); it starts in decentralized or hybrid, so a centralized session starts in
+        hybrid and switches in flight ('mode centralized')."""
+        start = "hybrid" if mode == "centralized" else mode
         base = ["python3", "-m", "sitl.swarm_console", "--drones", str(self.count),
-                "--standalone", "--control-mode", mode]
-        if mode in {"decentralized", "hybrid"}:
-            base += ["--agent-runtime", "independent", "--adaptive-swarm"]
-            dashboard_port = int(getattr(self.args, "dashboard_port", 0) or 0)
-            if dashboard_port:
-                base += ["--dashboard-port", str(dashboard_port)]
-            if self.transition_protocol:
-                base += ["--transition-protocol"]
-        return " ".join(base)
+                "--standalone", "--control-mode", start, "--agent-runtime", "independent", "--adaptive-swarm"]
+        dashboard_port = int(getattr(self.args, "dashboard_port", 0) or 0)
+        if dashboard_port:
+            base += ["--dashboard-port", str(dashboard_port)]
+        if self.transition_protocol:
+            base += ["--transition-protocol"]
+        command = " ".join(base)
+        return command + "   # then: mode centralized" if mode == "centralized" else command
 
     @staticmethod
     def _status_confirms_landed(status: dict) -> bool:

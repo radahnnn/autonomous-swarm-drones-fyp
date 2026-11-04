@@ -44,3 +44,12 @@ def test_low_voltage_threshold_is_below_the_simulated_full_pack():
     profile = SITL_SENSOR_PROFILE_OVERRIDES["realistic"]
     assert float(profile["BATT_LOW_VOLT"]) < 12.6          # SITL quad = 3S at 12.6 V full (live finding)
     assert "SIM_BATT_VOLTAGE" not in profile                # ignored by the quad model; do not pretend otherwise
+
+
+def test_sensor_profile_defaults_to_matek_compass_for_independent_runtime():
+    # Kept from the retired tests/test_swarm_console.py (2026-11-04): this helper is still used by the entry point.
+    from sitl.swarm_console import resolve_sitl_sensor_profile
+
+    assert resolve_sitl_sensor_profile(None, "independent") == "matek-single-compass"
+    assert resolve_sitl_sensor_profile(None, "independent", external_agents=True) == "baseline"
+    assert resolve_sitl_sensor_profile("stress", "independent") == "stress"

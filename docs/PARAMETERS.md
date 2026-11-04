@@ -19,12 +19,6 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 |---|---|---|---|
 | `LOCAL_PAUSE_S` | `2.0` | AgentMissionMixin, line 55 | a longer gap between election ticks means this agent, not the operator, went quiet |
 
-## `sitl/agent_process.py`
-
-| Name | Value | Where | Note |
-|---|---|---|---|
-| `VERSION` | `1` | (module), line 15 |  |
-
 ## `sitl/agent_safety.py`
 
 | Name | Value | Where | Note |
@@ -67,14 +61,14 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `MAX_SPEED` | `1.5` | LocalDroneAgent, line 31 |  |
-| `MAX_ACCEL` | `2.5` | LocalDroneAgent, line 32 |  |
-| `LOOKAHEAD_S` | `0.7` | LocalDroneAgent, line 33 |  |
-| `POSITION_TARGET_SPEED_M_S` | `0.45` | LocalDroneAgent, line 34 |  |
-| `MODES` | `('centralized', 'decentralized', 'hybrid')` | LocalDroneAgent, line 36 |  |
-| `SAFETY_DISTANCE_M` | `2.8` | LocalDroneAgent, line 169 | barrier distance: above the 2.5 m gate to absorb lag and sampling |
-| `SAFETY_ALPHA` | `3.0` | LocalDroneAgent, line 170 |  |
-| `NEIGHBOR_RADIUS` | `5.0` | DecentralizedGuidance, line 254 |  |
+| `NEIGHBOR_RADIUS_M` | `5.0` | (module), line 249 |  |
+| `MAX_SPEED` | `1.5` | LocalDroneAgent, line 29 |  |
+| `MAX_ACCEL` | `2.5` | LocalDroneAgent, line 30 |  |
+| `LOOKAHEAD_S` | `0.7` | LocalDroneAgent, line 31 |  |
+| `POSITION_TARGET_SPEED_M_S` | `0.45` | LocalDroneAgent, line 32 |  |
+| `MODES` | `('centralized', 'decentralized', 'hybrid')` | LocalDroneAgent, line 34 |  |
+| `SAFETY_DISTANCE_M` | `2.8` | LocalDroneAgent, line 167 | barrier distance: above the 2.5 m gate to absorb lag and sampling |
+| `SAFETY_ALPHA` | `3.0` | LocalDroneAgent, line 168 |  |
 
 ## `sitl/estimate_health.py`
 
@@ -270,14 +264,6 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | Name | Value | Where | Note |
 |---|---|---|---|
 | `FORMATION_YAW_RAD` | `0.0` | SwarmStartAndClimb, line 34 |  |
-
-## `sitl/swarm_console.py`
-
-| Name | Value | Where | Note |
-|---|---|---|---|
-| `FORMATION_YAW_RAD` | `0.0` | SwarmConsole, line 91 |  |
-| `CRUISE_ALT` | `5.0` | SwarmConsole, line 92 |  |
-| `MORPH_STEPS` | `45` | SwarmConsole, line 93 | 4.5 s at the 10 Hz guidance rate |
 
 ## `sitl/transition_protocol.py`
 

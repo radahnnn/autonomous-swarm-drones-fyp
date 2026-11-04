@@ -12,7 +12,7 @@ from pymavlink import mavutil
 
 from sitl.cbf_filter import filter_velocity, filtered_setpoint
 from sitl.common_frame import CommonCoordinateFrame
-from sitl.decentralized_guidance import DecentralizedGuidance, LocalDroneAgent
+from sitl.decentralized_guidance import LocalDroneAgent, one_hop_graph
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON
 from sitl.flight_prep import arm_with_retry, request_message_interval, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, slots_for
@@ -118,7 +118,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         if not 0 <= self.drone_id < self.count:
             raise ValueError("agent ID must be within the configured swarm")
         self.all_slots = np.asarray(slots_for(formation, count), dtype=float)
-        topology = DecentralizedGuidance._one_hop_graph(
+        topology = one_hop_graph(
             [np.asarray(slot, dtype=float) for slot in self.all_slots], [True] * count,
         )
         self.slot = self.all_slots[self.drone_id].copy()
