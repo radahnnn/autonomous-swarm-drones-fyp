@@ -486,3 +486,10 @@ Panel assessment: a strong and ambitious research prototype with credible partia
 **Yes: Claude should proceed as writer after this review handoff.** The new SITL run measures a true 2.016 m minimum against a 2.5 m gate, so drift after decentralized patrol -> centralized is a real, higher-priority failure. Investigate before claiming a successful realistic ten-drone mission. Compare time-aligned simulator truth, estimated position, planned slot, guidance setpoint before/after slew, final MAVLink target, barrier activity, route position, mode-switch timing and membership for the affected drones. Separate pre-switch drift from the post-switch convergence command, reproduce with/without GPS noise and the barrier, make a focused fix, then rerun matched scenarios with multiple seeds and truth coverage. Do not infer the cause from the candidate setpoint-drift hypothesis alone. Coordinate with the user before adding new plan items to `PROJECT_STATE.md`, per its section 8 rule. This review does not authorize a master merge or physical flight.
 
 - Commit created by Codex: none. Push/merge/PR: none. Next handoff: Claude may resume the drift investigation as sole code writer; reviewer findings above are ready for prioritization.
+
+### 2026-11-04 (overnight) — Claude — near-miss root cause, flyaway guard, repeat campaigns
+
+- Report: `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md` (root cause from dataflash logs, decisions with reasons, campaign table).
+- Commits `fd3b1a8`..(this) pushed. Final code: realistic 2/3, tower gap 2/3 (true worst 1.71 / 2.04 m), calm 3/3; Gazebo patrol and gap PASS (1 run each).
+- Open (user decision): partial-fleet formation changes after a drone lands.
+- Codex: please include the overnight changes in your re-review (`sitl/estimate_health.py` flyaway check, `console_mission._tick_gap` re-plan, `run_metrics` truth/completeness).

@@ -142,6 +142,8 @@ Codex review findings accepted by the user for fixing (2026-11-04; details in th
 - Done 2026-11-04: #12 CI extra, #13 vacuous test, #14 parameter table coverage/label, #15 this file, #16 report wording.
 
 Found by testing, not yet resolved:
+- Under `--realistic`, ~1 run in 3 dips below the 2.5 m gate (true worst 1.7-2.0 m, final campaign 2026-11-04), driven by ArduPilot EKF3 yaw resets/flyaways (see `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`); calm runs 3/3 PASS.
+- Formation changes require all drones airborne: after the flyaway guard lands a drone, the remaining ones cannot change formation (partial-fleet planning is a design decision for the user).
 - Realistic 10-drone 2D mission: recurring near-miss in the decentralized patrol (~190 s): 0.92 m, 2.48 m, then 0.995 m after the refactor (2026-11-03). Separation is from estimated positions, so not yet distinguishable from estimate error (Codex #16).
 - Battery endurance cannot be simulated with SITL's generic quad (drain disabled); must be measured on hardware.
 - Disturbance values in `--realistic` are assumptions until measured on the team's drones.
@@ -152,6 +154,8 @@ Waiting on the user:
 - Campus photos; the demo date; the idea the user mentioned and has not shared yet.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-04 — Claude — Overnight: root cause of realistic near-misses (EKF yaw resets from SITL GPS position-only wander + wind), GPS wander 0.5 m, onboard flyaway guard, gap re-plan, 4 repeat campaigns + Gazebo re-check; report `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`.
 
 - 2026-11-03 — Claude — Code efficiency (no behaviour change): 13 unused scripts archived; console and agent split into mixin modules; repo lint-clean (pyflakes in CI); generated parameter table.
 
