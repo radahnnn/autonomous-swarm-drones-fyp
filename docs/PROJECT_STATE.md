@@ -165,6 +165,9 @@ features except the items below. Results are recorded only once tested, with evi
 7. Approved 2026-11-04 (after the realistic flyaway explanation): (a) tune the autopilot EKF to the injected GPS noise;
    (b) altitude layers between neighbours with 3-D separation; then (c) early flyaway detection from the autopilot's
    own EKF/yaw-reset messages. Each judged with item-3 statistics, not single runs.
+   2026-11-04: (a) dropped after the first matched runs (EK3_VELNE_M_NSE 0.5: 10 yaw resets / 7 lane switches / 5
+   guard landings vs 0 / 1 / 0 untuned, seed 1001; n=1, but large); profile `realistic-ekf` kept, unused. (b) and
+   (c) implemented; the 10-seed campaign compares realistic vs realistic + layers (user decision).
 
 Report/viva (in parallel, low effort): theory chapter draft (communication graph model, consensus convergence and the
 connected-graph condition, why the safety filter keeps drones out of each other's keep-out zone, slot-tracking loop);

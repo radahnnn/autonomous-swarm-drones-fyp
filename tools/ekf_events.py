@@ -73,7 +73,7 @@ if __name__ == "__main__":
     for arg in (a for a in sys.argv[1:] if not a.startswith("--")):
         per_drone = run_events(Path(arg))
         total = Counter(c for events in per_drone.values() for _, c, _ in events)
-        logs = sum(len(e) >= 0 for e in per_drone.values())
+        logs = len(per_drone)
         print(f"{arg}: {dict(total) or 'no EKF warnings'} ({logs} drones)")
         if listing:
             for number, events in per_drone.items():
