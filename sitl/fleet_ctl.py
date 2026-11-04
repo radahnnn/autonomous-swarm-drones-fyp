@@ -272,6 +272,12 @@ class Runner:
         for thread in self.threads:        # finish writing the logs before they are checksummed
             thread.join(timeout=10)
         self.log(f"driver done; failed={self.failed}")
+        try:                                # strict grade: whole fleet, milestones, normal landing, truth coverage
+            from sitl.run_grade import write_grade
+            grade = write_grade(self.out)
+            self.log(f"strict grade: {grade['verdict']}" + "".join(f"; {r}" for r in grade["reasons"]))
+        except (OSError, ValueError) as exc:
+            self.log(f"strict grade failed: {exc}")
         write_checksums(self.out)
 
 

@@ -493,3 +493,13 @@ Panel assessment: a strong and ambitious research prototype with credible partia
 - Commits `fd3b1a8`..(this) pushed. Final code: realistic 2/3, tower gap 2/3 (true worst 1.71 / 2.04 m), calm 3/3; Gazebo patrol and gap PASS (1 run each).
 - Open (user decision): partial-fleet formation changes after a drone lands.
 - Codex: please include the overnight changes in your re-review (`sitl/estimate_health.py` flyaway check, `console_mission._tick_gap` re-plan, `run_metrics` truth/completeness).
+
+### 2026-11-04 evening — Claude — tower-gap mechanism, moving-target guard, strict run grade
+
+- Objective: Codex points 1, 3, 4 (separate the tower-gap failure; moving-target guard blind spot; PASS gates). User approved the work list now in PROJECT_STATE section 8.
+- Tower-gap failure (campaign d gap-realistic-3, D1-D2 true 2.04 m), from the event timeline: no yaw reset. After the column transition completed, agents resumed the pre-transition goal ~11 m from the plan centroid; targets slewed at 0.45 m/s, D1 lagged > 3 m, the guard flagged a flyaway and froze it ~11 s, and D2 closed from 8 m to 5 m planned spacing.
+- Fix `039b44c`: console re-bases the goal to the plan centroid on transition_complete; agents hold the centroid until an intent issued after completion arrives; flyaway allowance = 3 m + 4 s x smoothed target speed (replaces the skip above 0.5 m/s). Unit + integration tests.
+- Strict grade (this commit): `sitl/run_grade.py` — PASS needs live PASS, all driver steps OK and agents alive, every drone flew and ends landed + disarmed, no non-operator landing while flying, truth coverage >= 95 % per drone. Late reasons after an operator LAND (Gazebo shutdown telemetry_timeout) do not count.
+- Evidence (SITL, 10 drones, --realistic, 3 runs per cell, not matched seeds): campaign f tower-gap strict 2 PASS / 1 INCOMPLETE, true worst 3.32 m; realistic 1 PASS / 2 FAIL (true 2.07, 1.83 m), the EKF-related mechanism is untouched. Campaign e stopped (mixed code) and kept as `campaign-20261104e-mixed-code-stopped`.
+- Known limit: kill-agent scenarios (election_10) will grade INCOMPLETE until a scenario can declare an expected landing reason.
+- Next: item 2 (real decentralized control).

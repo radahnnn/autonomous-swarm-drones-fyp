@@ -231,6 +231,12 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | `MIN_SPEED_M_S` | `0.02` | (module), line 22 | slow simulators (Gazebo ~0.3x) need wall-clock speeds of a few cm/s |
 | `MAX_SPEED_M_S` | `0.4` | (module), line 26 |  |
 
+## `sitl/run_grade.py`
+
+| Name | Value | Where | Note |
+|---|---|---|---|
+| `TRUTH_COVERAGE` | `0.95` | (module), line 23 |  |
+
 ## `sitl/run_metrics.py`
 
 | Name | Value | Where | Note |

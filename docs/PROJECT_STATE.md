@@ -125,6 +125,41 @@ Rule set by the user (2026-11-03): this section lists only what the user asked f
 recommendations are NOT written here; new items are added only after consulting the user, and results are recorded
 only once tested and proven (with their evidence label). Hardware is on hold by the user's decision.
 
+### Approved by the user (2026-11-04, after a separate critique review) — work in this order
+
+Facts decided: physical flight is MANDATORY for the grade; defense = demo + report + viva. Feature freeze: no new
+features except the items below. Results are recorded only once tested, with evidence labels.
+
+1. **Done 2026-11-04 (UNIT-tested; applied to recorded runs):** `sitl/run_grade.py`, written by `fleet_ctl` as
+   `GRADE.json` and used by `tools.campaign_report`. Re-grade of campaign f: tower-gap 2 PASS / 1 INCOMPLETE (D5 landed by
+   the estimate guard, V re-form and transit-complete milestones missed; the live report had said PASS), realistic
+   1 PASS / 2 FAIL. Gazebo re-check 2026-11-04 (patrol, gap): both strict PASS.
+   Stricter run evaluator (Codex review point 4): PASS only if every configured drone completes the mission, lands
+   normally (landed + disarmed), the mission milestones happened and true-position coverage is complete; a drone landed
+   by the flyaway/estimate guard is not PASS. Re-grade `runs/independent/campaign-20261104f` with it.
+2. Real decentralized control in live SITL: formation kept from neighbours' relative positions (today the consensus
+   correction is capped at 0.25 m in `sitl/decentralized_guidance.py`), goal from the elected leader rather than the
+   operator; prove with a 10-drone run with the operator link cut mid-mission. If it cannot be done well, reword the
+   claim everywhere to "distributed execution, centralized planning".
+3. Statistics: fixed pre-declared seeds, 10-20 runs per scenario (calm, realistic, tower-gap) per code version,
+   overnight; median and spread; GPS 0.5 m and 1.0 m profiles as separate cells; no threshold tuning from 3-run campaigns.
+4. Grid formation (promised in the proposal).
+5. Retire the old runtimes (`swarm_console.py`, `mavlink_swarm_adapter.py`, `mode_supervisor.py`, `agent_process.py`,
+   etc.): archive, do not delete; the independent runtime is the only one.
+6. Remaining Codex critique items: overstated wording in reports/state ("evidence for an EKF-related flyaway
+   mechanism", no "consistently safe"); repeat the Gazebo 6-drone patrol + tower gap on the final code, screen-recorded,
+   with a sped-up video.
+
+Report/viva (in parallel, low effort): theory chapter draft (communication graph model, consensus convergence and the
+connected-graph condition, why the safety filter keeps drones out of each other's keep-out zone, slot-tracking loop);
+comparison table vs EGO-Swarm, Vasarhelyi 2018, Crazyswarm, Skybrush (key message: GPS error limits formation spacing,
+so our spacing is derived from measured error).
+
+Hardware (when the user starts; gated by `docs/HARDWARE_READINESS_CHECKLIST.md`): props-off bench (PC -> link -> FC,
+failsafes) -> one drone manual hover with an RC pilot, 5 min of logs to measure real GPS error -> retune the realistic
+sim to that -> one drone GUIDED under our agent -> two drones at >= 10 m spacing -> more drones with spacing derived
+from the measured error. The user provides drone details and .BIN logs.
+
 ### Not done yet (open items, 2026-11-03)
 
 Requested by the user, not finished:
@@ -142,6 +177,10 @@ Codex review findings accepted by the user for fixing (2026-11-04; details in th
 - Done 2026-11-04: #12 CI extra, #13 vacuous test, #14 parameter table coverage/label, #15 this file, #16 report wording.
 
 Found by testing, not yet resolved:
+- Tower-gap near-miss (campaign 2026-11-04 d, true 2.04 m) had a different mechanism from the yaw resets: after the
+  column formed every target jumped ~11 m to the pre-transition goal, the guard flagged the lagging D1 as a flyaway and
+  froze it, and D2 closed from 8 m to 5 m. Fixed in `039b44c` (goal re-based to the plan centre; speed-scaled flyaway
+  allowance). Campaign f (3 runs, 10 drones, realistic): tower-gap true worst 3.32 m (was 2.04 m). 3 runs only.
 - Under `--realistic`, ~1 run in 3 dips below the 2.5 m gate (true worst 1.7-2.0 m, final campaign 2026-11-04), driven by ArduPilot EKF3 yaw resets/flyaways (see `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`); calm runs 3/3 PASS.
 - Formation changes require all drones airborne: after the flyaway guard lands a drone, the remaining ones cannot change formation (partial-fleet planning is a design decision for the user).
 - Realistic 10-drone 2D mission: recurring near-miss in the decentralized patrol (~190 s): 0.92 m, 2.48 m, then 0.995 m after the refactor (2026-11-03). Separation is from estimated positions, so not yet distinguishable from estimate error (Codex #16).
@@ -154,6 +193,8 @@ Waiting on the user:
 - Campus photos; the demo date; the idea the user mentioned and has not shared yet.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-04 — Claude — User-approved work list added to section 8 (items 1-6, report, hardware sequence); item 1 (strict run grade) done; tower-gap mechanism found and fixed; campaign f re-graded.
 
 - 2026-11-04 — Claude — Overnight: root cause of realistic near-misses (EKF yaw resets from SITL GPS position-only wander + wind), GPS wander 0.5 m, onboard flyaway guard, gap re-plan, 4 repeat campaigns + Gazebo re-check; report `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`.
 

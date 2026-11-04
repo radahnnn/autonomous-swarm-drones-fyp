@@ -15,5 +15,7 @@ def test_groups_runs_by_scenario_and_reports_distributions(tmp_path):
     _run(tmp_path, "calm-2", "PASS", 5.0, 4.9)
     _run(tmp_path, "gap-1", "FAIL", 1.0, 0.9, ok=False)
     text = summarise(tmp_path)
-    assert "| calm | 2 | 2 / 0 / 0 | 2/2 | 5.10 (5.00) | 5.00 (4.90) |" in text
-    assert "| gap | 1 | 0 / 1 / 0 | 0/1 |" in text
+    # no events.jsonl here, so the strict grade cannot confirm landings: INCOMPLETE, while the live verdict is shown
+    assert "| calm | 2 | 0 / 0 / 2 | 2 / 0 / 0 | 2/2 | 5.10 (5.00) | 5.00 (4.90) |" in text
+    assert "| gap | 1 | 0 / 1 / 0 | 0 / 1 / 0 | 0/1 |" in text
+    assert "`calm-1` INCOMPLETE" in text
