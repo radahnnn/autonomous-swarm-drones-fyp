@@ -17,7 +17,8 @@ from swarm_core.assignment import assign, squared_cost
 
 MIN_SPACING = 2.5  # metres, smallest allowed distance between two slots
 RING_SPACING_M = 4.0  # adjacent-slot spacing of the ring template
-STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle", "pairs", "pairs_b")
+STYLES = ("v", "line", "column", "diamond", "ring", "echelon", "triangle", "grid", "pairs", "pairs_b")
+GRID_SPACING_M = 4.0  # row and column spacing of the grid template (as the ring: room to leave it under GPS error)
 # World-anchored styles: the compass orientation is part of the layout (sectors tied to places on the map), so the
 # transition planner must not rotate them to improve clearance.
 WORLD_ANCHORED = frozenset({"pairs", "pairs_b"})
@@ -111,6 +112,22 @@ def _triangle(n: int) -> np.ndarray:
     return _to_3d(arr)
 
 
+def _grid(n: int) -> np.ndarray:
+    """Rectangular grid (promised in the proposal): ceil(sqrt(n)) columns across the direction of travel, rows behind
+    each other; a short last row is centred. 10 drones -> 4 + 4 + 2, 6 -> 3 + 3. Centred on the centroid."""
+    cols = max(1, math.ceil(math.sqrt(n)))
+    pts: List[List[float]] = []
+    row = 0
+    while len(pts) < n:
+        in_row = min(cols, n - len(pts))
+        for j in range(in_row):
+            pts.append([-GRID_SPACING_M * row, (j - (in_row - 1) / 2.0) * GRID_SPACING_M])
+        row += 1
+    arr = np.asarray(pts, dtype=float)
+    arr -= arr.mean(axis=0)
+    return _to_3d(arr)
+
+
 def pair_sector_centres(pairs: int) -> np.ndarray:
     """North/East centres of the ``2 * pairs`` survey sectors, evenly spaced around the origin (sector 0 due North)."""
     sectors = 2 * pairs
@@ -158,6 +175,7 @@ _GENERATORS = {
     "ring": _ring,
     "echelon": _echelon,
     "triangle": _triangle,
+    "grid": _grid,
 }
 
 

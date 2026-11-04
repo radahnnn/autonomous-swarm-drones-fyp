@@ -53,3 +53,13 @@ def test_long_random_chains_of_formation_changes_never_dead_end(n):
         _, positions = _plan(positions, target)   # raises ValueError if the planner rejects it
         assert _min_pair(positions) >= MIN_SPACING + 0.35 - 1e-6
         current = target
+
+
+@pytest.mark.parametrize("n,rows", [(10, [4, 4, 2]), (6, [3, 3]), (4, [2, 2]), (9, [3, 3, 3])])
+def test_grid_has_square_ish_rows_with_the_designed_spacing(n, rows):
+    from sitl.formation_library import GRID_SPACING_M
+    grid = slots_for("grid", n)[:, :2]
+    norths = sorted(set(np.round(grid[:, 0], 6)), reverse=True)
+    assert [int(np.sum(np.isclose(grid[:, 0], v))) for v in norths] == rows
+    assert abs(_min_pair(grid) - GRID_SPACING_M) < 1e-6
+    assert np.allclose(grid.mean(axis=0), 0.0)

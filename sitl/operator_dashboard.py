@@ -18,7 +18,7 @@ from sitl.formation_library import STYLES
 
 STYLE_LABELS = {
     "v": "V", "line": "Line", "column": "Column", "diamond": "Diamond",
-    "ring": "Ring", "echelon": "Echelon", "triangle": "Triangle",
+    "ring": "Ring", "echelon": "Echelon", "triangle": "Triangle", "grid": "Grid",
     "pairs": "Pairs A", "pairs_b": "Pairs B",
 }
 

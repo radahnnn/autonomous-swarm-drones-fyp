@@ -121,8 +121,9 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 | `MIN_SPACING` | `2.5` | (module), line 18 | metres, smallest allowed distance between two slots |
 | `RING_SPACING_M` | `4.0` | (module), line 19 | adjacent-slot spacing of the ring template |
 | `STYLES` | `('v', 'line', 'column', 'diamond', 'ring', 'echelon', 'tr...` | (module), line 20 |  |
-| `PAIR_PARTNER_SPACING_M` | `6.0` | (module), line 24 | wide enough for ~1 m GPS error plus the planner's clearance |
-| `PAIR_SECTOR_RADIUS_M` | `9.0` | (module), line 25 |  |
+| `GRID_SPACING_M` | `4.0` | (module), line 21 | row and column spacing of the grid template (as the ring: room to leave it under GPS error) |
+| `PAIR_PARTNER_SPACING_M` | `6.0` | (module), line 25 | wide enough for ~1 m GPS error plus the planner's clearance |
+| `PAIR_SECTOR_RADIUS_M` | `9.0` | (module), line 26 |  |
 
 ## `sitl/formation_transition.py`
 
