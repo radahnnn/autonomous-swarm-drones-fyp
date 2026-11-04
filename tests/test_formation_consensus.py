@@ -71,3 +71,24 @@ def test_peer_packet_reference_parsing_accepts_valid_and_rejects_bad_fields():
     assert _parse_reference(None) is None                                  # older agents send none
     assert _parse_reference({"ref": [1.0], "rate": [0, 0], "time": 1}) is None
     assert _parse_reference({"ref": [float("nan"), 0], "rate": [0, 0], "time": 1}) is None
+
+
+def test_a_degraded_neighbour_does_not_pull_the_formation_correction():
+    # Live 2026-11-04 (decentralized cut, realistic): the leader flew away and its neighbour's correction followed it.
+    from types import SimpleNamespace
+
+    from sitl.agent_mission import AgentMissionMixin
+    node = SimpleNamespace(drone_id=1, elected_leader_id=0, control_mode="decentralized", mode_switch=None,
+                           position=np.array([0.0, 0.0, -5.0]), slot=np.zeros(3),
+                           all_slots=np.zeros((3, 3)), formation_reference=None)
+    node._goal_override = lambda intent, now: None
+    node._transition_goal = lambda now: None
+    node._decentralized_weight = lambda now, connected: 1.0
+    intent = SimpleNamespace(goal_ne=(0.0, 0.0))
+    runaway = {"id": 0, "position": np.array([20.0, 0.0]), "degraded": True, "landing": False,
+               "reference": (np.zeros(2), np.zeros(2), 0.0)}
+    AgentMissionMixin._decentralized_goal(node, intent, 0.0, [runaway], True)
+    assert node.formation_reference_status["correction_m"] == 0.0
+    runaway["degraded"] = False
+    AgentMissionMixin._decentralized_goal(node, intent, 0.1, [runaway], True)
+    assert node.formation_reference_status["correction_m"] == 1.0                # healthy: bounded pull

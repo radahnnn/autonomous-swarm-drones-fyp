@@ -146,6 +146,10 @@ class AgentMissionMixin:
             shared = peer.get("reference")
             if shared is not None:
                 refs.append((shared[0], shared[1], max(0.0, operator_now - shared[2])))
+            # A degraded or landing neighbour's position is not evidence of where the formation is (live 2026-11-04:
+            # a leader flyaway pulled its neighbour's correction to the 1 m limit towards it).
+            if peer.get("degraded") or peer.get("landing"):
+                continue
             if peer.get("id") is not None and 0 <= int(peer["id"]) < len(slots):
                 implied.append((peer["position"], slots[int(peer["id"])][:2]))
         ref = reference.update(operator_now, is_leader, leader_goal, refs)

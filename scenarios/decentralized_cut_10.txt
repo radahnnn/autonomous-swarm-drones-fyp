@@ -17,6 +17,6 @@ sleep 15
 status
 send route stop
 sleep 8
+health
 send land
 sleep 60
-health
