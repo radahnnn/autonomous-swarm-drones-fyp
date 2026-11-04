@@ -217,7 +217,7 @@ Waiting on the user:
 
 - 2026-11-04 — Claude — User-approved work list added to section 8 (items 1-6, report, hardware sequence); item 1 (strict run grade) done; tower-gap mechanism found and fixed; campaign f re-graded.
 
-- 2026-11-04 — Claude — Overnight: root cause of realistic near-misses (EKF yaw resets from SITL GPS position-only wander + wind), GPS wander 0.5 m, onboard flyaway guard, gap re-plan, 4 repeat campaigns + Gazebo re-check; report `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`.
+- 2026-11-04 — Claude — Overnight: evidence for an EKF-related flyaway mechanism behind realistic near-misses (EKF yaw resets with SITL GPS position-only wander + wind), GPS wander 0.5 m, onboard flyaway guard, gap re-plan, 4 repeat campaigns + Gazebo re-check; report `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`.
 
 - 2026-11-03 — Claude — Code efficiency (no behaviour change): 13 unused scripts archived; console and agent split into mixin modules; repo lint-clean (pyflakes in CI); generated parameter table.
 

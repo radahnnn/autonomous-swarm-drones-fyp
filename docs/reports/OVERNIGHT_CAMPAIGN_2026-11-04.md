@@ -1,10 +1,17 @@
-# Overnight work 2026-11-03/04: Codex fixes verified, root cause of the realistic near-misses, repeat campaigns
+# Overnight work 2026-11-03/04: Codex fixes exercised, evidence for an EKF-related flyaway mechanism, repeat campaigns
 
 **Evidence level: SITL (2D, 10 drones) and GAZEBO (6 drones)**, with true (simulator) positions logged via SIMSTATE.
 Per-campaign summaries: `docs/evidence/2026-11-04/*-SUMMARY.md`; raw runs (not in Git): `runs/independent/campaign-20261104*`,
 `runs/independent/gazebo-recheck-20261104`.
 
-## 1. Root cause of the recurring near-miss under `--realistic` (found in ArduPilot's own dataflash logs)
+> **Wording corrected 2026-11-04 (Codex review, user-approved item 6).** "Root cause" -> "evidence for an EKF-related
+> flyaway mechanism": the dataflash logs show EKF3 yaw resets / lane switches in the near-miss windows, which supports the
+> mechanism but does not exclude others; the later tower-gap failure (campaign d gap-realistic-3) had **no** yaw reset and
+> a different, software mechanism (goal jump + guard freeze; fixed in `039b44c`). "Consistently safe" and "all 16 fixes
+> behaved correctly" were overstated (3 runs; only the exercised paths). The Gazebo runs below predate the final
+> flyaway-guard refinement. Original numbers are unchanged. Raw dataflash logs: `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-04/`.
+
+## 1. Evidence for an EKF-related flyaway mechanism behind the recurring near-miss under `--realistic` (ArduPilot dataflash logs)
 - The near-miss was **real** (true positions confirmed it) and **not** caused by swarm commands: the drones' targets stayed
   on their slots while individual autopilots flew 7-18 m away from them (flyaways).
 - The logs show **EKF3 emergency yaw resets / IMU-lane switches** in exactly that window. Count of these messages per 10-drone
@@ -33,8 +40,9 @@ Per-campaign summaries: `docs/evidence/2026-11-04/*-SUMMARY.md`; raw runs (not i
 Gazebo (6 drones, realistic, final code except the steady-target refinement): survey patrol **PASS** (true min 4.97 m) and
 tower gap **PASS** (true min 4.25 m), all steps completed; one run each.
 
-Honest reading: with no disturbances the system is consistently safe (3/3, ~5.2 m). Under the full assumed disturbance set,
+Honest reading: with no disturbances all 3 calm runs stayed clear (~5.2 m); 3 runs do not establish a rate. Under the full assumed disturbance set,
 roughly one run in three still has a short dip below the 2.5 m gate (true worst 1.7-2.0 m in the final campaign), driven by
 autopilot estimation events. Variance between campaigns of the same code (b vs c) is large, so 3 runs per cell are not enough
-to rank small code changes; the pass rates above are indicative, not precise. Codex's 16 review fixes all behaved correctly in
-flight (mode switches, transitions, retries, LAND, true-position reporting).
+to rank small code changes; the pass rates above are indicative, not precise. The paths of Codex's 16 review fixes that these
+missions exercised (mode switches, transitions, retries, LAND, true-position reporting) showed no failure; paths not
+exercised were not tested.
