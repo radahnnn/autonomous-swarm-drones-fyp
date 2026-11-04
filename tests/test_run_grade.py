@@ -69,3 +69,13 @@ def test_true_separation_uses_the_gate_metric_and_keeps_the_horizontal_minimum()
     flat = RunMetrics(2, gate_metric="ellipsoid", vertical_radius_m=2.0)
     flat._track_truth({0: np.array([0.0, 0.0]), 1: np.array([1.0, 0.0])}, 0.0)            # no true altitude: horizontal
     assert flat.true_min_gap_m == 1.0 and flat.true_violations == 1
+
+
+def test_simstate_has_no_altitude_field_so_truth_must_not_depend_on_it():
+    # Live 2026-11-04: reading SIMSTATE.alt raised and silently dropped all true positions (coverage 0 %).
+    from pymavlink.dialects.v20 import ardupilotmega as mavlink
+    assert "alt" not in mavlink.MAVLink_simstate_message.fieldnames
+    import inspect
+
+    from sitl import independent_agent_node
+    assert "msg.alt" not in inspect.getsource(independent_agent_node)

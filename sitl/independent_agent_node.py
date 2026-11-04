@@ -348,7 +348,9 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                 try:
                     truth = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lng / 1e7, 0.0)
                     self.true_position_ne = [float(truth[0]), float(truth[1])]
-                    self.true_altitude_m = float(msg.alt)          # metres; only differences between drones are used
+                    # SIMSTATE carries no altitude (live 2026-11-04: reading msg.alt raised inside this try and silently
+                    # dropped every true position); true vertical separation is therefore not available here.
+                    self.true_altitude_m = None
                     self.true_position_at = time.time()
                 except (AttributeError, TypeError, ValueError):
                     pass
