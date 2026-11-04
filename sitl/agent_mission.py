@@ -120,7 +120,14 @@ class AgentMissionMixin:
     def _goal_override(self, intent, operator_now: float):
         """A formation transition owns the swarm centre; otherwise the route (if any) drives the goal."""
         held = self._transition_goal(operator_now)
-        return held if held is not None else self._route_goal(intent, operator_now)
+        if held is not None:
+            return held
+        post = getattr(self, "_post_transition_centre", None)
+        if post is not None:
+            if float(getattr(intent, "issued_at", float("inf"))) <= post[1]:
+                return post[0]                            # this intent predates the re-based goal
+            self._post_transition_centre = None
+        return self._route_goal(intent, operator_now)
 
     def _update_adaptive_membership(self, now: float, fresh_ids) -> None:
         if self.membership is None:

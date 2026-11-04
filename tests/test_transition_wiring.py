@@ -239,7 +239,7 @@ def test_successful_transition_all_agents_start_together_and_finish_in_the_targe
         assert agent.transition.state == AgentTransition.IDLE
         assert agent.formation == "line"
         np.testing.assert_allclose(agent.all_slots, plan.target_slots)
-    np.testing.assert_allclose(swarm.console.goal_ne, swarm.centroid)   # centre resumed
+    np.testing.assert_allclose(swarm.console.goal_ne, plan.centroid_ne)   # goal re-based to the plan centre (no jump)
 
 
 def test_missing_prepare_to_one_agent_cancels_before_anyone_moves(monkeypatch):
@@ -625,3 +625,20 @@ def test_concurrent_publishes_never_reuse_a_sequence_number_codex_2(monkeypatch)
     for w in workers:
         w.join()
     assert len(sent) == 20 and len(set(sent)) == 20
+
+
+def test_after_a_transition_the_goal_is_rebased_to_the_plan_centre_so_no_target_jumps(monkeypatch):
+    # Tower-gap run (campaign 2026-11-04 d): the operator goal sat ~11 m from the plan centre; on completion every
+    # target lurched towards the old goal, a lagging drone was flagged as a flyaway and the column squeezed to 5 m.
+    swarm = Swarm(monkeypatch)
+    swarm.console.goal_ne = swarm.centroid + np.array([11.0, 0.0])
+    assert request(swarm)["accepted"]
+    plan = swarm.console.transition.plan
+    swarm.run(plan.duration_s + 14.0)
+    assert "transition_complete" in [e[0] for e in swarm.events]
+    np.testing.assert_allclose(swarm.console.goal_ne, plan.centroid_ne)
+    stale = SimpleNamespace(issued_at=swarm.clock.t - 60.0, route=lambda: None)   # an intent sent before completion
+    fresh = SimpleNamespace(issued_at=swarm.clock.t + 1.0, route=lambda: None)
+    for agent in swarm.agents:
+        np.testing.assert_allclose(agent._goal_override(stale, swarm.clock.t), plan.centroid_ne)
+        assert agent._goal_override(fresh, swarm.clock.t) is None                # then the mission goal rules again

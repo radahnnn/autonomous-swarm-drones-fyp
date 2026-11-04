@@ -18,7 +18,12 @@ from typing import Optional, Sequence
 
 class EstimateHealth:
     OK, DEGRADED, LAND = "ok", "degraded", "land"
-    STEADY_TARGET_M_S = 0.5      # a target moving faster than this is a planned move, not a hold
+    # Allowed lag behind a moving target: flyaway_m + LAG_ALLOWANCE_S x target speed (smoothed over ~SPEED_TAU_S).
+    # Codex review 2026-11-04: the earlier rule skipped the check whenever the target moved > 0.5 m/s, so a real
+    # flyaway during a move went unnoticed; a fixed 3 m on the other hand flagged a drone that was merely lagging a
+    # 0.45 m/s target (tower-gap run, 2026-11-04 campaign d) and the freeze that followed squeezed the column.
+    LAG_ALLOWANCE_S = 4.0
+    SPEED_TAU_S = 2.0
 
     def __init__(self, max_speed_m_s: float = 4.0, recover_s: float = 5.0, land_after_s: float = 15.0,
                  min_dt_s: float = 0.5, flyaway_m: float = 3.0, flyaway_s: float = 1.0, flyaway_land_m: float = 10.0):
@@ -36,6 +41,7 @@ class EstimateHealth:
         self.flyaway_m, self.flyaway_s, self.flyaway_land_m = flyaway_m, flyaway_s, flyaway_land_m
         self._far_since: Optional[float] = None
         self._last_target: Optional[tuple] = None
+        self._target_speed = 0.0
         self.flyaways = 0
 
     def update(self, position_ne: Sequence[float], t: float) -> str:
@@ -65,30 +71,28 @@ class EstimateHealth:
         return self.state
 
     def check_tracking(self, position_ne: Sequence[float], target_ne: Optional[Sequence[float]], t: float) -> str:
-        """Flag a drone that stays far from its commanded target (flyaway). Sustained > flyaway_m for flyaway_s ->
-        DEGRADED (peers keep extra distance); > flyaway_land_m for flyaway_s -> LAND (like an EKF failsafe)."""
+        """Flag a drone that stays far from its commanded target (flyaway). Sustained > flyaway_m (+ the lag allowance
+        for a moving target) for flyaway_s -> DEGRADED (peers keep extra distance); > flyaway_land_m (+ allowance)
+        -> LAND (like an EKF failsafe)."""
         if target_ne is None or not all(math.isfinite(float(v)) for v in (*position_ne[:2], *target_ne[:2], t)):
             return self.state
         error = math.hypot(float(position_ne[0]) - float(target_ne[0]), float(position_ne[1]) - float(target_ne[1]))
-        moving = False
         if self._last_target is not None and t - self._last_target[2] > 1e-3:
-            target_speed = math.hypot(float(target_ne[0]) - self._last_target[0],
-                                      float(target_ne[1]) - self._last_target[1]) / (t - self._last_target[2])
-            moving = target_speed > self.STEADY_TARGET_M_S
+            dt = t - self._last_target[2]
+            speed = math.hypot(float(target_ne[0]) - self._last_target[0],
+                               float(target_ne[1]) - self._last_target[1]) / dt
+            weight = min(1.0, dt / self.SPEED_TAU_S)
+            self._target_speed += weight * (speed - self._target_speed)
         self._last_target = (float(target_ne[0]), float(target_ne[1]), t)
-        if moving:
-            # Lagging behind a fast-moving target (a formation morph) is not a flyaway (campaign 2026-11-04: the
-            # 3 m / 1 s check fired during transitions and froze drones mid-morph).
-            self._far_since = None
-            return self.state
-        if error <= self.flyaway_m:
+        allowance = self.LAG_ALLOWANCE_S * self._target_speed
+        if error <= self.flyaway_m + allowance:
             self._far_since = None
             return self.state
         if self._far_since is None:
             self._far_since = t
             return self.state
         if t - self._far_since >= self.flyaway_s:
-            if error > self.flyaway_land_m:
+            if error > self.flyaway_land_m + allowance:
                 self.state = self.LAND
             elif self.state == self.OK:
                 self.flyaways += 1

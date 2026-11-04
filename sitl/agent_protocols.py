@@ -136,6 +136,10 @@ class AgentProtocolMixin:
         self.slot = self.all_slots[self.drone_id].copy()
         self.formation_transition_progress = 1.0
         self.membership_revision += 1
+        # Keep holding the plan's centre until a mission intent issued after completion arrives (the operator re-bases
+        # its goal there). Resuming the older goal made every target jump: ~11 m after the tower-gap column (2026-11-04).
+        self._post_transition_centre = (np.asarray(plan.centroid_ne, dtype=float).copy(),
+                                        time.time() - getattr(self, "operator_clock_offset_s", 0.0))
 
     def _tick_transition(self, wall_now: float) -> None:
         if self.transition.state == AgentTransition.IDLE:

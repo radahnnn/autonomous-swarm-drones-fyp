@@ -146,3 +146,25 @@ def test_lagging_a_fast_moving_target_is_not_a_flyaway():
     for i in range(20, 25):                               # target stops; drone stuck 4 m away -> flyaway
         state = h.check_tracking((15.0, 0.0), (19.0, 0.0), float(i))
     assert state == "degraded"
+
+
+def test_a_flyaway_while_the_target_moves_is_still_caught():
+    # Codex review 2026-11-04: skipping the check for a moving target hid a flyaway during a move.
+    h = EstimateHealth()
+    for i in range(10):                                   # target moves 0.5 m/s; drone tracks it 1 m behind
+        t = 0.5 * i
+        assert h.check_tracking((0.25 * i - 1.0, 0.0), (0.25 * i, 0.0), t) == "ok"
+    state = "ok"
+    for i in range(10, 20):                               # drone runs off sideways at ~3 m/s while the target moves on
+        t = 0.5 * i
+        state = h.check_tracking((0.25 * i - 1.0, 1.5 * (i - 9)), (0.25 * i, 0.0), t)
+    assert state in ("degraded", "land") and h.flyaways + (state == "land") >= 1
+
+
+def test_lagging_a_slow_slewing_target_by_more_than_3_m_is_not_a_flyaway():
+    # Tower-gap run (campaign 2026-11-04 d): D1 lagged ~3-4 m behind a target slewing at 0.45 m/s and was frozen.
+    h = EstimateHealth()
+    for i in range(60):
+        t = 0.5 * i
+        lag = min(3.8, 0.4 * t)                           # the lag builds up as the target starts moving
+        assert h.check_tracking((0.225 * i - lag, 0.0), (0.225 * i, 0.0), t) == "ok"

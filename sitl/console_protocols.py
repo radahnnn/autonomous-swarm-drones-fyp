@@ -151,9 +151,10 @@ class ProtocolMixin:
             self._note_metric(name, **{k: v for k, v in data.items() if isinstance(v, (str, int, float, bool))})
         pending = self.transition_pending
         if name == "transition_complete" and pending is not None:
-            style, slots, _ = pending
+            style, slots, centre = pending
             self.formation = style
             self.formation_slots = slots
+            self.goal_ne = np.asarray(centre, dtype=float).copy()   # no jump back to the pre-transition goal
             self.transition_pending = None
             self.formation_hold = False
             self.event("formation_transition_complete", formation=style)
@@ -249,10 +250,10 @@ class ProtocolMixin:
                 plan.duration_s, now + self.transition.params.lead_s)
         except ValueError as exc:
             return result(False, f"Transition plan rejected: {exc}")
-        # The mission goal is left untouched: agents hold the plan's centroid themselves while the
-        # transition owns the slots, then resume this goal when it completes.
+        # The mission goal is left untouched until the end: agents hold the plan's centroid themselves while the
+        # transition owns the slots; on completion the goal is re-based to that centroid (the slots are relative to it).
         self.transition_pending = (style, np.asarray(plan.slots_by_drone, dtype=float).copy(),
-                                   self.goal_ne.copy())
+                                   np.asarray(centroid, dtype=float).copy())
         self.formation_hold = False
         with self.transition_lock:
             actions = self.transition.begin(tplan, now)
