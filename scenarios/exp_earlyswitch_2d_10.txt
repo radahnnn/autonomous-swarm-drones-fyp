@@ -23,4 +23,4 @@ expect Formation transition to V complete 240
 sleep 10
 health
 send land
-sleep 60
+sleep 120   # 60 s left the slowest drone in final descent, not yet disarmed (2026-11-05)
