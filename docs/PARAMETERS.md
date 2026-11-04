@@ -151,15 +151,15 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `OPERATOR_VERSION` | `1` | (module), line 36 |  |
-| `STATUS_PORT_BASE` | `22000` | (module), line 37 |  |
-| `NODE_COMMAND_PORT_BASE` | `21000` | (module), line 38 |  |
-| `PEER_PORT_BASE` | `20000` | (module), line 39 |  |
-| `LINK_DEAD_EXIT_S` | `30.0` | IndependentAgentNode, line 50 |  |
-| `FENCE_BREACH_LAND_S` | `8.0` | IndependentAgentNode, line 51 | a breach that lasts this long lands the drone |
-| `CENTRAL_HOLD_LAND_S` | `20.0` | IndependentAgentNode, line 52 | centralized: hold this long without a coordinator, then land |
-| `AUTONOMY_MAX_S` | `120.0` | IndependentAgentNode, line 53 | decentralized/hybrid: keep flying the last mission this long without one |
-| `COORDINATOR_TIMEOUT_S` | `2.5` | IndependentAgentNode, line 54 |  |
+| `OPERATOR_VERSION` | `1` | (module), line 40 |  |
+| `STATUS_PORT_BASE` | `22000` | (module), line 41 |  |
+| `NODE_COMMAND_PORT_BASE` | `21000` | (module), line 42 |  |
+| `PEER_PORT_BASE` | `20000` | (module), line 43 |  |
+| `LINK_DEAD_EXIT_S` | `30.0` | IndependentAgentNode, line 54 |  |
+| `FENCE_BREACH_LAND_S` | `8.0` | IndependentAgentNode, line 55 | a breach that lasts this long lands the drone |
+| `CENTRAL_HOLD_LAND_S` | `20.0` | IndependentAgentNode, line 56 | centralized: hold this long without a coordinator, then land |
+| `AUTONOMY_MAX_S` | `120.0` | IndependentAgentNode, line 57 | decentralized/hybrid: keep flying the last mission this long without one |
+| `COORDINATOR_TIMEOUT_S` | `2.5` | IndependentAgentNode, line 58 |  |
 
 ## `sitl/independent_swarm_console.py`
 

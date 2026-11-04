@@ -168,3 +168,11 @@ def test_lagging_a_slow_slewing_target_by_more_than_3_m_is_not_a_flyaway():
         t = 0.5 * i
         lag = min(3.8, 0.4 * t)                           # the lag builds up as the target starts moving
         assert h.check_tracking((0.225 * i - lag, 0.0), (0.225 * i, 0.0), t) == "ok"
+
+
+def test_an_autopilot_ekf_upset_degrades_at_once_and_recovers_without_another():
+    h = EstimateHealth()
+    assert h.note_estimator_upset(10.0) == "degraded" and h.estimator_upsets == 1
+    for i in range(1, 12):                                    # steady, healthy samples afterwards
+        h.update((0.0, 0.0), 10.0 + i)
+    assert h.state == "ok" and h.status()["estimator_upsets"] == 1

@@ -43,6 +43,7 @@ class EstimateHealth:
         self._last_target: Optional[tuple] = None
         self._target_speed = 0.0
         self.flyaways = 0
+        self.estimator_upsets = 0
 
     def update(self, position_ne: Sequence[float], t: float) -> str:
         north, east = float(position_ne[0]), float(position_ne[1])
@@ -100,9 +101,22 @@ class EstimateHealth:
             self._last_glitch_at = t                      # keep it degraded while it stays far away
         return self.state
 
+    def note_estimator_upset(self, t: float) -> str:
+        """The autopilot reported an EKF emergency yaw reset or lane switch (user-approved item 7c, 2026-11-04): in the
+        realistic runs these preceded every flyaway, ~1 s before the tracking check could fire. Degrade at once (peers
+        keep extra distance, the target is held) and recover after recover_s without a further upset."""
+        if not math.isfinite(t):
+            return self.state
+        self.estimator_upsets += 1
+        self._last_glitch_at = t
+        if self.state == self.OK:
+            self.state, self._degraded_since = self.DEGRADED, t
+        return self.state
+
     @property
     def degraded(self) -> bool:
         return self.state != self.OK
 
     def status(self) -> dict:
-        return {"state": self.state, "glitches": self.glitches, "flyaways": self.flyaways}
+        return {"state": self.state, "glitches": self.glitches, "flyaways": self.flyaways,
+                "estimator_upsets": self.estimator_upsets}

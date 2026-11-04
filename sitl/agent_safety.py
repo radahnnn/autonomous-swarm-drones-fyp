@@ -27,12 +27,16 @@ class AgentSafetyMixin:
         if health is None or self.position is None or not self.position_at or not self.airborne:
             return
         before = health.state
+        upset = getattr(self, "_estimator_upset_at", None)
+        if upset is not None:
+            self._estimator_upset_at = None
+            health.note_estimator_upset(self.position_at)
         health.update(self.position[:2], self.position_at)
         state = health.check_tracking(self.position[:2], getattr(self, "last_position_target_ne", None),
                                       self.position_at)
         if state != before:
             print(f"[NODE {self.drone_id + 1}] position estimate {before} -> {state} "
-                  f"{{'glitches': {health.glitches}}}", flush=True)
+                  f"{{'glitches': {health.glitches}, 'estimator_upsets': {health.estimator_upsets}}}", flush=True)
             if state == health.DEGRADED:
                 self._frozen_target = getattr(self, "last_position_target_ne", None)
             elif state == health.OK:

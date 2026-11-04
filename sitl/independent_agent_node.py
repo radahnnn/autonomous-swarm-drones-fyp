@@ -23,6 +23,10 @@ from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.adaptive_membership import AdaptiveMembership
 from sitl.coordinator_election import CoordinatorElection
 from sitl.geofence import Geofence, altitude_layer_offset
+import re
+
+# ArduPilot messages that mark an EKF upset (see tools/ekf_events.py); they preceded every realistic flyaway.
+EKF_UPSET_PATTERN = re.compile(r"emergency yaw reset|lane switch", re.I)
 from sitl.estimate_health import EstimateHealth
 from sitl.obstacle_sensing import ObstacleSensor, validate as validate_obstacle
 from sitl.mode_switch import CONTROL_MODES, AgentModeSwitch
@@ -331,6 +335,11 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                 self.armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
                 if not self.armed:
                     self.airborne = False
+            elif kind == "STATUSTEXT":
+                text = str(getattr(msg, "text", ""))
+                if EKF_UPSET_PATTERN.search(text):
+                    self._estimator_upset_at = time.time()       # applied by _tick_estimate_health
+                    print(f"[NODE {self.drone_id + 1}] autopilot: {text.strip()}", flush=True)
             elif kind == "LOCAL_POSITION_NED":
                 self.local_position = np.array([msg.x, msg.y, msg.z], dtype=float)
             elif kind == "SIMSTATE":
