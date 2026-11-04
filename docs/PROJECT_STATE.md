@@ -47,6 +47,10 @@ Final Year Project BEE-60 (Dept. of Electrical Engineering, supervisor Dr. Abdul
 
 Git branches (remote): `master` (demo), `work/decentralized-sitl-20261020` (parent of this branch, `cb7fdcc`), `wip/decentralized-sitl-handoff-20261029` (this branch, WIP checkpoint `d1e7444`), `work/corrected-phase2-20261020`, `hw-matched-identification`, `archive/*`, `checkpoint/2d-working-savepoint`. This branch is 24 commits ahead of / 4 docs-only commits behind `origin/master`; README conflicts are expected on merge.
 
+- ArduPilot dataflash logs (`*.BIN`) of runs up to 2026-11-04 evening were moved by the user to the external SSD:
+  `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-04/` (same `runs/...` paths; list in `bin_list_2026-11-04.txt`).
+  `tools/ekf_events.py` falls back to it automatically.
+
 ## 3. Code map (this checkout)
 
 - `swarm_core/` — numerical foundation: config profiles, drone model, graph, network emulator, formations, the shared Hungarian assignment (`assignment.py`), wind model, controllers, safety.
@@ -157,6 +161,10 @@ features except the items below. Results are recorded only once tested, with evi
 6. Remaining Codex critique items: overstated wording in reports/state ("evidence for an EKF-related flyaway
    mechanism", no "consistently safe"); repeat the Gazebo 6-drone patrol + tower gap on the final code, screen-recorded,
    with a sped-up video.
+
+7. Approved 2026-11-04 (after the realistic flyaway explanation): (a) tune the autopilot EKF to the injected GPS noise;
+   (b) altitude layers between neighbours with 3-D separation; then (c) early flyaway detection from the autopilot's
+   own EKF/yaw-reset messages. Each judged with item-3 statistics, not single runs.
 
 Report/viva (in parallel, low effort): theory chapter draft (communication graph model, consensus convergence and the
 connected-graph condition, why the safety filter keeps drones out of each other's keep-out zone, slot-tracking loop);

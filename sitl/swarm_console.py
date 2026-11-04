@@ -50,9 +50,9 @@ def apply_realistic(args) -> None:
     if not getattr(args, "realistic", False):
         return
     from sitl.independent_swarm_console import REALISTIC_PEER_LINK
-    if args.sitl_sensor_profile not in (None, "realistic"):
-        raise ValueError("--realistic sets its own SITL profile; drop --sitl-sensor-profile")
-    args.sitl_sensor_profile = "realistic"
+    if args.sitl_sensor_profile not in (None, "realistic", "realistic-ekf"):
+        raise ValueError("--realistic sets its own SITL profile (realistic or realistic-ekf); drop --sitl-sensor-profile")
+    args.sitl_sensor_profile = args.sitl_sensor_profile or "realistic"
     if getattr(args, "formation_scale", None) is None:
         args.formation_scale = 1.4
     if not getattr(args, "position_sigma", 0.0):
@@ -1188,7 +1188,8 @@ def main():
     parser.add_argument("--sitl-gcs-failsafe", action="store_true",
                         help="independent runtime only: enable ArduPilot SITL LAND after 5s without that agent's GCS heartbeat")
     parser.add_argument("--sitl-sensor-profile", choices=("baseline", "stress", "matek-single-compass", "realistic", "realistic-gps", "realistic-wind",
-                                 "realistic-vibration", "realistic-battery", "realistic-novibration"), default=None,
+                                 "realistic-vibration", "realistic-battery", "realistic-novibration", "realistic-ekf"),
+                        default=None,
                         help="independent runtime only: run-local SITL profile (defaults to matek-single-compass for independent agents)")
     parser.add_argument("--safety-filter", choices=("on", "off"), default="on",
                         help="independent runtime: control-barrier filter on the commanded setpoint (default on)")

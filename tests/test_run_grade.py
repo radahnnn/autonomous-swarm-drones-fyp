@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 from sitl.run_grade import grade_run
 
@@ -58,3 +59,13 @@ def test_missed_milestones_still_airborne_and_missing_truth_are_not_a_pass(tmp_p
 
 def test_live_fail_stays_fail(tmp_path):
     assert grade_run(_run(tmp_path, result="FAIL"))["verdict"] == "FAIL"
+
+
+def test_true_separation_uses_the_gate_metric_and_keeps_the_horizontal_minimum():
+    from sitl.run_metrics import RunMetrics
+    m = RunMetrics(2, gate_metric="ellipsoid", vertical_radius_m=2.0)
+    m._track_truth({0: np.array([0.0, 0.0, 10.0]), 1: np.array([1.0, 0.0, 12.0])}, 0.0)   # 1 m apart, 2 m layers
+    assert m.true_min_gap_m >= 2.5 and m.true_violations == 0 and m.true_min_horizontal_m == 1.0
+    flat = RunMetrics(2, gate_metric="ellipsoid", vertical_radius_m=2.0)
+    flat._track_truth({0: np.array([0.0, 0.0]), 1: np.array([1.0, 0.0])}, 0.0)            # no true altitude: horizontal
+    assert flat.true_min_gap_m == 1.0 and flat.true_violations == 1

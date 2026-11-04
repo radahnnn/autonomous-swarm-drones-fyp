@@ -114,7 +114,10 @@ class RunMetrics:
                         truth = status.get("true_position_ne")
                         if (isinstance(truth, (list, tuple)) and len(truth) == 2 and
                                 all(isinstance(v, (int, float)) and math.isfinite(v) for v in truth)):
-                            truths[index] = np.asarray(truth, dtype=float)
+                            altitude = status.get("true_altitude_m")
+                            truths[index] = np.asarray(
+                                [*truth, float(altitude)] if isinstance(altitude, (int, float)) and math.isfinite(altitude)
+                                else truth, dtype=float)
                     target = status.get("position_target_ne")
                     if (info["airborne"] and isinstance(target, (list, tuple)) and len(target) == 2):
                         try:
@@ -195,12 +198,28 @@ class RunMetrics:
             self.complete_samples += 1
 
     def _track_truth(self, truths: Dict[int, np.ndarray], now: float) -> None:
+        """True (simulator) separation, judged with the run's gate metric when true altitudes are available (altitude
+        layers only count if the truth shows them); the horizontal true minimum is always kept as well."""
         ids = sorted(truths)
         if len(ids) < 2:
             return
-        gap = min(float(np.linalg.norm(truths[a] - truths[b])) for i, a in enumerate(ids) for b in ids[i + 1:])
+        gap, horizontal_gap = math.inf, math.inf
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                delta = truths[a] - truths[b]
+                horizontal = float(np.linalg.norm(delta[:2]))
+                horizontal_gap = min(horizontal_gap, horizontal)
+                vertical = abs(float(delta[2])) if len(delta) == 3 else None
+                if vertical is None or self.gate_metric == "horizontal":
+                    measured = horizontal
+                elif self.gate_metric == "3d":
+                    measured = math.hypot(horizontal, vertical)
+                else:
+                    measured = horizontal_equivalent_gap(horizontal, vertical, self.gate_m, self.vertical_radius_m)
+                gap = min(gap, measured)
         self.true_samples += 1
         self.true_min_gap_m = min(self.true_min_gap_m, gap)
+        self.true_min_horizontal_m = min(getattr(self, "true_min_horizontal_m", math.inf), horizontal_gap)
         violating = gap < self.gate_m
         if violating and not self._true_violating:
             self.true_violations += 1
@@ -259,6 +278,8 @@ class RunMetrics:
             "missing_airborne_episodes": self.missing_airborne_episodes,
             "stale_position_samples": self.stale_position_samples,
             "true_min_gap_m": None if not math.isfinite(self.true_min_gap_m) else round(self.true_min_gap_m, 3),
+            "true_min_horizontal_gap_m": (None if not math.isfinite(getattr(self, "true_min_horizontal_m", math.inf))
+                                          else round(self.true_min_horizontal_m, 3)),
             "true_violation_episodes": self.true_violations, "true_samples": self.true_samples,
             "gate_m": self.gate_m, "gate_metric": self.gate_metric, "vertical_radius_m": self.vertical_radius_m,
             "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",

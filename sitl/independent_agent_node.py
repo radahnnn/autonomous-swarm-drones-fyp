@@ -339,6 +339,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                 try:
                     truth = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lng / 1e7, 0.0)
                     self.true_position_ne = [float(truth[0]), float(truth[1])]
+                    self.true_altitude_m = float(msg.alt)          # metres; only differences between drones are used
                     self.true_position_at = time.time()
                 except (AttributeError, TypeError, ValueError):
                     pass
@@ -768,6 +769,8 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             "position_age_s": None if not self.position_at else max(0.0, now - self.position_at),
             "true_position_ne": (getattr(self, "true_position_ne", None)
                                  if now - getattr(self, "true_position_at", 0.0) <= 1.0 else None),
+            "true_altitude_m": (getattr(self, "true_altitude_m", None)
+                                if now - getattr(self, "true_position_at", 0.0) <= 1.0 else None),
             "airborne": bool(self.position is not None and self.position[2] < -0.5),
             "armed": self.armed,
             "peer_ids": self.peer_ids,

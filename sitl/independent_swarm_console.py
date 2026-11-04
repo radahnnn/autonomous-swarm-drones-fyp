@@ -94,6 +94,14 @@ for _name, _prefixes in (("realistic-gps", ("SIM_GPS1",)), ("realistic-wind", ("
                          ("realistic-novibration", ("SIM_GPS1", "SIM_WIND"))):
     SITL_SENSOR_PROFILE_OVERRIDES[_name] = {**_COMMON, **{k: v for k, v in _REALISTIC.items() if k.startswith(_prefixes)}} \
         if _prefixes else dict(_COMMON)
+# Same disturbances as "realistic", with the autopilot's EKF told about them (user-approved item 7a, 2026-11-04).
+# SITL's horizontal GPS error (SIM_GPS1_HNSE 0.5 m) is a circle traced every 12.6 s, so the GPS *position* drifts at
+# ~0.25 m/s while the GPS *velocity* stays exact; EKF3 expects only 0.3 m/s velocity error by default, and with 3 m/s
+# gusty wind on top its velocity checks fail, ArduCopter requests an emergency yaw reset, the EKF then distrusts the
+# (perfect) compass and the drone wanders 7-18 m (dataflash: lane switch + emergency yaw reset at the flyaway,
+# decentralized-cut-20261104-realistic D1 t=220.6 s). EK3_VELNE_M_NSE 0.5 covers that inconsistency. Raising
+# EK3_POSNE_M_NSE would change nothing: the EKF already uses the GPS-reported accuracy (1.2 m) when it is larger.
+SITL_SENSOR_PROFILE_OVERRIDES["realistic-ekf"] = {**_REALISTIC, "EK3_VELNE_M_NSE": "0.5"}
 # Radio link of --realistic: per-packet loss, delay and jitter, with bursty (Gilbert-Elliott) loss.
 REALISTIC_PEER_LINK = {"peer_loss": 0.05, "peer_latency_ms": 40.0, "peer_jitter_ms": 15.0, "peer_burst_loss": True}
 _CLOCK_RESYNC_INTERVAL_S = 60.0
