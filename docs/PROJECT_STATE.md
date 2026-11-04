@@ -137,7 +137,15 @@ features except the items below. Results are recorded only once tested, with evi
    Stricter run evaluator (Codex review point 4): PASS only if every configured drone completes the mission, lands
    normally (landed + disarmed), the mission milestones happened and true-position coverage is complete; a drone landed
    by the flyaway/estimate guard is not PASS. Re-grade `runs/independent/campaign-20261104f` with it.
-2. Real decentralized control in live SITL: formation kept from neighbours' relative positions (today the consensus
+2. **In progress (2026-11-04):** `sitl/formation_consensus.py` — followers keep formation from neighbours by
+   leader-follower consensus on a shared formation reference (goal only from the elected leader) plus a bounded
+   (1 m) correction from neighbours' measured positions; formation *changes* are still planned centrally. UNIT-tested
+   (exact tracking of a constant-velocity leader with 30 % loss; leader hand-over; ~0.8 m lag at 5 hops on turns).
+   Live SITL, 10 drones, operator link cut 90 s mid-patrol (`scenarios/decentralized_cut_10.txt`, 1 run each): calm
+   true min 3.21 m (strict INCOMPLETE only from a scenario-order error, fixed); realistic run 1 FAIL 1.24 m (leader
+   flyaway, consistent with the EKF mechanism; exposed that a runaway neighbour pulled the correction, fixed
+   `8887bd8`); realistic run 2 strict PASS, true min 4.78 m. Reliability not established (needs item 3).
+   Real decentralized control in live SITL: formation kept from neighbours' relative positions (today the consensus
    correction is capped at 0.25 m in `sitl/decentralized_guidance.py`), goal from the elected leader rather than the
    operator; prove with a 10-drone run with the operator link cut mid-mission. If it cannot be done well, reword the
    claim everywhere to "distributed execution, centralized planning".
@@ -193,6 +201,8 @@ Waiting on the user:
 - Campus photos; the demo date; the idea the user mentioned and has not shared yet.
 
 ## Changelog (newest first; one line per change to this file)
+
+- 2026-11-04 — Claude — Item 2 decentralized consensus implemented; three live operator-cut runs recorded (1 PASS realistic, 1 FAIL realistic, 1 calm).
 
 - 2026-11-04 — Claude — User-approved work list added to section 8 (items 1-6, report, hardware sequence); item 1 (strict run grade) done; tower-gap mechanism found and fixed; campaign f re-graded.
 

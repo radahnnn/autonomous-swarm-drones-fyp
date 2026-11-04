@@ -503,3 +503,10 @@ Panel assessment: a strong and ambitious research prototype with credible partia
 - Evidence (SITL, 10 drones, --realistic, 3 runs per cell, not matched seeds): campaign f tower-gap strict 2 PASS / 1 INCOMPLETE, true worst 3.32 m; realistic 1 PASS / 2 FAIL (true 2.07, 1.83 m), the EKF-related mechanism is untouched. Campaign e stopped (mixed code) and kept as `campaign-20261104e-mixed-code-stopped`.
 - Known limit: kill-agent scenarios (election_10) will grade INCOMPLETE until a scenario can declare an expected landing reason.
 - Next: item 2 (real decentralized control).
+
+### 2026-11-04 late — Claude — item 2: decentralized formation consensus
+
+- Code: `sitl/formation_consensus.py` (reference r_i + leader-velocity estimate v_i, shared in the peer packet with its own operator-clock timestamp; leader anchors to its mission goal; followers never read the operator goal), wired in `agent_mission._decentralized_goal` (weight 1 in decentralized, and in hybrid when the coordinator is lost; blends during a mode switch; transitions keep the plan centre). Commits `e4c4db4`, `8887bd8`.
+- Two defects found by unit tests before any flight: feeding neighbours' full reference rate forward never settled; comparing a one-tick-old own reference biased every hop.
+- Live SITL (10 drones, operator->drone cut 90 s): calm 3.21 m true min; realistic 1 FAIL 1.24 m (D1 leader flyaway ~17 m in 5 s with a steady target; consistent with the EKF mechanism, dataflash not checked); realistic 2 strict PASS 4.78 m. Single runs; mechanism of run 1 not newly confirmed.
+- Codex: please review the consensus law and the claim wording ("decentralized formation keeping and goal propagation; centrally planned formation changes").
