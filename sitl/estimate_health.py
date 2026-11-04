@@ -18,6 +18,7 @@ from typing import Optional, Sequence
 
 class EstimateHealth:
     OK, DEGRADED, LAND = "ok", "degraded", "land"
+    STEADY_TARGET_M_S = 0.5      # a target moving faster than this is a planned move, not a hold
 
     def __init__(self, max_speed_m_s: float = 4.0, recover_s: float = 5.0, land_after_s: float = 15.0,
                  min_dt_s: float = 0.5, flyaway_m: float = 3.0, flyaway_s: float = 1.0, flyaway_land_m: float = 10.0):
@@ -34,6 +35,7 @@ class EstimateHealth:
         # realistic disturbances two drones left steady targets by 7 m and 18 m while the swarm logic was correct).
         self.flyaway_m, self.flyaway_s, self.flyaway_land_m = flyaway_m, flyaway_s, flyaway_land_m
         self._far_since: Optional[float] = None
+        self._last_target: Optional[tuple] = None
         self.flyaways = 0
 
     def update(self, position_ne: Sequence[float], t: float) -> str:
@@ -68,6 +70,17 @@ class EstimateHealth:
         if target_ne is None or not all(math.isfinite(float(v)) for v in (*position_ne[:2], *target_ne[:2], t)):
             return self.state
         error = math.hypot(float(position_ne[0]) - float(target_ne[0]), float(position_ne[1]) - float(target_ne[1]))
+        moving = False
+        if self._last_target is not None and t - self._last_target[2] > 1e-3:
+            target_speed = math.hypot(float(target_ne[0]) - self._last_target[0],
+                                      float(target_ne[1]) - self._last_target[1]) / (t - self._last_target[2])
+            moving = target_speed > self.STEADY_TARGET_M_S
+        self._last_target = (float(target_ne[0]), float(target_ne[1]), t)
+        if moving:
+            # Lagging behind a fast-moving target (a formation morph) is not a flyaway (campaign 2026-11-04: the
+            # 3 m / 1 s check fired during transitions and froze drones mid-morph).
+            self._far_since = None
+            return self.state
         if error <= self.flyaway_m:
             self._far_since = None
             return self.state

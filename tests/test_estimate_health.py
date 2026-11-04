@@ -136,3 +136,13 @@ def test_flyaway_from_a_steady_target_degrades_then_lands_if_extreme():
     assert h.check_tracking((12.0, 0.0), target, 5.2) == "land"         # still far and beyond 10 m
     calm = EstimateHealth()
     assert all(calm.check_tracking((2.5, 0.0), target, float(t)) == "ok" for t in range(30))   # within 3 m: fine
+
+
+def test_lagging_a_fast_moving_target_is_not_a_flyaway():
+    h = EstimateHealth()
+    for i in range(20):                                   # target moves 1 m/s (a morph), drone lags 4 m behind it
+        t = float(i)
+        assert h.check_tracking((t - 4.0, 0.0), (t, 0.0), t) == "ok"
+    for i in range(20, 25):                               # target stops; drone stuck 4 m away -> flyaway
+        state = h.check_tracking((15.0, 0.0), (19.0, 0.0), float(i))
+    assert state == "degraded"
