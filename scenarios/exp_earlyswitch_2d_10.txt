@@ -1,0 +1,26 @@
+# EXPERIMENT 2026-11-04: same as attribution_2d_10 but the patrol is 50 s instead of 120 s, so the switch to
+# centralized happens ~70 s earlier (does the flyaway window move with the switch or stay at a flight time?).
+# Shorter 10-drone mission for the disturbance attribution matrix (~12 min): hold, decentralized patrol,
+# centralized, a formation change and back, land.
+wait swarm ready 900
+send launch
+poll 10 300 airborne armed=yes
+sleep 20
+send mode decentralized
+expect Control mode is now DECENTRALIZED 120
+send patrol square 12 0.3
+sleep 50
+send route stop
+sleep 10
+send mode centralized
+expect Control mode is now CENTRALIZED 120
+sleep 20
+send formation line
+expect Formation transition to LINE complete 240
+sleep 10
+send formation v
+expect Formation transition to V complete 240
+sleep 10
+health
+send land
+sleep 60
