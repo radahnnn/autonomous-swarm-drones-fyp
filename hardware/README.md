@@ -53,6 +53,8 @@ This directory contains configuration, parameter backups, diagnostic scripts, an
 hardware/
 ├── README.md                          # This hardware documentation
 ├── Matek_H743_Parameter_Configuration_Summary.docx # Parameter summary (generated Oct 14)
+├── reports/
+│   └── PHYSICAL_ESP32_CAN_BENCH_PLAN_2026-10-29.md # Evidence, interface decision and safe bench plan
 ├── params/
 │   ├── matek_h743_quad_20261006.param # Clean backup of all 1,283 flight parameters (Oct 6)
 │   └── matek_h743_quad_20261023.param # Later export (Oct 23): CAN port enabled (CAN_P1_DRIVER=1, DroneCAN node 10)
@@ -82,3 +84,21 @@ python3 hardware/scripts/export_parameters.py
 ```bash
 bash hardware/scripts/launch_qgroundcontrol.sh
 ```
+
+---
+
+## 6. ESP32/CAN Bench Status (Oct 29, 2026)
+
+**PHYSICAL, passive USB evidence:** the team's ESP32 board enumerated on Ubuntu as a Silicon Labs
+CP2102 USB-to-UART bridge (`10c4:ea60`) at `/dev/ttyUSB0`, with a stable `/dev/serial/by-id/...`
+name. No process held the port. Linux exposed no SocketCAN interface or USB-to-CAN adapter.
+
+The serial port was deliberately not opened because the airframe still had propellers installed and
+the flight battery was connected. No CAN frame, ESP32 firmware behavior, Matek node discovery, or
+command path was verified. CAN remains **configuration only**: the Oct 23 export records DroneCAN on
+CAN port 1 at 250 kbit/s with autopilot node 10, but contains no traffic evidence.
+
+The recommended first command path is connectorized **UART/MAVLink** if an approved no-solder UART
+harness is available. CAN should be validated separately as an experimental DroneCAN link with a
+defined ESP32 protocol. See
+[`reports/PHYSICAL_ESP32_CAN_BENCH_PLAN_2026-10-29.md`](reports/PHYSICAL_ESP32_CAN_BENCH_PLAN_2026-10-29.md).
