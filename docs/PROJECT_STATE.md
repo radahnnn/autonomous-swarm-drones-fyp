@@ -76,8 +76,8 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 | Centralized control | Working | SITL, GAZEBO (5 drones, 20 Oct), QGC (15 Oct) | Repeated matched live runs. |
 | Decentralized control | Working in SITL | SITL (same host), VM-NETWORK (5 and 10 agents, one clean mission each) | Repeated split-host fault runs; radio. |
 | Hybrid switching + in-flight mode switching | Working in SITL | SITL (same host; 10 drones, 5 live switches, 2026-10-30) | Repeated live and separate-host evidence. Hybrid violated the 2.5 m guard in 1 of 10 burst-outage seeds. |
-| Formations + reconfiguration | Working in SITL/Gazebo | SITL (10 drones; synchronized transition protocol, pairs, tower-gap column), GAZEBO (6 drones) — single runs | Repeats; under `--realistic` some transitions are cancelled/retried; Codex review findings 1-2, 4, 6, 8 open. |
-| Gazebo 6-drone, independent runtime | Working (single runs) | GAZEBO: survey patrol under `--realistic` PASS 4.81 m (2026-11-03); tower gap with real towers PASS 3.42 m (2026-11-03); RTF ~0.19 at the 1.25 ms step | One run each; no 10 drones / wind in Gazebo; see `docs/reports/REALISTIC_SIMULATION_2026-11-03.md`. |
+| Formations + reconfiguration | Working in SITL/Gazebo | SITL (10 drones; synchronized transition protocol, pairs, tower-gap column, grid), GAZEBO (6 drones) | Repeated matched reliability evidence is thin; under `--realistic` some transitions are cancelled/retried; see the 2026-11-11 review. |
+| Gazebo 6-drone, independent runtime | Working in individual runs | GAZEBO: survey patrol and tower gap under `--realistic` passed on 2026-11-03 and each had one strict PASS on 2026-11-05 (local raw runs); RTF ~0.19 at the 1.25 ms step | No 10-drone / wind Gazebo evidence or statistically repeated final-code campaign; see `docs/reports/REALISTIC_SIMULATION_2026-11-03.md` and the local Nov 5 summary. |
 | Scaling 5→10 | Partial | 30-seed point-mass pass (2 mm worst margin); one 10-agent VM mission; 10/10 calm 10-drone SITL campaign runs strict PASS on 2026-11-05 | Thin numerical margin; realistic and repeated split-host fault runs remain open. |
 | Physical prototype | Bench-checked only | PHYSICAL (USB bench: FC, sensors, GPS fix; props off) | Never flown. ESP32/CAN link is a proposal; CAN enabled in params but no command path confirmed. |
 
@@ -89,7 +89,7 @@ Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_20
 2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
 3. Synchronized transition protocol (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`): UNIT + in-memory INTEGRATION tests, and **one live 5-drone standalone SITL run** (`docs/reports/TRANSITION_PROTOCOL_LIVE_SITL_2026-10-30.md`) in which a LINE transition completed and a COLUMN transition with a killed agent ended in a coordinated HOLD (no LAND). The run exposed and fixed two bugs the tests missed. Not repeated, no loss/latency/coordinator-kill/VM runs, not the default. Remaining limits: agent aborts reach peers through the coordinator relay; command gating covers REPL/dashboard `handle` and `_set_formation`.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
-5. Mode supervisor has no child-readiness check or rollback; process cleanup is broad rather than ownership-based.
+5. The old mode supervisor is now archived with the legacy runtimes. The active independent runtime still has unresolved mode agreement/reconciliation after partial commits, and the launcher has broad rather than ownership-based SITL cleanup (2026-11-11 review).
 6. ~~Several slot-assignment implementations~~ — the Hungarian cost/latching code is now one function (`swarm_core/assignment.py`) used by the simulator, library and planner (2026-11-01). Formation *shape* generators are still two sets (`swarm_core/formations.py` for the simulator, `sitl/formation_library.py` for live); merging them would change recorded simulator results, so it is deliberately not done.
 7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
 8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): guard priority, demo label, repulsion, assignment latching, recovery-rule pin and the hybrid defaults (`hybrid_degrade_timeout` 1.2 s, fallback `dead_reckon`) are done (numerical simulation only). **Closed 2026-10-31:** missions can continue without a coordinator when the swarm carries a route (`sitl/route.py`; live SITL, see `docs/reports/ROUTE_CONTINUATION_LIVE_SITL_2026-10-31.md`). Altitude layers were implemented in SITL but 3-D simulator-truth clearance remains unverified; gain sweeps and hardware validation remain open.
@@ -184,12 +184,10 @@ Requested by the user, not finished:
 - Hardware (on hold): propellers-off bench test of the PC/ESP32 -> Matek link; RC + failsafes; first hover; then
   two drones; then the 5 new ones. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
 
-Codex review findings accepted by the user for fixing (2026-11-04; details in the collaboration log entry "2026-11-03 22:20 PKT — Codex"):
-- #1 mode-switch partial commit can split modes; #8 transition self-close can strand a lagging drone (terminal-decision agreement).
-- #2 console mission state has several writers (duplicate sequences, stale retries after LAND, retries lose gap heading/spacing); #4 formation start time taken before waits; #11 dashboard reports rejected commands as accepted.
-- #3 safety filter is not the last step on the transmitted target; #7 barrier solver misses circle-boundary solutions; #6 gap check uses tower spacing, not the swept path; #9 LAND cannot interrupt arming/takeoff; #10 acting-coordinator limit renews itself.
-- #5 run-report PASS does not require fleet coverage, mission completion or fresh positions; true simulator positions not logged.
-- Done 2026-11-04: #12 CI extra, #13 vacuous test, #14 parameter table coverage/label, #15 this file, #16 report wording.
+Codex review findings accepted by the user for fixing (2026-11-04; details and dispositions in the collaboration-log reviews):
+- Still partial: #1 mode agreement after lost commit confirmation; #8 terminal transition reconciliation; #2 console mission state has several writers and cancellation races; #4 revalidation after waits; #11 structured dashboard command results.
+- Still partial: #3 final transmitted-target safety under infeasible constraints; #6 whole-column swept-path obstacle clearance; #9 end-to-end LAND preemption; #5 complete safety/evidence grading, now improved by `sitl/run_grade.py` but without true 3-D altitude for layered runs.
+- Closed for the original reproduced cases: #7 circle-boundary barrier solver; #10 acting-coordinator renewal. #12 CI extra, #13 vacuous test, #14 scoped parameter table, #15 state documentation and #16 report wording were addressed; evidence limits remain.
 
 Found by testing, not yet resolved:
 - Tower-gap near-miss (campaign 2026-11-04 d, true 2.04 m) had a different mechanism from the yaw resets: after the
