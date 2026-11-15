@@ -125,36 +125,83 @@ class Geofence:
         return None
 
 
-def formation_layer_index(slots, drone_id: int, layers: int) -> int:
-    """Layer of a drone such that neighbours in the starting formation fly at different heights (2 layers).
-
-    Live finding 2026-11-04 (campaign stats-20261104-layers): with layer = ID mod 2 the close pairs of the V (D1-D2,
-    D5-D7, D7-D9, ...) were often on the SAME layer, so the layers did not separate them. Two-colour the starting
-    formation's proximity graph (slots within 1.2 x the closest slot spacing are neighbours) breadth-first from drone 0;
-    for a V this alternates along each arm. Fixed per drone for the flight (no height change during transitions).
-    Other layer counts keep ID mod layers."""
-    if layers != 2:
-        return int(drone_id) % layers
+def _proximity_adjacency(slots):
     import numpy as np
     points = np.asarray(slots, dtype=float)[:, :2]
     n = len(points)
     if n < 2:
-        return 0
+        return np.zeros((n, n), dtype=bool)
     distances = np.linalg.norm(points[:, None, :] - points[None, :, :], axis=2)
     closest = float(np.min(distances[np.triu_indices(n, 1)]))
-    adjacent = (distances <= 1.2 * closest) & ~np.eye(n, dtype=bool)
+    return (distances <= 1.2 * closest) & ~np.eye(n, dtype=bool)
+
+
+def _proper_colouring(adjacent, layers: int) -> list[int] | None:
+    import numpy as np
+    n = len(adjacent)
+    if n == 0:
+        return []
+    if n < 2 or layers < 2:
+        return [0] * n
+    if layers == 2:
+        colour = [-1] * n
+        for root in range(n):
+            if colour[root] != -1:
+                continue
+            colour[root], queue = 0, [root]
+            while queue:
+                i = queue.pop(0)
+                for j in np.flatnonzero(adjacent[i]):
+                    if colour[j] == -1:
+                        colour[j] = 1 - colour[i]
+                        queue.append(int(j))
+                    elif colour[j] == colour[i]:
+                        return None
+        return colour
     colour = [-1] * n
-    for root in range(n):
-        if colour[root] != -1:
-            continue
-        colour[root], queue = 0, [root]
-        while queue:
-            i = queue.pop(0)
-            for j in np.flatnonzero(adjacent[i]):
-                if colour[j] == -1:
-                    colour[j] = 1 - colour[i]
-                    queue.append(int(j))
-    return colour[int(drone_id)]
+
+    def _solve(idx: int) -> bool:
+        if idx == n:
+            return True
+        used = {colour[int(j)] for j in np.flatnonzero(adjacent[idx]) if colour[int(j)] != -1}
+        for col in range(layers):
+            if col not in used:
+                colour[idx] = col
+                if _solve(idx + 1):
+                    return True
+                colour[idx] = -1
+        return False
+
+    return colour if _solve(0) else None
+
+
+def is_layer_separable(slots, layers: int = 2) -> bool:
+    """Return True if the starting formation's closest-neighbour graph has a conflict-free `layers`-colouring."""
+    if layers < 2 or slots is None:
+        return True
+    return _proper_colouring(_proximity_adjacency(slots), int(layers)) is not None
+
+
+def formation_layer_index(slots, drone_id: int, layers: int) -> int:
+    """Layer of a drone such that closest neighbours in the starting formation fly at different heights.
+
+    Live finding 2026-11-04 (campaign stats-20261104-layers): with layer = ID mod 2 the close pairs of the V (D1-D2,
+    D5-D7, D7-D9, ...) were often on the SAME layer, so the layers did not separate them. When `slots` is provided and
+    `layers >= 2`, colour the starting formation's proximity graph (slots within 1.2 x the closest slot spacing are
+    neighbours) with zero same-layer closest-neighbour conflicts. Bipartite formations (`v`, `line`, `column`,
+    `diamond`, `echelon`, `pairs`, `pairs_b`, plus `ring` and `grid` at even sizes such as 6 and 10) succeed with 2
+    layers; formations with odd closest-neighbour cycles (`triangle`, or `ring`/`grid` at n=5) require >= 3 layers and
+    raise ValueError if requested with 2 layers. When `slots` is None or `layers == 1`, returns `drone_id mod layers`.
+    """
+    if slots is None or layers < 2:
+        return int(drone_id) % layers
+    colour = _proper_colouring(_proximity_adjacency(slots), int(layers))
+    if colour is None:
+        raise ValueError(
+            f"Formation has odd closest-neighbour cycles and cannot separate all closest pairs with {layers} "
+            f"altitude layers; use at least 3 layers"
+        )
+    return int(colour[int(drone_id)])
 
 
 def altitude_layer_offset(drone_id: int, layers: int, spacing_m: float, slots=None) -> float:

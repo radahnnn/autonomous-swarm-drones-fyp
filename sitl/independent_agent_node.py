@@ -1121,7 +1121,8 @@ def main(argv=None):
     try:
         geofence = Geofence.from_options(args.geofence_radius, args.geofence_box,
                                          args.geofence_max_alt, args.geofence_margin)
-        altitude_layer_offset(args.id, args.altitude_layers, args.layer_spacing)
+        altitude_layer_offset(args.id, args.altitude_layers, args.layer_spacing,
+                              slots=slots_for(args.formation, args.count))
     except ValueError as exc:
         parser.error(str(exc))
     node = IndependentAgentNode(

@@ -212,3 +212,44 @@ def test_two_layers_put_neighbours_of_the_starting_v_at_different_heights():
                 if d[i, j] <= 1.2 * closest:
                     assert layers[i] != layers[j], (n, i, j)
     assert [formation_layer_index(None, i, 3) for i in range(4)] == [0, 1, 2, 0]   # other counts unchanged
+
+
+def test_layer_colouring_validates_all_formations_and_supports_three_layers():
+    from sitl.formation_library import slots_for
+    from sitl.geofence import altitude_layer_offset, formation_layer_index, is_layer_separable
+
+    bipartite_cases = (
+        [(style, n) for style in ("v", "line", "column", "diamond", "echelon", "pairs", "pairs_b")
+         for n in (5, 6, 10)]
+        + [(style, n) for style in ("ring", "grid") for n in (6, 10)]
+    )
+    for style, n in bipartite_cases:
+        slots = slots_for(style, n)
+        assert is_layer_separable(slots, 2) is True, (style, n)
+        layers = [formation_layer_index(slots, i, 2) for i in range(n)]
+        pts = slots[:, :2]
+        d = np.linalg.norm(pts[:, None] - pts[None], axis=2)
+        closest = d[np.triu_indices(n, 1)].min()
+        for i in range(n):
+            for j in range(i + 1, n):
+                if d[i, j] <= 1.2 * closest:
+                    assert layers[i] != layers[j], (style, n, i, j)
+
+    odd_cycle_cases = [("triangle", 5), ("triangle", 6), ("triangle", 10), ("ring", 5), ("grid", 5)]
+    for style, n in odd_cycle_cases:
+        slots = slots_for(style, n)
+        assert is_layer_separable(slots, 2) is False, (style, n)
+        with pytest.raises(ValueError, match="odd closest-neighbour cycles"):
+            formation_layer_index(slots, 0, 2)
+        with pytest.raises(ValueError, match="odd closest-neighbour cycles"):
+            altitude_layer_offset(0, 2, 1.5, slots=slots)
+        assert is_layer_separable(slots, 3) is True, (style, n)
+        layers3 = [formation_layer_index(slots, i, 3) for i in range(n)]
+        assert set(layers3) <= {0, 1, 2}
+        pts = slots[:, :2]
+        d = np.linalg.norm(pts[:, None] - pts[None], axis=2)
+        closest = d[np.triu_indices(n, 1)].min()
+        for i in range(n):
+            for j in range(i + 1, n):
+                if d[i, j] <= 1.2 * closest:
+                    assert layers3[i] != layers3[j], (style, n, i, j)
