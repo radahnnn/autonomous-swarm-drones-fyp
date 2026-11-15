@@ -203,6 +203,10 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         self.conn = None
         self.position = None
         self.position_at = 0.0
+        self.true_position_ne = None
+        self.true_altitude_m = None
+        self.true_position_at = 0.0
+        self.true_altitude_at = None
         self.local_position = None
         self.global_origin = None
         self.last_position_target_ne = None
@@ -287,7 +291,8 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
         )
         request_message_interval(self.conn, 193, 2.0)
         request_message_interval(self.conn, 24, 2.0)
-        request_message_interval(self.conn, 164, 5.0)     # SIMSTATE: simulator truth, for evaluation only
+        request_message_interval(self.conn, 164, 5.0)     # SIMSTATE: horizontal simulator truth fallback
+        request_message_interval(self.conn, 108, 5.0)     # SIM_STATE: 3-D simulator truth (includes altitude)
         self._send_gcs_heartbeat()
         if not wait_ekf_ready(self.conn, f"Node {self.drone_id + 1}", wall_timeout=300.0,
                               heartbeat_callback=self._send_gcs_heartbeat):
@@ -343,16 +348,45 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
                     print(f"[NODE {self.drone_id + 1}] autopilot: {text.strip()}", flush=True)
             elif kind == "LOCAL_POSITION_NED":
                 self.local_position = np.array([msg.x, msg.y, msg.z], dtype=float)
+            elif kind == "SIM_STATE":
+                # 3-D simulator ground truth (SITL/Gazebo only; includes altitude unlike SIMSTATE).
+                try:
+                    lat_raw = getattr(msg, "lat_int", None)
+                    lon_raw = getattr(msg, "lon_int", None)
+                    if not (isinstance(lat_raw, (int, float)) and isinstance(lon_raw, (int, float))
+                            and math.isfinite(lat_raw) and math.isfinite(lon_raw)
+                            and (lat_raw != 0 or lon_raw != 0)):
+                        lat_raw = getattr(msg, "lat", None)
+                        lon_raw = getattr(msg, "lon", None)
+                    if lat_raw is None or lon_raw is None:
+                        raise ValueError("missing SIM_STATE coordinates")
+                    lat_val = float(lat_raw)
+                    lon_val = float(lon_raw)
+                    if not (math.isfinite(lat_val) and math.isfinite(lon_val)):
+                        raise ValueError("non-finite SIM_STATE coordinates")
+                    truth = self.frame.gps_to_global_ned(lat_val / 1e7, lon_val / 1e7, 0.0)
+                    now_ts = time.time()
+                    self.true_position_ne = [float(truth[0]), float(truth[1])]
+                    sim_alt_msl = getattr(msg, "alt", None)
+                    if isinstance(sim_alt_msl, (int, float)) and math.isfinite(float(sim_alt_msl)):
+                        self.true_altitude_m = float(sim_alt_msl) - self.frame.alt0
+                        self.true_altitude_at = now_ts
+                    self.true_position_at = now_ts
+                except (AttributeError, TypeError, ValueError):
+                    pass
             elif kind == "SIMSTATE":
                 # Simulator ground truth (SITL/Gazebo only; a real autopilot never sends it). Used for evaluation
                 # only, never for control: Codex review #5/#16, separation must be judged on true positions too.
                 try:
                     truth = self.frame.gps_to_global_ned(msg.lat / 1e7, msg.lng / 1e7, 0.0)
+                    now_ts = time.time()
                     self.true_position_ne = [float(truth[0]), float(truth[1])]
                     # SIMSTATE carries no altitude (live 2026-11-04: reading an altitude field from it raised inside this try and silently
-                    # dropped every true position); true vertical separation is therefore not available here.
-                    self.true_altitude_m = None
-                    self.true_position_at = time.time()
+                    # dropped every true position); keep fresh SIM_STATE altitude if available, else clear stale altitude.
+                    alt_at = getattr(self, "true_altitude_at", None)
+                    if alt_at is None or now_ts - alt_at > 1.0:
+                        self.true_altitude_m = None
+                    self.true_position_at = now_ts
                 except (AttributeError, TypeError, ValueError):
                     pass
             elif kind == "GLOBAL_POSITION_INT":
@@ -782,7 +816,9 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             "true_position_ne": (getattr(self, "true_position_ne", None)
                                  if now - getattr(self, "true_position_at", 0.0) <= 1.0 else None),
             "true_altitude_m": (getattr(self, "true_altitude_m", None)
-                                if now - getattr(self, "true_position_at", 0.0) <= 1.0 else None),
+                                if now - (getattr(self, "true_altitude_at", None)
+                                          if getattr(self, "true_altitude_at", None) is not None
+                                          else getattr(self, "true_position_at", 0.0)) <= 1.0 else None),
             "airborne": bool(self.position is not None and self.position[2] < -0.5),
             "armed": self.armed,
             "peer_ids": self.peer_ids,

@@ -158,3 +158,29 @@ def test_landing_drones_still_armed_are_not_missing():
     m.update(1.0, {0: _st(1.0, 0, 0), 1: _st(1.0, 10, 0)})
     m.update(2.0, {0: _st(2.0, 0, 0, airborne=False, armed=True), 1: _st(2.0, 10, 0, airborne=False, armed=True)})
     assert m.missing_airborne_episodes == 0
+
+
+def test_mixed_2d_and_3d_truth_vectors_do_not_crash_and_gate_3d_completeness():
+    import math
+    m = RunMetrics(3, sample_period_s=0.001, gate_metric="ellipsoid", vertical_radius_m=2.0)
+    s0 = {**_st(1.0, 0, 0, truth=(0, 0)), "true_altitude_m": 5.0}
+    s1 = {**_st(1.0, 4, 0, truth=(4, 0)), "true_altitude_m": 7.0}
+    s2 = _st(1.0, 8, 0, truth=(8, 0))                                   # 2-D truth only on drone 3
+    m.update(1.0, {0: s0, 1: s1, 2: s2})
+    m.update(2.0, {i: _st(2.0, i * 4, 0, airborne=False, armed=False) for i in range(3)})
+    r = m.report(3.0)
+    assert r["true_samples"] == 1 and r["true_3d_samples"] == 0
+    assert r["true_min_horizontal_gap_m"] == 4.0
+    assert r["true_min_3d_gap_m"] == pytest.approx(math.hypot(4.0, 2.0), abs=1e-3)
+    assert r["result"] == "INCOMPLETE"
+
+    full = RunMetrics(2, sample_period_s=0.001, gate_metric="ellipsoid", vertical_radius_m=2.0)
+    full.update(1.0, {
+        0: {**_st(1.0, 0, 0, truth=(0, 0)), "position": [0.0, 0.0, -5.0], "true_altitude_m": 5.0},
+        1: {**_st(1.0, 0, 0, truth=(1, 0)), "position": [1.0, 0.0, -7.0], "true_altitude_m": 7.0},
+    })
+    full.update(2.0, {i: _st(2.0, 0, 0, airborne=False, armed=False) for i in range(2)})
+    rf = full.report(3.0)
+    assert rf["true_3d_samples"] == 1 and rf["true_min_horizontal_gap_m"] == 1.0
+    assert rf["true_min_3d_gap_m"] == pytest.approx(math.hypot(1.0, 2.0), abs=1e-3)
+    assert rf["result"] == "PASS"

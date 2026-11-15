@@ -61,7 +61,10 @@ class RunMetrics:
         self._missing: Dict[int, bool] = {}
         self.stale_position_samples = 0
         self.true_min_gap_m = math.inf
+        self.true_min_horizontal_m = math.inf
+        self.true_min_3d_m = math.inf
         self.true_samples = 0
+        self.true_3d_samples = 0
         self.true_violations = 0
         self._true_violating = False
         self.ground_contacts = 0
@@ -199,17 +202,21 @@ class RunMetrics:
 
     def _track_truth(self, truths: Dict[int, np.ndarray], now: float) -> None:
         """True (simulator) separation, judged with the run's gate metric when true altitudes are available (altitude
-        layers only count if the truth shows them); the horizontal true minimum is always kept as well."""
+        layers only count if the truth shows them); horizontal and 3-D true minima are kept without crashing on mixed
+        2-D/3-D truth vectors."""
         ids = sorted(truths)
         if len(ids) < 2:
             return
         gap, horizontal_gap = math.inf, math.inf
+        all_have_3d = all(len(truths[i]) == 3 for i in ids)
         for i, a in enumerate(ids):
             for b in ids[i + 1:]:
-                delta = truths[a] - truths[b]
-                horizontal = float(np.linalg.norm(delta[:2]))
+                pa, pb = truths[a], truths[b]
+                horizontal = float(np.linalg.norm(pa[:2] - pb[:2]))
                 horizontal_gap = min(horizontal_gap, horizontal)
-                vertical = abs(float(delta[2])) if len(delta) == 3 else None
+                vertical = abs(float(pa[2] - pb[2])) if (len(pa) == 3 and len(pb) == 3) else None
+                if vertical is not None:
+                    self.true_min_3d_m = min(self.true_min_3d_m, math.hypot(horizontal, vertical))
                 if vertical is None or self.gate_metric == "horizontal":
                     measured = horizontal
                 elif self.gate_metric == "3d":
@@ -218,8 +225,10 @@ class RunMetrics:
                     measured = horizontal_equivalent_gap(horizontal, vertical, self.gate_m, self.vertical_radius_m)
                 gap = min(gap, measured)
         self.true_samples += 1
+        if all_have_3d:
+            self.true_3d_samples += 1
         self.true_min_gap_m = min(self.true_min_gap_m, gap)
-        self.true_min_horizontal_m = min(getattr(self, "true_min_horizontal_m", math.inf), horizontal_gap)
+        self.true_min_horizontal_m = min(self.true_min_horizontal_m, horizontal_gap)
         violating = gap < self.gate_m
         if violating and not self._true_violating:
             self.true_violations += 1
@@ -267,7 +276,9 @@ class RunMetrics:
         has_data = self.samples > 0
         failed = self.violations > 0 or self.ground_contacts > 0 or self.true_violations > 0
         coverage = (self.complete_samples / self.completeness_samples) if self.completeness_samples else 0.0
-        complete = has_data and coverage >= 0.95 and self.missing_airborne_episodes == 0
+        has_3d_truth = (self.gate_metric == "horizontal" or self.true_samples == 0
+                        or self.true_3d_samples >= self.true_samples)
+        complete = has_data and coverage >= 0.95 and self.missing_airborne_episodes == 0 and has_3d_truth
         passed = bool(has_data and not failed and complete)
         tracking = np.asarray(self.tracking_errors, dtype=float)
         return {
@@ -278,9 +289,12 @@ class RunMetrics:
             "missing_airborne_episodes": self.missing_airborne_episodes,
             "stale_position_samples": self.stale_position_samples,
             "true_min_gap_m": None if not math.isfinite(self.true_min_gap_m) else round(self.true_min_gap_m, 3),
-            "true_min_horizontal_gap_m": (None if not math.isfinite(getattr(self, "true_min_horizontal_m", math.inf))
+            "true_min_horizontal_gap_m": (None if not math.isfinite(self.true_min_horizontal_m)
                                           else round(self.true_min_horizontal_m, 3)),
+            "true_min_3d_gap_m": (None if not math.isfinite(self.true_min_3d_m)
+                                  else round(self.true_min_3d_m, 3)),
             "true_violation_episodes": self.true_violations, "true_samples": self.true_samples,
+            "true_3d_samples": self.true_3d_samples,
             "gate_m": self.gate_m, "gate_metric": self.gate_metric, "vertical_radius_m": self.vertical_radius_m,
             "sampled_note": "separation is sampled from ~1 Hz status positions, not continuous",
             "duration_s": duration, "drones": self.count, "airborne_pair_samples": self.samples,

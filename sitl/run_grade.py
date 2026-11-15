@@ -64,7 +64,7 @@ def grade_run(run_dir: Path, allowed_land_reasons: Iterable[str] = ()) -> Dict:
             incomplete.append("scenario driver reported a failed step")
 
     last: Dict[int, dict] = {}
-    flew, airborne_samples, truth_samples = set(), {}, {}
+    flew, airborne_samples, truth_samples, truth_3d_samples = set(), {}, {}, {}
     abnormal: Dict[int, str] = {}
     operator_landed = set()
     events_files = sorted(run_dir.glob("evidence/*/events.jsonl"))
@@ -88,6 +88,8 @@ def grade_run(run_dir: Path, allowed_land_reasons: Iterable[str] = ()) -> Dict:
             airborne_samples[drone] = airborne_samples.get(drone, 0) + 1
             if event.get("true_position_ne") is not None:
                 truth_samples[drone] = truth_samples.get(drone, 0) + 1
+                if event.get("true_altitude_m") is not None:
+                    truth_3d_samples[drone] = truth_3d_samples.get(drone, 0) + 1
     if not events_files:
         incomplete.append("no events.jsonl")
     for drone, reason in sorted(abnormal.items()):
@@ -103,11 +105,17 @@ def grade_run(run_dir: Path, allowed_land_reasons: Iterable[str] = ()) -> Dict:
     low = {d: c for d, c in coverage.items() if c < TRUTH_COVERAGE}
     if low:
         incomplete.append(f"true-position coverage below {TRUTH_COVERAGE:.0%}: {low}")
+    coverage_3d = {d + 1: round(truth_3d_samples.get(d, 0) / airborne_samples[d], 3) for d in sorted(airborne_samples)}
+    if report.get("gate_metric") in ("3d", "ellipsoid"):
+        low_3d = {d: c for d, c in coverage_3d.items() if c < TRUTH_COVERAGE}
+        if low_3d:
+            incomplete.append(f"true-3d-altitude coverage below {TRUTH_COVERAGE:.0%}: {low_3d}")
 
     verdict = "FAIL" if fail else "INCOMPLETE" if incomplete else "PASS"
     return {"verdict": verdict, "reasons": fail + incomplete, "run": str(run_dir), "live_result": live,
             "drones": count, "min_gap_m": report.get("min_gap_m"), "true_min_gap_m": report.get("true_min_gap_m"),
-            "true_coverage_min": min(coverage.values()) if coverage else None}
+            "true_coverage_min": min(coverage.values()) if coverage else None,
+            "true_3d_coverage_min": min(coverage_3d.values()) if coverage_3d else None}
 
 
 def write_grade(run_dir: Path, **kwargs) -> Dict:
