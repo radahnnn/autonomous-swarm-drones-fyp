@@ -6,7 +6,9 @@ the independent console only ever used its SITL start-up and clean-up.
 from __future__ import annotations
 
 import atexit
+import json
 import os
+import signal
 import socket
 import subprocess
 import time
@@ -31,6 +33,7 @@ class SitlLauncher:
         self.sitl_params_file = None
         self.sitl_run_dir = None
         self.procs: List[subprocess.Popen] = []
+        self.pid_file = self.repo_root / "runs" / "console" / "sitl_owned_pids.json"
         self.use_tcp = False  # True when this launcher started the SITL binaries (no MAVProxy UDP forwarding)
         self.evidence = None
 
@@ -50,13 +53,99 @@ class SitlLauncher:
         except OSError:
             return False
 
-    @staticmethod
-    def kill_existing_sitl():
+    def _owned_roots(self) -> List[Path]:
+        roots = [(self.repo_root / "runs").resolve()]
+        if self.sitl_run_dir is not None:
+            roots.append(Path(self.sitl_run_dir).resolve())
+        return roots
+
+    def _proc_cmdline_and_cwd(self, pid: int):
+        proc_dir = Path("/proc") / str(pid)
         try:
-            subprocess.run(["pkill", "-9", "-f", "arducopter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(1.0)
-        except Exception:
+            cmdline = (proc_dir / "cmdline").read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+            cwd = (proc_dir / "cwd").resolve()
+            return cmdline, cwd
+        except OSError:
+            return None, None
+
+    def _is_owned_arducopter_pid(self, pid: int) -> bool:
+        if any(p.pid == pid for p in self.procs):
+            return True
+        cmdline, cwd = self._proc_cmdline_and_cwd(pid)
+        if not cmdline or cwd is None or "arducopter" not in cmdline:
+            return False
+        return any(cwd == root or cwd.is_relative_to(root) for root in self._owned_roots())
+
+    def _record_owned_pids(self) -> None:
+        self.pid_file.parent.mkdir(parents=True, exist_ok=True)
+        self.pid_file.write_text(json.dumps({"pids": [p.pid for p in self.procs]}) + "\n", encoding="utf-8")
+
+    def _load_owned_pids(self) -> List[int]:
+        pids: List[int] = []
+        if self.pid_file.exists():
+            try:
+                data = json.loads(self.pid_file.read_text(encoding="utf-8"))
+                for raw in data.get("pids", []):
+                    if isinstance(raw, int) and raw > 0 and raw not in pids:
+                        pids.append(raw)
+            except (OSError, ValueError, TypeError):
+                pass
+        proc_root = Path("/proc")
+        if proc_root.is_dir():
+            for entry in proc_root.iterdir():
+                if not entry.name.isdigit():
+                    continue
+                pid = int(entry.name)
+                if pid not in pids and self._is_owned_arducopter_pid(pid):
+                    pids.append(pid)
+        return pids
+
+    @staticmethod
+    def _terminate_pid(pid: int, timeout: float = 1.0) -> None:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            except OSError:
+                break
+            time.sleep(0.05)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
             pass
+
+    def kill_existing_sitl(self) -> None:
+        """Stop only SITL processes owned by this checkout (never terminate unrelated sessions)."""
+        stopped_any = False
+        direct_pids = set()
+        for p in self.procs:
+            direct_pids.add(p.pid)
+            stopped_any = True
+            p.terminate()
+            try:
+                p.wait(timeout=1.0)
+            except Exception:
+                p.kill()
+                try:
+                    p.wait(timeout=1.0)
+                except Exception:
+                    pass
+        self.procs.clear()
+        for pid in self._load_owned_pids():
+            if pid in direct_pids or pid == os.getpid():
+                continue
+            if self._is_owned_arducopter_pid(pid):
+                self._terminate_pid(pid)
+                stopped_any = True
+        self.pid_file.unlink(missing_ok=True)
+        if stopped_any:
+            time.sleep(0.5)
 
     @staticmethod
     def _running_sitl_models() -> str:
@@ -71,14 +160,27 @@ class SitlLauncher:
         running = self._running_sitl_models()
 
         if self.force_restart:
-            print(">> [--restart] Cleaning up prior SITL processes...")
+            print(">> [--restart] Cleaning up owned prior SITL processes...")
             self.kill_existing_sitl()
         elif running and is_gazebo and "--model quad" in running:
-            print(">> Standalone SITL instances (--model quad) are running but Gazebo is active; restarting in JSON mode...")
+            print(">> Standalone SITL instances (--model quad) are running but Gazebo is active; restarting owned instances in JSON mode...")
             self.kill_existing_sitl()
         elif running and not is_gazebo and "--model JSON" in running:
-            print(">> Gazebo-linked SITL instances are running but standalone was requested; restarting...")
+            print(">> Gazebo-linked SITL instances are running but standalone was requested; restarting owned instances...")
             self.kill_existing_sitl()
+
+        if self.force_restart or (running and ((is_gazebo and "--model quad" in running)
+                                               or (not is_gazebo and "--model JSON" in running))):
+            remaining = self._running_sitl_models()
+            if remaining and (
+                self.force_restart
+                or (is_gazebo and "--model quad" in remaining)
+                or (not is_gazebo and "--model JSON" in remaining)
+            ):
+                raise RuntimeError(
+                    "Refusing to kill foreign ArduCopter process(es) not owned by this checkout; "
+                    "stop them manually before launching."
+                )
 
         try:
             probe = mavutil.mavlink_connection(f"udpin:127.0.0.1:{self.fleet[0].port}")
@@ -133,6 +235,7 @@ class SitlLauncher:
             # Normal shutdown still terminates these direct child PIDs in cleanup().
             self.procs.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                                cwd=instance_dir, start_new_session=True))
+        self._record_owned_pids()
         self.use_tcp = True  # our own instances only expose ArduPilot's TCP server
         atexit.register(self.cleanup)
         time.sleep(2.5)
@@ -147,3 +250,4 @@ class SitlLauncher:
                 except Exception:
                     p.kill()
             self.procs.clear()
+            self.pid_file.unlink(missing_ok=True)

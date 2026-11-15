@@ -1188,4 +1188,3 @@ def test_five_rostered_agents_exchange_authenticated_operator_commands_and_statu
         for status_socket in status_sockets:
             status_socket.close()
 
-
