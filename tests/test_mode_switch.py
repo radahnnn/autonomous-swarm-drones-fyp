@@ -387,3 +387,25 @@ def test_done_delivered_to_only_one_agent_never_splits_the_fleet_codex_1():
     assert done_seen[0]
     assert [a.mode for a in agents] == ["decentralized", "decentralized"]
     assert coord.mode == "decentralized"
+
+
+def test_ellipsoid_gate_permits_vertically_layered_switch_and_preserves_pair_ids():
+    c = CoordinatorModeSwitch(
+        3, "hybrid", ModeParams(gate_metric="ellipsoid", vertical_radius_m=2.0),
+    )
+    pl, _ = begin(c)
+    for i in range(3):
+        c.on_ack(ack(pl, i), 5.2)
+    c.tick(5.3, {})
+    c.tick(pl.start_at, {})
+    views = {
+        0: ModeView(0.2, "hybrid", "SWITCHING", 1, True, None, 5.0),
+        1: ModeView(0.2, "hybrid", "SWITCHING", 1, True, (0.0, 0.0), 5.0),
+        2: ModeView(0.2, "hybrid", "SWITCHING", 1, True, (0.8, 0.0), 7.0),
+    }
+    assert c.tick(pl.start_at + 1.0, views) == []
+    assert c.state == c.SWITCHING
+    views[2] = ModeView(0.2, "hybrid", "SWITCHING", 1, True, (0.8, 0.0), 5.0)
+    aborted = c.tick(pl.start_at + 1.1, views)
+    assert c.state == c.ROLLING_BACK
+    assert aborted[0][1]["reason"] == "separation:1,2"

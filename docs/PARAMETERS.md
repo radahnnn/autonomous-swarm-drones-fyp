@@ -43,10 +43,10 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 493 |  |
-| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 496 |  |
-| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 498 |  |
-| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 500 |  |
+| `SETTLE_TIMEOUT_S` | `30.0` | ProtocolMixin, line 523 |  |
+| `TRANSIENT_ABORTS` | `('peer_off_plan', 'stale_peer_links', 'ack_timeout', 'lat...` | ProtocolMixin, line 526 |  |
+| `TRANSITION_RETRIES` | `2` | ProtocolMixin, line 528 |  |
+| `LINK_RECOVERY_WAIT_S` | `5.0` | ProtocolMixin, line 530 |  |
 
 ## `sitl/coordinator_election.py`
 
@@ -174,22 +174,23 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `VERSION` | `1` | (module), line 28 |  |
-| `CONTROL_MODES` | `('centralized', 'decentralized', 'hybrid')` | (module), line 29 |  |
-| `lead_s` | `3.0` | ModeParams, line 35 |  |
-| `ack_timeout_s` | `1.5` | ModeParams, line 36 |  |
-| `prepare_retry_s` | `0.5` | ModeParams, line 37 |  |
-| `min_lead_s` | `1.0` | ModeParams, line 38 |  |
-| `go_late_tolerance_s` | `0.25` | ModeParams, line 39 |  |
-| `no_go_grace_s` | `1.0` | ModeParams, line 40 |  |
-| `ramp_s` | `2.0` | ModeParams, line 41 |  |
-| `verify_dwell_s` | `1.0` | ModeParams, line 42 |  |
-| `verify_close_s` | `10.0` | ModeParams, line 43 | agent self-commits this long after the ramp if the coordinator is silent |
-| `verify_timeout_s` | `4.0` | ModeParams, line 44 | coordinator gives up verifying (and rolls back) this long after the ramp; |
-| `max_status_age_s` | `2.0` | ModeParams, line 46 |  |
-| `min_separation_abort_m` | `2.6` | ModeParams, line 47 |  |
-| `overrun_s` | `8.0` | ModeParams, line 48 |  |
-| `agent_start_check_s` | `1.0` | ModeParams, line 49 |  |
+| `VERSION` | `1` | (module), line 30 |  |
+| `CONTROL_MODES` | `('centralized', 'decentralized', 'hybrid')` | (module), line 31 |  |
+| `lead_s` | `3.0` | ModeParams, line 37 |  |
+| `ack_timeout_s` | `1.5` | ModeParams, line 38 |  |
+| `prepare_retry_s` | `0.5` | ModeParams, line 39 |  |
+| `min_lead_s` | `1.0` | ModeParams, line 40 |  |
+| `go_late_tolerance_s` | `0.25` | ModeParams, line 41 |  |
+| `no_go_grace_s` | `1.0` | ModeParams, line 42 |  |
+| `ramp_s` | `2.0` | ModeParams, line 43 |  |
+| `verify_dwell_s` | `1.0` | ModeParams, line 44 |  |
+| `verify_close_s` | `10.0` | ModeParams, line 45 | agent self-commits this long after the ramp if the coordinator is silent |
+| `verify_timeout_s` | `4.0` | ModeParams, line 46 | coordinator gives up verifying (and rolls back) this long after the ramp; |
+| `max_status_age_s` | `2.0` | ModeParams, line 48 |  |
+| `min_separation_abort_m` | `2.6` | ModeParams, line 49 |  |
+| `overrun_s` | `8.0` | ModeParams, line 50 |  |
+| `agent_start_check_s` | `1.0` | ModeParams, line 51 |  |
+| `vertical_radius_m` | `2.0` | ModeParams, line 53 |  |
 
 ## `sitl/obstacle_sensing.py`
 

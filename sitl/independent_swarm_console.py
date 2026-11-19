@@ -21,7 +21,7 @@ from sitl.peer_roster import load_auth_key, load_peer_roster
 from sitl.geofence import Geofence
 from sitl.run_metrics import RunMetrics
 from sitl.route import Route
-from sitl.mode_switch import CoordinatorModeSwitch
+from sitl.mode_switch import CoordinatorModeSwitch, ModeParams
 from sitl.sitl_launcher import SitlLauncher
 from sitl.transition_protocol import CoordinatorTransition, scaled_params
 from sitl.console_clock import ClockSyncMixin
@@ -185,7 +185,14 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
         self.transition_pending = None   # (style, target_slots, resume_goal)
         self.formation_hold = False
         # Synchronized in-flight control-mode switching (sitl/mode_switch.py).
-        self.mode_switch = CoordinatorModeSwitch(self.count, self.control_mode)
+        self.mode_switch = CoordinatorModeSwitch(
+            self.count,
+            self.control_mode,
+            ModeParams(
+                gate_metric=getattr(args, "gate_metric", "horizontal"),
+                vertical_radius_m=float(getattr(args, "vertical_radius", None) or 2.0),
+            ),
+        )
         self.mode_lock = threading.Lock()
         try:
             self.geofence = Geofence.from_options(

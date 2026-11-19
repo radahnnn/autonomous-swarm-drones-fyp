@@ -31,11 +31,15 @@ class ProtocolMixin:
                 self._on_mode_event(action[1], action[2])
 
     def _on_mode_event(self, name: str, data: dict) -> None:
-        if name in ("mode_switch_complete", "mode_switch_aborted", "mode_switch_rolled_back"):
+        if name in ("mode_switch_complete", "mode_commit_unconfirmed", "mode_switch_aborted", "mode_switch_rolled_back"):
             self._note_metric(name, **{k: v for k, v in data.items() if isinstance(v, (str, int, float, bool))})
         if name == "mode_switch_complete":
             self.control_mode = data["mode"]
             print(f">> Control mode is now {data['mode'].upper()} on all {self.count} drones.", flush=True)
+        elif name == "mode_commit_unconfirmed":
+            self.control_mode = data["mode"]
+            print(f"!! Mode switch to {data['mode'].upper()} committed without confirmation from every drone; check status.",
+                  flush=True)
         elif name == "mode_switch_aborted":
             print(f"!! Mode switch aborted ({data.get('reason')}); "
                   f"{'rolling back to ' + self.mode_switch.plan.from_mode.upper() if data.get('started') else 'nothing changed'}.",
@@ -74,6 +78,8 @@ class ProtocolMixin:
                     healthy=state.get("safety_state") == "nominal",
                     position_ne=((float(position[0]), float(position[1]))
                                  if position.shape == (3,) and np.isfinite(position).all() else None),
+                    altitude_m=(-float(position[2])
+                                if position.shape == (3,) and np.isfinite(position).all() else None),
                 )
             except (TypeError, ValueError):
                 continue
@@ -118,6 +124,24 @@ class ProtocolMixin:
         problem = self._lead_too_short(self.mode_switch.params.lead_s)
         if problem:
             return result(False, problem)
+        reported = {}
+        for idx, state in enumerate(states):
+            info = state.get("mode_switch") or {}
+            if info.get("state", "IDLE") != "IDLE":
+                return result(False, "Wait for every drone to finish its previous mode switch before switching again.",
+                              code="mode_switch_active")
+            committed = info.get("committed_mode") or state.get("control_mode")
+            if committed in CONTROL_MODES:
+                reported[idx] = committed
+        if len(set(reported.values())) > 1:
+            return result(False, f"Fleet control modes are split ({reported}); reconcile before switching.",
+                          code="mode_split")
+        if len(reported) == self.count:
+            agreed = next(iter(reported.values()))
+            self.control_mode = agreed
+            self.mode_switch.mode = agreed
+            if agreed == mode:
+                return result(True, f"{mode.upper()} is already active.", unchanged=True)
         with self.mode_lock:
             self.mode_switch.mode = self.control_mode if self.control_mode in CONTROL_MODES else self.mode_switch.mode
             self._new_mission_generation(f"mode {mode}")
@@ -157,6 +181,7 @@ class ProtocolMixin:
             self.goal_ne = np.asarray(centre, dtype=float).copy()   # no jump back to the pre-transition goal
             self.transition_pending = None
             self.formation_hold = False
+            self._was_in_formation_hold = False
             self.event("formation_transition_complete", formation=style)
             getattr(self, "_transition_retries", {}).pop(style, None)
             print(f">> Formation transition to {style.upper()} complete.", flush=True)
@@ -164,10 +189,14 @@ class ProtocolMixin:
             if data.get("moved"):
                 # Drones froze mid-transition at the plan's centroid; the operator re-plans or lands.
                 self.formation_hold = True
+                self._was_in_formation_hold = False
                 print(f"!! Formation transition aborted ({data.get('reason')}); drones are HOLDING "
                       "position. Re-issue a formation command to re-plan, or LAND.", flush=True)
             else:
                 self.transition_pending = None
+                if getattr(self, "_was_in_formation_hold", False):
+                    self.formation_hold = True
+                self._was_in_formation_hold = False
                 style = pending[0]
                 reason = str(data.get("reason", ""))
                 retries = getattr(self, "_transition_retries", {})
@@ -254,6 +283,7 @@ class ProtocolMixin:
         # transition owns the slots; on completion the goal is re-based to that centroid (the slots are relative to it).
         self.transition_pending = (style, np.asarray(plan.slots_by_drone, dtype=float).copy(),
                                    np.asarray(centroid, dtype=float).copy())
+        self._was_in_formation_hold = bool(self.formation_hold)
         self.formation_hold = False
         with self.transition_lock:
             actions = self.transition.begin(tplan, now)

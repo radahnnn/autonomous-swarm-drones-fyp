@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from sitl.separation_geometry import horizontal_equivalent_gap
+
 VERSION = 1
 CONTROL_MODES = ("centralized", "decentralized", "hybrid")
 Action = Tuple[Any, ...]  # ("send", message) or ("event", name, data)
@@ -47,6 +49,8 @@ class ModeParams:
     min_separation_abort_m: float = 2.6
     overrun_s: float = 8.0
     agent_start_check_s: float = 1.0
+    gate_metric: str = "horizontal"
+    vertical_radius_m: float = 2.0
 
 
 def _is_int(value: Any) -> bool:
@@ -275,6 +279,7 @@ class ModeView:
     switch_id: Optional[int] = None
     healthy: bool = True
     position_ne: Optional[Tuple[float, float]] = None
+    altitude_m: Optional[float] = None
 
 
 class CoordinatorModeSwitch:
@@ -425,11 +430,24 @@ class CoordinatorModeSwitch:
                     view.switch_id != plan.switch_id and view.mode != plan.to_mode):
                 return f"agent_not_switching:{i}"
             if view.position_ne is not None:
-                positions.append(np.asarray(view.position_ne, dtype=float))
-        for i in range(len(positions)):
-            for j in range(i + 1, len(positions)):
-                if np.linalg.norm(positions[i] - positions[j]) < p.min_separation_abort_m:
-                    return f"separation:{i},{j}"
+                positions.append((i, np.asarray(view.position_ne, dtype=float), view.altitude_m))
+        for idx_a in range(len(positions)):
+            id_a, pa, za = positions[idx_a]
+            for idx_b in range(idx_a + 1, len(positions)):
+                id_b, pb, zb = positions[idx_b]
+                horizontal = float(np.linalg.norm(pa - pb))
+                if za is not None and zb is not None and p.gate_metric != "horizontal":
+                    vertical = abs(float(za) - float(zb))
+                    if p.gate_metric == "3d":
+                        measured = math.hypot(horizontal, vertical)
+                    else:
+                        measured = horizontal_equivalent_gap(
+                            horizontal, vertical, p.min_separation_abort_m, p.vertical_radius_m,
+                        )
+                else:
+                    measured = horizontal
+                if measured < p.min_separation_abort_m:
+                    return f"separation:{id_a},{id_b}"
         if now > plan.start_at + plan.ramp_s + p.verify_timeout_s:
             return "verify_timeout"
         return None

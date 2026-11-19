@@ -642,3 +642,49 @@ def test_after_a_transition_the_goal_is_rebased_to_the_plan_centre_so_no_target_
     for agent in swarm.agents:
         np.testing.assert_allclose(agent._goal_override(stale, swarm.clock.t), plan.centroid_ne)
         assert agent._goal_override(fresh, swarm.clock.t) is None                # then the mission goal rules again
+
+
+def test_unconfirmed_mode_commit_syncs_console_and_refuses_split_fleet(monkeypatch, capsys):
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    console._on_mode_event("mode_commit_unconfirmed", {"mode": "centralized", "switch_id": 1})
+    assert console.control_mode == "centralized"
+    assert "committed without confirmation" in capsys.readouterr().out
+
+    for agent in swarm.agents:
+        agent.mode_switch.mode = "decentralized"
+        agent.control_mode = "decentralized"
+    swarm.publish_status(swarm.clock.t)
+    agreed = console.set_control_mode("decentralized")
+    assert agreed["accepted"] and agreed.get("unchanged")
+    assert console.control_mode == "decentralized"
+    assert console.mode_switch.mode == "decentralized"
+
+    swarm.agents[1].mode_switch.mode = "hybrid"
+    swarm.agents[1].control_mode = "hybrid"
+    swarm.publish_status(swarm.clock.t)
+    split = console.set_control_mode("centralized")
+    assert not split["accepted"] and split["code"] == "mode_split"
+
+
+def test_prestart_abort_of_hold_recovery_preserves_formation_hold(monkeypatch):
+    class FakeTimer:
+        def __init__(self, delay, fn, args=()):
+            self.fn, self.args, self.daemon = fn, args, False
+        def start(self):
+            pass
+
+    monkeypatch.setattr("sitl.console_protocols.threading.Timer", FakeTimer)
+    swarm = Swarm(monkeypatch)
+    console = swarm.console
+    console.formation = "v"
+    console.formation_hold = True
+    res = console._set_formation("v")
+    assert res["accepted"]
+    assert console.formation_hold is False
+    with console.transition_lock:
+        actions = console.transition.abort("nack:1:stale_peer_links", swarm.clock.t)
+    console._dispatch_transition(actions)
+    assert console.formation_hold is True
+    retry = console._set_formation("v")
+    assert retry["accepted"] and not retry.get("unchanged")

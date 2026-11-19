@@ -32,7 +32,7 @@ jobs:
 
       - name: Lint (pyflakes: unused imports/variables, undefined names)
         run: |
-          python -m pyflakes sitl swarm_core simulator experiments tests
+          python -m pyflakes sitl swarm_core simulator experiments tests tools
 
       - name: Run Pytest Suite
         run: |
