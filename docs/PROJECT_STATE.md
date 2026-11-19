@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-11-15, branch `wip/decentralized-sitl-handoff-20261029` (commits `2914e99`, `79175e9`, `41a4887`, plus Step 4 audit/doc commit): 706 UNIT/INTEGRATION tests and `pyflakes sitl swarm_core simulator experiments tests tools` passed with loopback sockets enabled; `tools.bin_truth_audit` audited the 10 Nov 5 `stats-layers2` `.BIN` logs (SITL offline `.BIN` evidence). No simulator was running.
+**Last verified:** 2026-11-19, branch `wip/decentralized-sitl-handoff-20261029` (commits `ca43f65`, `c1e0882`, plus doc commit): 710 UNIT/INTEGRATION tests and `pyflakes sitl swarm_core simulator experiments tests tools` passed; live 10-drone SITL smoke test `smoke-20261119-simstate-layers3-r2` strict `PASS` (100% `SIM_STATE` 3-D coverage, ellipsoid min `3.271 m`). No simulator left running.
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -64,7 +64,7 @@ Git branches (remote): `master` (frozen demo), `work/decentralized-sitl-20261020
 - `experiments/` — sweeps and validation scripts. `scenarios/` — scripted live missions for `sitl.fleet_ctl`.
 - `tools/parameter_table.py` → `docs/PARAMETERS.md` (constants, `*Params` fields and selected constructor defaults; not CLI defaults or profile dictionaries; a test keeps it current).
 - `docs/history/legacy-scripts/` — 13 archived early scripts (not maintained).
-- `tests/` — 697 tests (UNIT/INTEGRATION on 2026-11-11; they do not prove live behaviour); CI also runs `pyflakes` (0 warnings locally).
+- `tests/` — 710 tests (UNIT/INTEGRATION on 2026-11-19; they do not prove live behaviour); CI runs `pyflakes sitl swarm_core simulator experiments tests tools` (0 warnings locally).
 
 ## 4. Progress against the proposal (evidence-labelled)
 
@@ -85,14 +85,14 @@ Labels: UNIT, INTEGRATION, SITL, QGC, GAZEBO, VM-NETWORK, PHYSICAL (see collabor
 
 Tracked as the backlog in `docs/history/agent-handoffs/CLAUDE_ONE_WEEK_PROMPT_2026-10-29.md`. Confirmed on 2026-10-29 (the stale/out-of-order `MissionIntent` defect was fixed in the same session; see changelog):
 
-1. **Runaway log on dropped SITL link** — run `external-sitl-20261022T193321` wrote ~54 M lines/agent (4.6 GB) of `EOF on TCP socket`; no backoff or log limit in the retry path.
-2. **CI cannot install pymavlink** — `.github/workflows/ci.yml` installs `.[dev]` only, while tests import `sitl`. Python 3.10–3.12 matrix is unverified.
+1. **Closed 2026-11-19 (`ca43f65`)** — `install_tcp_eof_guard` in `sitl/flight_prep.py` stops `pymavlink` TCP EOF spin/log flood (UNIT loopback test; live smoke run had 0 EOF lines).
+2. **CI dependency updated (`c1e0882`)** — `.github/workflows/ci.yml` installs `.[all]` (with `pymavlink`) and lints `tools`; Python 3.10–3.12 GitHub Actions matrix run awaits push.
 3. Synchronized transition protocol (`sitl/transition_protocol.py`, agent + console wiring, opt-in `--transition-protocol`): UNIT + in-memory INTEGRATION tests, and **one live 5-drone standalone SITL run** (`docs/reports/TRANSITION_PROTOCOL_LIVE_SITL_2026-10-30.md`) in which a LINE transition completed and a COLUMN transition with a killed agent ended in a coordinated HOLD (no LAND). The run exposed and fixed two bugs the tests missed. Not repeated, no loss/latency/coordinator-kill/VM runs, not the default. Remaining limits: agent aborts reach peers through the coordinator relay; command gating covers REPL/dashboard `handle` and `_set_formation`.
 4. Dashboard: `session.count` vs `SwarmConsole.n` mismatch; commands lack structured results.
-5. The old mode supervisor is now archived with the legacy runtimes. The active independent runtime still has unresolved mode agreement/reconciliation after partial commits. **Closed 2026-11-15 (`41a4887`):** `sitl/sitl_launcher.py` now uses ownership-based PID cleanup and refuses to kill foreign ArduCopter processes.
+5. **Updated 2026-11-19 (`c1e0882`):** mode-switch protocol now uses 3-D/ellipsoid separation checks, reconciles `mode_commit_unconfirmed`, refuses split-fleet switches, and preserves `formation_hold` on pre-start retry cancel (UNIT/INTEGRATION); partial-commit mode recovery still has limited live fault runs.
 6. ~~Several slot-assignment implementations~~ — the Hungarian cost/latching code is now one function (`swarm_core/assignment.py`) used by the simulator, library and planner (2026-11-01). Formation *shape* generators are still two sets (`swarm_core/formations.py` for the simulator, `sitl/formation_library.py` for live); merging them would change recorded simulator results, so it is deliberately not done.
 7. Repo hygiene: some raw `.log` evidence files under `docs/reports/evidence/VM_SPLIT_*` are tracked in Git, against the "keep raw logs out of Git" rule.
-8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): guard priority, demo label, repulsion, assignment latching, recovery-rule pin and the hybrid defaults (`hybrid_degrade_timeout` 1.2 s, fallback `dead_reckon`) are done (numerical simulation only). **Closed 2026-10-31:** missions can continue without a coordinator when the swarm carries a route (`sitl/route.py`; live SITL, see `docs/reports/ROUTE_CONTINUATION_LIVE_SITL_2026-10-31.md`). **2026-11-15:** `SIM_STATE` (108) live 3-D truth capture and 3-D metrics/grading are wired (`2914e99`, UNIT), and offline `.BIN` `SIM` audit of `night-20261105/stats-layers2` verified 0/10 3-D ellipsoid violations (SITL `.BIN`); live `SIM_STATE` SITL verification, gain sweeps, and hardware validation remain open.
+8. Algorithm review (`docs/reports/ALGORITHM_REVIEW_2026-10-29.md`): guard priority, demo label, repulsion, assignment latching, recovery-rule pin and hybrid defaults are done (simulation). **Closed 2026-10-31:** route continuation (`sitl/route.py`, live SITL). **2026-11-19:** live `SIM_STATE` (108) 3-D truth & `--altitude-layers 3` verified in 10-drone SITL (`smoke-20261119-simstate-layers3-r2`: strict `PASS`, `true_3d_coverage_min=1.0`, ellipsoid min `3.271 m`); gain sweeps and hardware remain open.
 9. **Membership-change near-collisions (found 2026-10-31, mitigated 2026-11-01):** after a drone's agent died, rank-based slot redistribution sent survivors across each other (min gap 0.10 m). Barrier filter (`sitl/cbf_filter.py`) + minimum-motion Hungarian slot reassignment (`sitl/adaptive_membership.py`): live 10-drone SITL, one dead agent (the V apex), min gap **3.62 m, PASS** (`docs/reports/SAFETY_FILTER_AND_MEMBERSHIP_LIVE_SITL_2026-10-31.md`). One run per configuration; other losses / two losses / rejoin are UNIT only.
 11. **Position error dominates safety (SIMULATION, 2026-11-01):** with 1.5 m GPS error all three modes fell to 0.4-0.8 m median minimum gap with collisions in about half of 30-seed trials; wind of 3-5 m/s changed little (`docs/reports/STRESS_AND_SENSITIVITY_2026-10-31.md`). The 2.5 m gate and 2.8 m barrier distance are not justified for plain GNSS; re-derive from measured error (`docs/HARDWARE_READINESS_CHECKLIST.md`, gate 3.3).
 10. Data at risk: the VM image has a single copy on an external NTFS drive; the VM's fallback console password is in its setup note.
@@ -115,7 +115,7 @@ Not verified / open:
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`, ahead of GitHub `99a284e` with 2026-11-15 local commits `2914e99`, `79175e9`, `41a4887`, and the Step 4 `.BIN` audit/doc commit (unpushed; check `git log -1` for current tip). The frozen `master` is separate. Older checkpoint tag: `wip-checkpoint-20261029`.
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`, ahead of GitHub `99a284e` with local commits through 2026-11-19 (`2914e99`, `79175e9`, `41a4887`, `0299591`, `ca43f65`, `c1e0882`, plus doc commit; unpushed, check `git log -1`). Frozen `master` (`11eccfc`) is separate. Older checkpoint tag: `wip-checkpoint-20261029`.
 
 - Claude's week ended; the user handed the writer role to Codex on 2026-11-11. One writer at a time. Log every session in the collaboration log; give Antigravity the handoff in `docs/history/agent-handoffs/ANTIGRAVITY_HANDOFF_2026-11-11.md` before it begins.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
@@ -153,7 +153,7 @@ features except the items below. Results are recorded only once tested, with evi
    correction is capped at 0.25 m in `sitl/decentralized_guidance.py`), goal from the elected leader rather than the
    operator; prove with a 10-drone run with the operator link cut mid-mission. If it cannot be done well, reword the
    claim everywhere to "distributed execution, centralized planning".
-3. Statistics: the 2026-11-05 overnight campaign recorded 10/10 strict PASS for calm 10-drone SITL and originally 6 PASS / 2 FAIL / 2 INCOMPLETE under 2-D `SIMSTATE` for the two-layer realistic cell (`runs/independent/night-20261105/SUMMARY.md`, local evidence). **2026-11-15 `.BIN` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`):** 0/10 runs violated the 2.5 m ellipsoid keep-out in 3-D truth (ellipsoid min 2.696 m, median 4.187 m; 3-D Euclidean min 2.172 m, median 3.911 m; `stats-layers2-7` failed only on 2-D horizontal `2.435 m` vs `3.581 m` 3-D ellipsoid; `stats-layers2-10` had `0.423 m` horizontal with `2.13 m` vertical gap / `2.696 m` ellipsoid and stays `INCOMPLETE` on milestone timeout -> 3-D re-evaluation `7 PASS / 0 FAIL / 3 INCOMPLETE`). Three early-switch runs passed vs 0/3 strict PASS for baseline (exploratory). Fixed pre-declared 10-20 runs per cell on live `SIM_STATE`, median/spread, and matched code versions remain open.
+3. Statistics: the 2026-11-05 overnight campaign recorded 10/10 strict PASS for calm 10-drone SITL and originally 6 PASS / 2 FAIL / 2 INCOMPLETE under 2-D `SIMSTATE` for the two-layer realistic cell (`runs/independent/night-20261105/SUMMARY.md`, local evidence). **2026-11-15 `.BIN` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`):** 0/10 runs violated the 2.5 m ellipsoid keep-out in 3-D truth (ellipsoid min 2.696 m, median 4.187 m; 3-D Euclidean min 2.172 m, median 3.911 m -> re-evaluated `7 PASS / 0 FAIL / 3 INCOMPLETE`). **2026-11-19 live `SIM_STATE` smoke test (`runs/independent/smoke-20261119-simstate-layers3-r2`, SITL, 10 drones, `--realistic --altitude-layers 3 --gate-metric ellipsoid --vertical-radius 2.0`):** strict `PASS` (`true_3d_coverage_min=1.0`, `1043/1043` samples, ellipsoid min `3.271 m`, 3-D Euclidean min `2.99 m`, horizontal min `2.266 m`). Fixed pre-declared 10-20 runs per cell on live `SIM_STATE`, median/spread, and matched code versions remain open.
 4. **Implemented:** grid formation; one 10-drone SITL grid-check strict PASS on 2026-11-05, not a reliability result.
 5. **Done (UNIT):** old runtimes archived under `archive/legacy_runtimes/`; active independent runtime launcher (`sitl/sitl_launcher.py`, `41a4887`) replaced broad `pkill` with PID/cmdline ownership tracking and refuses to kill foreign ArduCopter processes.
 6. **Partly done:** report wording narrowed; 6-drone Gazebo patrol and tower gap were each rerun on 2026-11-05 with one strict PASS, and videos exist only in local raw run directories. Repeats and final report wording review remain open.
@@ -185,8 +185,8 @@ Requested by the user, not finished:
   two drones; then the 5 new ones. Gated by `docs/HARDWARE_READINESS_CHECKLIST.md`.
 
 Codex review findings accepted by the user for fixing (2026-11-04; details and dispositions in the collaboration-log reviews):
-- Still partial: #1 mode agreement after lost commit confirmation; #8 terminal transition reconciliation; #2 console mission state has several writers and cancellation races; #4 revalidation after waits; #11 structured dashboard command results.
-- Still partial: #3 final transmitted-target safety under infeasible constraints; #6 whole-column swept-path obstacle clearance; #9 end-to-end LAND preemption; #5 complete safety/evidence grading, now improved by `sitl/run_grade.py` but without true 3-D altitude for layered runs.
+- Addressed #1/#8 (`c1e0882`, UNIT/INTEGRATION): `mode_commit_unconfirmed` sync, split-fleet guard, and pre-start HOLD preservation; #2 console mission state races and #4 revalidation after waits remain partial; #11 structured results partial.
+- Still partial: #3 final transmitted-target safety under infeasible constraints; #6 whole-column swept-path obstacle clearance; #9 end-to-end LAND preemption; #5 3-D truth/grading now implemented (`2914e99`) and verified in 10-drone SITL smoke run (`smoke-20261119-simstate-layers3-r2`), full campaign pending.
 - Closed for the original reproduced cases: #7 circle-boundary barrier solver; #10 acting-coordinator renewal. #12 CI extra, #13 vacuous test, #14 scoped parameter table, #15 state documentation and #16 report wording were addressed; evidence limits remain.
 
 Found by testing, not yet resolved:
@@ -196,7 +196,7 @@ Found by testing, not yet resolved:
   allowance). Campaign f (3 runs, 10 drones, realistic): tower-gap true worst 3.32 m (was 2.04 m). 3 runs only.
 - Under `--realistic`, ~1 run in 3 dips below the 2.5 m gate (true worst 1.7-2.0 m, final campaign 2026-11-04), driven by ArduPilot EKF3 yaw resets/flyaways (see `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`); calm runs 3/3 PASS.
 - Formation changes require all drones airborne: after the flyaway guard lands a drone, the remaining ones cannot change formation (partial-fleet planning is a design decision for the user).
-- Realistic 10-drone 2D mission: recurring near-misses appear in simulator horizontal truth (`1.78 m` worst in the 2026-11-05 baseline cell). In the layered cell, 2026-11-15 `.BIN` `SIM` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`) showed 0/10 ellipsoid keep-out violations (`2.696 m` worst ellipsoid gap on `stats-layers2-10` alongside `0.423 m` horizontal / `2.13 m` vertical). Live `SIM_STATE` (108) capture, mixed 2-D/3-D tracking safety, and 3-D coverage grading (`>= 95%`) are now wired (`2914e99`, UNIT); live SITL verification with `SIM_STATE` remains open.
+- Realistic 10-drone 2D mission: recurring near-misses appear in simulator horizontal truth (`1.78 m` worst in the 2026-11-05 baseline cell). In the layered cell, 2026-11-15 `.BIN` `SIM` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`) showed 0/10 ellipsoid keep-out violations (`2.696 m` worst ellipsoid gap on `stats-layers2-10`). On 2026-11-19, live `SIM_STATE` (108) capture + `--altitude-layers 3` + 3-D coverage grading (`>= 95%`) passed end-to-end in 10-drone SITL (`smoke-20261119-simstate-layers3-r2`, strict `PASS`, `1043/1043` 3-D samples, ellipsoid min `3.271 m`, 3-D min `2.99 m`); 10–20 matched repeats remain open.
 - Formation altitude layering (`79175e9`, UNIT): `formation_layer_index()` validates 2-layer bipartiteness against proximity edges and raises `ValueError` on non-bipartite templates (10-drone `triangle` has 6 edge-disjoint odd cycles; odd `ring`; 3,5,8-drone `grid`), while `--altitude-layers >= 3` uses conflict-free graph colouring across all templates.
 - Battery endurance cannot be simulated with SITL's generic quad (drain disabled); must be measured on hardware.
 - Disturbance values in `--realistic` are assumptions until measured on the team's drones.
@@ -208,6 +208,7 @@ Waiting on the user:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-11-19 — Antigravity — Added TCP EOF guard (ca43f65), 3-D mode-switch separation / unconfirmed sync / HOLD retry fix / CI lint (c1e0882), and verified live 10-drone SITL SIM_STATE + 3-layer smoke test PASS (3.271 m ellipsoid, 1.0 3-D coverage); 710 tests pass.
 - 2026-11-15 — Antigravity — Wired live SIM_STATE 3-D truth & coverage gates (2914e99), bipartite check & >=3-layer colouring (79175e9), ownership-based SITL cleanup (41a4887), and .BIN SIM 3-D audit (0/10 ellipsoid violations on stats-layers2); 706 UNIT/INTEGRATION tests pass.
 - 2026-11-11 — Codex — Rechecked 697 tests/lint, reconciled the Nov 5 campaign and archived runtimes with this state file, recorded horizontal-truth and layer limitations, and prepared an Antigravity handoff.
 
