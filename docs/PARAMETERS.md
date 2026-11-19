@@ -160,7 +160,7 @@ several are scaled at run time (`--time-scale`, `--position-sigma`, `--formation
 
 | Name | Value | Where | Note |
 |---|---|---|---|
-| `MIN_FLIGHT_ALT_M` | `2.0` | IndependentSwarmConsole, line 116 |  |
+| `MIN_FLIGHT_ALT_M` | `2.0` | IndependentSwarmConsole, line 117 |  |
 
 ## `sitl/mission_intent.py`
 

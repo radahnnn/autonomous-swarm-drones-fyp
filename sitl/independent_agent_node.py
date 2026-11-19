@@ -14,7 +14,7 @@ from sitl.cbf_filter import filter_velocity, filtered_setpoint
 from sitl.common_frame import CommonCoordinateFrame
 from sitl.decentralized_guidance import LocalDroneAgent, one_hop_graph
 from sitl.fleet import DATUM_ALT, DATUM_LAT, DATUM_LON
-from sitl.flight_prep import arm_with_retry, request_message_interval, takeoff_and_verify, wait_ekf_ready
+from sitl.flight_prep import arm_with_retry, install_tcp_eof_guard, request_message_interval, takeoff_and_verify, wait_ekf_ready
 from sitl.formation_library import STYLES, slots_for
 from sitl.mission_intent import MissionIntent, MissionLease
 from sitl.operator_udp import NodeOperatorSocket, encode_message
@@ -264,6 +264,7 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             self.conn = mavutil.mavlink_connection(
                 self.endpoint, retries=1, reconnect_delay=0,
             )
+            install_tcp_eof_guard(self.conn)
         elif self.endpoint.startswith(("udp:", "udpin:", "udpout:")):
             self.conn = mavutil.mavlink_connection(
                 self.endpoint, retries=1, reconnect_delay=0,
@@ -322,6 +323,8 @@ class IndependentAgentNode(AgentSafetyMixin, AgentProtocolMixin, AgentMissionMix
             self.last_gcs_heartbeat_at = now
 
     def _read_vehicle(self) -> None:
+        if getattr(self.conn, "_eof_closed", False):
+            return
         while True:
             msg = self.conn.recv_match(blocking=False)
             if msg is None:

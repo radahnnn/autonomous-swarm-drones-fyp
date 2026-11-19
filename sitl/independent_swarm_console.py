@@ -14,6 +14,7 @@ import numpy as np
 from pymavlink import mavutil
 
 from sitl.fleet import build_fleet
+from sitl.flight_prep import install_tcp_eof_guard
 from sitl.mission_intent import MissionIntent
 from sitl.operator_udp import decode_message, send_to_nodes
 from sitl.peer_roster import load_auth_key, load_peer_roster
@@ -1105,6 +1106,7 @@ class IndependentSwarmConsole(ClockSyncMixin, ProtocolMixin, MissionMixin, Metri
         """Emergency-only connection for landing a vehicle after its local agent process dies."""
         endpoint = f"tcp:127.0.0.1:{self.fleet[index].tcp_port}"
         connection = mavutil.mavlink_connection(endpoint, retries=1, reconnect_delay=0)
+        install_tcp_eof_guard(connection)
         final_position = None
         armed = None
         try:

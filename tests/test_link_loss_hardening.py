@@ -92,3 +92,30 @@ def test_takeoff_helper_stops_when_cancelled():
                 raise AssertionError("must not send takeoff after cancellation")
 
     assert takeoff_and_verify(Conn(), "D1", 5.0, timeout=5.0, cancelled=lambda: True) is False
+
+
+def test_tcp_eof_guard_stops_pymavlink_spin_and_log_flood(monkeypatch, capsys):
+    import socket
+    from pymavlink import mavutil
+
+    monkeypatch.setattr(flight_prep, "request_message_interval", lambda *a, **k: None)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+    conn = mavutil.mavlink_connection(f"tcp:127.0.0.1:{port}", retries=1, reconnect_delay=0)
+    peer, _ = server.accept()
+    peer.close()
+    server.close()
+    try:
+        started = time.time()
+        ok = flight_prep.wait_ekf_ready(conn, "Node 1", wall_timeout=10.0, no_data_timeout=5.0)
+        assert ok is False
+        assert time.time() - started < 2.0
+        assert getattr(conn, "_eof_closed", False) is True
+        assert capsys.readouterr().out.count("EOF on TCP socket") == 1
+        for _ in range(10):
+            assert conn.recv_match(blocking=False) is None
+        assert capsys.readouterr().out == ""
+    finally:
+        conn.close()

@@ -133,6 +133,46 @@ def request_message_interval(conn, msg_id: int, hz: float) -> None:
     )
 
 
+def install_tcp_eof_guard(conn) -> None:
+    """Stop non-autoreconnect TCP sockets from spinning/printing on EOF after disconnect."""
+    if conn is None or getattr(conn, "autoreconnect", False) or getattr(conn, "_eof_guard_installed", False):
+        return
+    if not hasattr(conn, "handle_eof"):
+        return
+    conn._eof_guard_installed = True
+    conn._eof_closed = False
+    orig_recv = getattr(conn, "recv", None)
+    orig_select = getattr(conn, "select", None)
+
+    def _guarded_handle_eof() -> None:
+        if not getattr(conn, "_eof_closed", False):
+            print("EOF on TCP socket (stopping reads on closed link)", flush=True)
+            conn._eof_closed = True
+            port = getattr(conn, "port", None)
+            if port is not None:
+                try:
+                    port.close()
+                except OSError:
+                    pass
+
+    def _guarded_recv(*args, **kwargs):
+        if getattr(conn, "_eof_closed", False):
+            return b""
+        return orig_recv(*args, **kwargs)
+
+    def _guarded_select(slack):
+        if getattr(conn, "_eof_closed", False):
+            time.sleep(min(max(0.05, float(slack)), 0.25))
+            return False
+        return orig_select(slack)
+
+    conn.handle_eof = _guarded_handle_eof
+    if orig_recv is not None:
+        conn.recv = _guarded_recv
+    if orig_select is not None:
+        conn.select = _guarded_select
+
+
 def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 3,
                    cancelled=None, heartbeat_callback=None, no_data_timeout: float = 30.0) -> bool:
     """
@@ -146,6 +186,7 @@ def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 
     whole timeout (54 million log lines, 4.6 GB, in one incident). The loop is therefore paced
     and gives up after `no_data_timeout` seconds without a matching message.
     """
+    install_tcp_eof_guard(conn)
     request_message_interval(conn, 193, 2.0)  # EKF_STATUS_REPORT
     request_message_interval(conn, 24, 2.0)   # GPS_RAW_INT
     t0 = time.time()
@@ -162,6 +203,9 @@ def wait_ekf_ready(conn, label: str, wall_timeout: float = 300.0, stable: int = 
         started = time.time()
         m = conn.recv_match(type=["EKF_STATUS_REPORT", "GPS_RAW_INT"], blocking=True, timeout=1.0)
         if m is None:
+            if getattr(conn, "_eof_closed", False):
+                print(f"  [{label}] ERROR: TCP link closed (EOF); stopping EKF wait")
+                return False
             elapsed = time.time() - started
             if elapsed < 0.5:
                 time.sleep(0.5 - elapsed)   # dead link: do not spin
