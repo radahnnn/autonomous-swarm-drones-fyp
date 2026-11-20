@@ -1,6 +1,6 @@
 # Project state — start here
 
-**Last verified:** 2026-11-19, branch `wip/decentralized-sitl-handoff-20261029` (commits `ca43f65`, `c1e0882`, plus doc commit): 710 UNIT/INTEGRATION tests and `pyflakes sitl swarm_core simulator experiments tests tools` passed; live 10-drone SITL smoke test `smoke-20261119-simstate-layers3-r2` strict `PASS` (100% `SIM_STATE` 3-D coverage, ellipsoid min `3.271 m`). No simulator left running.
+**Last verified:** 2026-11-20, branch `wip/decentralized-sitl-handoff-20261029` (frozen code `2e6daeb` + morning doc commit): 710 UNIT/INTEGRATION tests and `pyflakes` passed; overnight 32-run campaign `night-20261119b` finished cleanly (zero leftover processes, 14 GB free on `/`).
 **Rule for this file:** it is the single entry point. If it disagrees with an older document, this file wins; if it is wrong, fix it in the same commit that changes the facts.
 
 Any assistant (Claude, Codex, or other) or teammate should read, in order:
@@ -47,9 +47,9 @@ Final Year Project BEE-60 (Dept. of Electrical Engineering, supervisor Dr. Abdul
 
 Git branches (remote): `master` (frozen demo), `work/decentralized-sitl-20261020` (parent), `wip/decentralized-sitl-handoff-20261029` (active WIP), `work/corrected-phase2-20261020`, `hw-matched-identification`, `archive/*`, `checkpoint/2d-working-savepoint`. The WIP branch diverges from `master`; a merge is a separate decision, and README conflicts are expected. The reviewed source tip on 2026-11-11 was `ec575ae`.
 
-- ArduPilot dataflash logs (`*.BIN`) of runs up to 2026-11-04 evening were moved by the user to the external SSD:
-  `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-04/` (same `runs/...` paths; list in `bin_list_2026-11-04.txt`).
-  `tools/ekf_events.py` falls back to it automatically.
+- ArduPilot `.BIN` logs up to 2026-11-04 and pre-2026-11-19 runs (additional 621 files / 17.02 GB moved 2026-11-19) are on SSD:
+  `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-04/` and `Runs_BIN_2026-11-19/`; Nov 19–20 `.BIN`s stay local.
+  `tools/ekf_events.py` falls back to `Runs_BIN_2026-11-04` automatically.
 
 ## 3. Code map (this checkout)
 
@@ -115,12 +115,12 @@ Not verified / open:
 
 ## 7. Working agreements
 
-**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`, ahead of GitHub `99a284e` with local commits through 2026-11-19 (`2914e99`, `79175e9`, `41a4887`, `0299591`, `ca43f65`, `c1e0882`, plus doc commit; unpushed, check `git log -1`). Frozen `master` (`11eccfc`) is separate. Older checkpoint tag: `wip-checkpoint-20261029`.
+**Last known state:** branch `wip/decentralized-sitl-handoff-20261029`, ahead of GitHub `99a284e` with local commits `2914e99`..`2e6daeb` plus the 2026-11-20 campaign doc commit (unpushed; check `git log -1`). Frozen `master` (`11eccfc`) is separate. Checkpoint tag: `wip-checkpoint-20261029`.
 
 - Claude's week ended; the user handed the writer role to Codex on 2026-11-11. One writer at a time. Log every session in the collaboration log; give Antigravity the handoff in `docs/history/agent-handoffs/ANTIGRAVITY_HANDOFF_2026-11-11.md` before it begins.
 - Focused commits; clean tree at handoff; no push/merge/PR/history rewrite without instruction.
 - Never `git reset --hard`, `git clean`, force-push, auto-rebase, broad `pkill -9 -f`. Don't delete runs, logs, evidence, backups, branches or hardware files.
-- Check disk (`df -h /` — 15 GB free on 2026-11-11) before full tests, SITL, Gazebo, VM runs. Confirm process/port ownership first.
+- Check disk (`df -h /` — 14 GB free on 2026-11-20 after SSD archive) before full tests, SITL, Gazebo, VM runs. Confirm process/port ownership first.
 - Never present mocked/unit results as live SITL evidence.
 
 ## 8. Plan
@@ -153,10 +153,10 @@ features except the items below. Results are recorded only once tested, with evi
    correction is capped at 0.25 m in `sitl/decentralized_guidance.py`), goal from the elected leader rather than the
    operator; prove with a 10-drone run with the operator link cut mid-mission. If it cannot be done well, reword the
    claim everywhere to "distributed execution, centralized planning".
-3. Statistics: the 2026-11-05 overnight campaign recorded 10/10 strict PASS for calm 10-drone SITL and originally 6 PASS / 2 FAIL / 2 INCOMPLETE under 2-D `SIMSTATE` for the two-layer realistic cell (`runs/independent/night-20261105/SUMMARY.md`, local evidence). **2026-11-15 `.BIN` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`):** 0/10 runs violated the 2.5 m ellipsoid keep-out in 3-D truth (ellipsoid min 2.696 m, median 4.187 m; 3-D Euclidean min 2.172 m, median 3.911 m -> re-evaluated `7 PASS / 0 FAIL / 3 INCOMPLETE`). **2026-11-19 live `SIM_STATE` smoke test (`runs/independent/smoke-20261119-simstate-layers3-r2`, SITL, 10 drones, `--realistic --altitude-layers 3 --gate-metric ellipsoid --vertical-radius 2.0`):** strict `PASS` (`true_3d_coverage_min=1.0`, `1043/1043` samples, ellipsoid min `3.271 m`, 3-D Euclidean min `2.99 m`, horizontal min `2.266 m`). Fixed pre-declared 10-20 runs per cell on live `SIM_STATE`, median/spread, and matched code versions remain open.
+3. Statistics: `runs/independent/night-20261119b/SUMMARY.md` (SITL, matched commit `2e6daeb`, 1.0 `SIM_STATE` coverage across all graded runs): `realistic-layers3` (`7 PASS / 2 FAIL`, 1 timeout `NO GRADE`; median true ellipsoid `4.77 m`, worst `1.515 m`) vs matched `realistic-base` (`5 PASS / 3 FAIL / 1 INCOMPLETE`, 1 timeout `NO GRADE`; median `2.81 m`, worst `1.302 m`); `gap-layers3` `2 PASS` (median `4.04 m`) + 3 timeouts on `peer_off_plan` column HOLDs; `cut-layers3` `3 PASS / 2 FAIL` (median `2.79 m`, worst `2.172 m`). Prior calm baseline: `10/10` strict PASS (`night-20261105`).
 4. **Implemented:** grid formation; one 10-drone SITL grid-check strict PASS on 2026-11-05, not a reliability result.
 5. **Done (UNIT):** old runtimes archived under `archive/legacy_runtimes/`; active independent runtime launcher (`sitl/sitl_launcher.py`, `41a4887`) replaced broad `pkill` with PID/cmdline ownership tracking and refuses to kill foreign ArduCopter processes.
-6. **Partly done:** report wording narrowed; 6-drone Gazebo patrol and tower gap were each rerun on 2026-11-05 with one strict PASS, and videos exist only in local raw run directories. Repeats and final report wording review remain open.
+6. **Partly done:** report wording narrowed; Nov 5 6-drone Gazebo patrol/gap each strict PASS once. Nov 19–20 clean `matek-single-compass` `8×` MP4 videos (`runs/independent/night-20261119b/gazebo-{patrol,gap}-clean/VIDEO_x8.mp4`): patrol live `PASS` (`3.356 m` true min, strict `INCOMPLETE` on final V return); gap crossed gap then timed out at 75 min returning to V (`yaw_reset: 2`).
 
 7. Approved 2026-11-04 (after the realistic flyaway explanation): (a) tune the autopilot EKF to the injected GPS noise;
    (b) altitude layers between neighbours with 3-D separation; then (c) early flyaway detection from the autopilot's
@@ -196,7 +196,7 @@ Found by testing, not yet resolved:
   allowance). Campaign f (3 runs, 10 drones, realistic): tower-gap true worst 3.32 m (was 2.04 m). 3 runs only.
 - Under `--realistic`, ~1 run in 3 dips below the 2.5 m gate (true worst 1.7-2.0 m, final campaign 2026-11-04), driven by ArduPilot EKF3 yaw resets/flyaways (see `docs/reports/OVERNIGHT_CAMPAIGN_2026-11-04.md`); calm runs 3/3 PASS.
 - Formation changes require all drones airborne: after the flyaway guard lands a drone, the remaining ones cannot change formation (partial-fleet planning is a design decision for the user).
-- Realistic 10-drone 2D mission: recurring near-misses appear in simulator horizontal truth (`1.78 m` worst in the 2026-11-05 baseline cell). In the layered cell, 2026-11-15 `.BIN` `SIM` audit (`tools/bin_truth_audit.py`, SITL offline `.BIN`) showed 0/10 ellipsoid keep-out violations (`2.696 m` worst ellipsoid gap on `stats-layers2-10`). On 2026-11-19, live `SIM_STATE` (108) capture + `--altitude-layers 3` + 3-D coverage grading (`>= 95%`) passed end-to-end in 10-drone SITL (`smoke-20261119-simstate-layers3-r2`, strict `PASS`, `1043/1043` 3-D samples, ellipsoid min `3.271 m`, 3-D min `2.99 m`); 10–20 matched repeats remain open.
+- Realistic 10-drone 2D mission: under `--realistic` (seeds 3001–3010 on `2e6daeb`), 3-layer ellipsoid lifted median true minimum separation from `2.81 m` (1-layer `5 PASS / 3 FAIL / 1 INCOMPLETE`, 1 timeout) to `4.77 m` (`7 PASS / 2 FAIL`, 1 timeout) with `100%` live `SIM_STATE` 3-D coverage; EKF yaw resets / `peer_off_plan` aborts remain the main driver of failures and column-gap timeouts.
 - Formation altitude layering (`79175e9`, UNIT): `formation_layer_index()` validates 2-layer bipartiteness against proximity edges and raises `ValueError` on non-bipartite templates (10-drone `triangle` has 6 edge-disjoint odd cycles; odd `ring`; 3,5,8-drone `grid`), while `--altitude-layers >= 3` uses conflict-free graph colouring across all templates.
 - Battery endurance cannot be simulated with SITL's generic quad (drain disabled); must be measured on hardware.
 - Disturbance values in `--realistic` are assumptions until measured on the team's drones.
@@ -208,6 +208,7 @@ Waiting on the user:
 
 ## Changelog (newest first; one line per change to this file)
 
+- 2026-11-20 — Antigravity — Archived 621 old .BINs (17.02 GB) to SSD and completed 32-run overnight campaign night-20261119b on 2e6daeb (realistic-layers3 7/9 PASS 4.77 m median vs baseline 5/9 PASS 2.81 m; gap 2/2 PASS + 3 timeouts; cut 3/5 PASS; 8x Gazebo MP4s).
 - 2026-11-19 — Antigravity — Added TCP EOF guard (ca43f65), 3-D mode-switch separation / unconfirmed sync / HOLD retry fix / CI lint (c1e0882), and verified live 10-drone SITL SIM_STATE + 3-layer smoke test PASS (3.271 m ellipsoid, 1.0 3-D coverage); 710 tests pass.
 - 2026-11-15 — Antigravity — Wired live SIM_STATE 3-D truth & coverage gates (2914e99), bipartite check & >=3-layer colouring (79175e9), ownership-based SITL cleanup (41a4887), and .BIN SIM 3-D audit (0/10 ellipsoid violations on stats-layers2); 706 UNIT/INTEGRATION tests pass.
 - 2026-11-11 — Codex — Rechecked 697 tests/lint, reconciled the Nov 5 campaign and archived runtimes with this state file, recorded horizontal-truth and layer limitations, and prepared an Antigravity handoff.

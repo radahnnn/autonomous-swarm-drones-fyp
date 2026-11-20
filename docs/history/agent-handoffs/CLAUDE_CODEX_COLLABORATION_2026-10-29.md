@@ -596,3 +596,33 @@ Panel assessment: a strong and ambitious research prototype with credible partia
 - Pushed branch/commit: none (unpushed local commits ahead of `origin/wip/decentralized-sitl-handoff-20261029` `99a284e`).
 - Recommended Codex review: Review `install_tcp_eof_guard` in `sitl/flight_prep.py`, `CoordinatorModeSwitch._violation` + `ProtocolMixin.set_control_mode` / `_on_transition_event`, and `runs/independent/smoke-20261119-simstate-layers3-r2/GRADE.json`.
 - Next step: Record the requested clean/gentle-speed Gazebo showcase video for teammates, then execute the pre-declared 10-seed matched realistic statistical campaign on frozen code using `--altitude-layers 3` and live `SIM_STATE` 3-D truth.
+
+### 2026-11-20 07:52 PKT — Antigravity
+
+- Objective: Free internal disk space by moving pre-2026-11-19 `.BIN` logs to `/media/drone/SSDSAM` (SHA-256 verified), record smooth `8×` `matek-single-compass` Gazebo showcase MP4 videos (Cell A), and run the frozen-code (`2e6daeb`) overnight statistical campaign across Cells B–E (`runs/independent/night-20261119b/`).
+- Starting commit: `2e6daeb` on `wip/decentralized-sitl-handoff-20261029` (ahead of `origin/wip/decentralized-sitl-handoff-20261029` `99a284e`; `master` untouched at `11eccfc`; no code files edited).
+- Files inspected: `runs/independent/BIN_LOGS_MOVED.txt`, `scenarios/{gap_2d_10,decentralized_cut_10,gap_gazebo_6,gazebo_patrol}.txt`, `sitl/launch_gazebo_world.sh`, `tools/{campaign_report,ekf_events}.py`, and all outputs in `runs/independent/night-20261119b/{SUMMARY.md,CAMPAIGN_LOG.md,NON_PASS_DIAGNOSTICS.md}`.
+- Files changed:
+  - Doc commit: `docs/PROJECT_STATE.md`, `docs/history/agent-handoffs/CLAUDE_CODEX_COLLABORATION_2026-10-29.md`.
+  - Scratch automation scripts kept out of repo under `.gemini/.../scratch/{archive_old_bins.py,run_night_20261119.py}`; external archive in `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-19/` + `bin_list_2026-11-19.txt` + note in untracked `runs/independent/BIN_LOGS_MOVED.txt`.
+- Design decisions & complications resolved overnight:
+  - **Pre-Nov-19 `.BIN` archive:** Archived `621` `.BIN` files (`17.02 GB`) to `/media/drone/SSDSAM/FYP_Archive/Runs_BIN_2026-11-19/` with `0` SHA-256 mismatches, freeing internal `/` from `13 GB` to `29 GB` while preserving all Nov 19 `.BIN` files (`20` files in `smoke-20261119*`) locally.
+  - **Gazebo Qt plugin conflict caught & fixed (`night-20261119` -> `night-20261119b`):** Initial Cell A launch exited early (`FAIL_GZ_START rc=0`) because top-level `import cv2` set `QT_QPA_PLATFORM_PLUGIN_PATH` to OpenCV's Qt plugins, crashing `gz sim` GUI (`Could not load the Qt platform plugin "xcb"`). Fixed by lazy-importing `cv2` only inside post-capture re-encoding, stripping `QT_QPA_PLATFORM_PLUGIN_PATH` / `QT_PLUGIN_PATH` / `QT_QPA_PLATFORMTHEME` in child envs, adding `wmctrl` + `pgrep` GUI verification, preserving partial `night-20261119/` untouched, and restarting cleanly into `night-20261119b/`.
+  - **H.264 8× MP4 encoding:** Captured `DISPLAY=:1` at `2 fps` via `gst-launch-1.0 ximagesrc ! x264enc ! mp4mux` and re-encoded at `16 fps` (`8×`) via `rawvideoparse ! x264enc ! mp4mux`.
+- Tests and evidence level (`SITL` / `GAZEBO`, frozen commit `2e6daeb`, 32 runs completed; 13.4–14 GB remaining free on `/`):
+  - **Cell A (`GAZEBO`, `matek-single-compass`, smooth 8× MP4s):**
+    - `gazebo-patrol-clean`: `VIDEO_x8.mp4` (`52.3 MB`, `3216 frames @ 16 fps = 201.0 s`), `0` EKF warnings, live report `PASS` (`3.380 m` est / `3.356 m` true min, `1.000` 3-D coverage); strict `INCOMPLETE` because the final return-to-`V` transition aborted (`agent_abort:1:peer_off_plan:0` -> `HOLD`).
+    - `gazebo-gap-clean`: `VIDEO_x8.mp4` (`141.2 MB`, `9001 frames @ 16 fps = 562.6 s`), crossed the tower gap (`capture column_formed`, `capture past_gap`), then hit the 75-min runner timeout (`rc=-9`, `NO GRADE`) returning to `V` after D5 EKF yaw resets (`yaw_reset: 2`, `lane_switch: 4`).
+  - **Cell B vs Cell C (`SITL`, matched seeds `3001–3010`, `scenarios/realistic_2d_10.txt`, `1.000` `SIM_STATE` 3-D coverage across all graded runs):**
+    - Cell B `realistic-layers3`: `7 PASS / 2 FAIL` (+ 1 timeout `NO GRADE` on `realistic-layers3-7` where D7 landed via estimate guard so subsequent morphs were blocked per policy); median est/true min `4.97 m` / `4.77 m` (worst `1.515 m` in `-4` after D6 yaw resets, `2.158 m` in `-2` after D9 yaw resets).
+    - Cell C `realistic-base`: `5 PASS / 3 FAIL / 1 INCOMPLETE` (+ 1 timeout `NO GRADE` on `realistic-base-6` where D6 landed via estimate guard); median est/true min `3.37 m` / `2.81 m` (worst `1.302 m` in `-4` with yaw resets; `-8` failed at `1.664 m` even with `0` EKF warnings).
+  - **Cell D (`SITL`, `gap-layers3`, seeds `3101–3105`):** `gap-layers3-2` (`3.957 m`) and `gap-layers3-3` (`4.121 m`) strictly `PASS`; `-1`, `-4`, `-5` timed out at `25 min` (`rc=-9`, `NO GRADE`) after EKF lane switches / glitches caused `peer_off_plan` aborts into `HOLD` before `'Column formed'`.
+  - **Cell E (`SITL`, `cut-layers3`, seeds `3201–3205`, 90 s operator cut):** `3 PASS / 2 FAIL` (median est/true min `3.00 m` / `2.79 m`; `-3` had D9 `yaw_reset: 2` -> `2.197 m`; `-2` dipped to `2.172 m` ellipsoid with `0` EKF warnings).
+- Failures or unresolved risks:
+  - Hard-timed-out runs (`rc=-9`) kill `fleet_ctl` before `stop()` writes `GRADE.json` / `run_report.json` — future campaign runners should send `SIGINT`/`q` cleanly first before `SIGKILL`.
+  - `peer_off_plan` aborts during tight tower-gap `COLUMN` transitions under EKF lane switches caused 3/5 Cell D timeouts; EKF yaw resets remain the main driver of failures/HOLDs under `--realistic` (and `--realistic` disturbances await calibration from real hardware hover `.BIN` logs).
+  - Zero leftover simulator processes; nothing pushed to GitHub; `master`, `hardware/`, and `smoke-20261119*` intact.
+- Commit created: doc commit on `wip/decentralized-sitl-handoff-20261029` (`2e6daeb` code unchanged).
+- Pushed branch/commit: none (unpushed local commits ahead of `origin/wip/decentralized-sitl-handoff-20261029` `99a284e`).
+- Recommended Codex review: Review `runs/independent/night-20261119b/SUMMARY.md` & `NON_PASS_DIAGNOSTICS.md`, note `peer_off_plan` sensitivity on column gap transitions and EKF yaw-reset impact between matched 3-layer vs 1-layer runs.
+- Next step: Review the 8 local WIP commits for push to GitHub (CI verification), calibrate `--realistic` from the hardware chat's first manual hover `.BIN` log, and follow `docs/HARDWARE_READINESS_CHECKLIST.md` toward 1-drone & 2-drone flight.
