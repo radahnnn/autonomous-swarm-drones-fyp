@@ -51,3 +51,6 @@ sitl/takeoff.scr
 # Large Binaries & Ground Station App
 *.AppImage
 qgroundcontrol-app/
+
+# bench check logs
+bench_logs/
