@@ -46,7 +46,8 @@ void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.println();
-  Serial.println("TWAI diagnostic: 250 kbit/s, " LISTEN_ONLY ? "LISTEN-ONLY" : "NORMAL");
+  Serial.print("TWAI diagnostic: 250 kbit/s, ");
+  Serial.println(LISTEN_ONLY ? "LISTEN-ONLY" : "NORMAL");
   twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, LISTEN_ONLY ? TWAI_MODE_LISTEN_ONLY : TWAI_MODE_NORMAL);
   g.rx_queue_len = 64;
   g.alerts_enabled = TWAI_ALERT_ERR_PASS | TWAI_ALERT_BUS_OFF | TWAI_ALERT_BUS_ERROR | TWAI_ALERT_RX_QUEUE_FULL;

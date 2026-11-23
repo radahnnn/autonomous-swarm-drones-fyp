@@ -1,7 +1,7 @@
 # TWAI (CAN) diagnostic sketch
 
 Goal: show whether the ESP32 <-> MCP2551 <-> Matek CAN bus is electrically alive at 250 kbit/s and whether the Matek's DroneCAN
-node 10 is heard. Not a command bridge. Not tested on hardware yet (written 2026-11-23).
+node 10 is heard. Not a command bridge. Not compiled or tested on hardware yet (written 2026-11-23); fix any compile error before use.
 
 ## Reading the output (115200 baud)
 | Output | Meaning | Next check |
